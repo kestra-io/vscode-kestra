@@ -7,6 +7,7 @@
 - [Redhat's YAML extension](https://marketplace.visualstudio.com/items?itemName=redhat.vscode-yaml)
 
 ## Usage 
-After installing the extension, you will get a new command called "Download Kestra schema" which will prompt you for a Kestra's instance URL. By default it will use the Kestra's API server which has the above-described issues.
+After installing the extension, you will get a new command called "Download Kestra schema" which will prompt you for a Kestra's instance URL and eventually credentials if your instance is secured. If you have a JWT based authentication (EE), please copy your token from the "Copy JWT token" button available in the same menu as the Logout button.
+By default it will use the Kestra's API server which has the above-described issues.
 Once you proceed, you will get a notification asking for a window reload, please save all your changes then proceed.
 You now have autocompletion and validation for every .yaml / .yml files. If you have multiple yaml autocompletion helpers, please select the Kestra's one 
