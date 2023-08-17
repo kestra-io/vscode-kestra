@@ -4,6 +4,7 @@
   "description": "Kestra extension for VSCode to bring you smart autocompletion for your flows",
   "version": "0.0.1",
   "icon": "images/icon.png",
+  "publisher": "kestra-io",
   "engines": {
     "vscode": "^1.80.0"
   },
