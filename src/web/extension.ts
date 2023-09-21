@@ -2,6 +2,7 @@
 import fetch from 'node-fetch';
 import * as vscode from 'vscode';
 import { Uri } from 'vscode';
+import { KestraFS } from './kestraFsProvider';
 
 function basicAuthHeader(username: string | undefined, password: string | undefined) {
 	return username && password ? {
@@ -89,6 +90,8 @@ function downloadSchemaCommand(extensionPath: string) {
 }
 
 export async function activate(context: vscode.ExtensionContext) {
+	context.subscriptions.push(vscode.workspace.registerFileSystemProvider('kestra', new KestraFS(), { isCaseSensitive: true }));
+	vscode.workspace.updateWorkspaceFolders(0, vscode.workspace.workspaceFolders?.length, { uri: Uri.parse("kestra:root"), name: "Kestra"});
 	context.subscriptions.push(downloadSchemaCommand(context.extensionPath));
 }
 
