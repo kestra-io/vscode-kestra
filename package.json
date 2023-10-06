@@ -12,7 +12,7 @@
     "Other"
   ],
   "capabilities": {"virtualWorkspaces": true},
-  "activationEvents": ["*"],
+  "activationEvents": ["onFileSystem:kestra"],
   "browser": "./dist/web/extension.js",
   "contributes": {
     "yamlValidation": [
@@ -29,7 +29,22 @@
         "command": "kestra.schema.download",
         "title": "Download Kestra schema"
       }
-    ]
+    ],
+    "configuration": {
+      "title": "Kestra",
+      "properties": {
+        "kestra.api.url": {
+          "type": ["string", "null"],
+          "default": null,
+          "description": "Specify the webserver root url."
+        },
+        "kestra.api.jwt": {
+          "type": ["string", "null"],
+          "default": null,
+          "description": "Specify the JWT token to use for Kestra authentication."
+        }
+      }
+    }
   },
   "scripts": {
     "pretest": "npm run compile-web",

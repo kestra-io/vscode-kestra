@@ -7,126 +7,111 @@
 import * as path from 'path';
 import * as vscode from 'vscode';
 
-export class File implements vscode.FileStat {
-
-	type: vscode.FileType;
-	ctime: number;
-	mtime: number;
+type KestraFileAttributes = {
+	fileName: string;
+	lastModifiedTime: number;
+	creationTime: number;
+	type: keyof typeof vscode.FileType;
 	size: number;
+};
 
-	name: string;
-	data?: Uint8Array;
+const fileStatFromKestraFileAttrs = ({ fileName, type, creationTime, lastModifiedTime, size }: KestraFileAttributes): vscode.FileStat => {
+	const finalStats = {
+		type: vscode.FileType[type],
+		ctime: creationTime,
+		mtime: lastModifiedTime,
+		size
+	};
 
-	constructor(name: string, data: Uint8Array) {
-		this.type = vscode.FileType.File;
-		this.ctime = Date.now();
-		this.mtime = Date.now();
-		this.size = 0;
-		this.name = name;
-		this.data = data;
-	}
-}
+	return finalStats;
+};
 
-export class Directory implements vscode.FileStat {
-
-	type: vscode.FileType;
-	ctime: number;
-	mtime: number;
-	size: number;
-
-	name: string;
-	entries: Array<Entry>;
-
-	constructor(name: string) {
-		this.type = vscode.FileType.Directory;
-		this.ctime = Date.now();
-		this.mtime = Date.now();
-		this.size = 0;
-		this.name = name;
-		this.entries = [];
-	}
-}
-
-export type Entry = File | Directory;
+const EXCLUDED_FOLDERS = [".git", ".vscode"];
 
 export class KestraFS implements vscode.FileSystemProvider {
-	entryByPath : {[key: string]: Entry} = {"/root": new Directory("root")};
+	namespace: string;
+	url: string;
 
-	stat(uri: vscode.Uri): vscode.FileStat {
-		console.log("STAT : "+uri.path);
-		return this._lookup(uri);
+	constructor(namespace: string) {
+		this.namespace = namespace;
+		this.url = vscode.workspace.getConfiguration("kestra.api").get("url") as string;
 	}
 
-	readDirectory(uri: vscode.Uri): [string, vscode.FileType][] {
-		console.log("DIR READ : "+uri.path);
-		return ((this._lookup(uri, true) as Directory)?.entries || []).map(entry => [entry.name, entry.type]);
+	private async callFileApi(suffix?: string, options?: RequestInit): Promise<Response> {
+		return await fetch(`${this.url}/api/v1/files/${this.namespace}${suffix ?? ""}`, options);
 	}
 
-	readFile(uri: vscode.Uri): Uint8Array {
-		console.log("File READ : "+uri.path);
-		return ((this._lookup(uri) as File)?.data as Uint8Array);
+	private isExcludedFolder(uri: vscode.Uri) {
+		return EXCLUDED_FOLDERS.some(f => uri.path.includes(f));
 	}
 
-	writeFile(uri: vscode.Uri, content: Uint8Array, options: { create: boolean, overwrite: boolean }): void {
-		console.log("File CREATE : "+uri.path);
-		const current = this._lookup(uri, true);
-		if((current === undefined && options?.create) || (current && options?.overwrite)) {
-			const splitPath = uri.path.split("/");
-			this.entryByPath[uri.path] = new File(splitPath.pop() as string, content);
-			console.log("splitPathJoin : "+splitPath.join("/"));
-			(this.entryByPath[splitPath.join("/")] as Directory).entries.push(this.entryByPath[uri.path]);
+	private trimNamespace(path: string) {
+		return path.substring(this.namespace.length + 1);
+	}
+
+	async stat(uri: vscode.Uri): Promise<vscode.FileStat> {
+		if (this.isExcludedFolder(uri)) {
+			throw vscode.FileSystemError.FileNotFound(uri);
 		}
-	}
-
-	rename(oldUri: vscode.Uri, newUri: vscode.Uri, options: { overwrite: boolean }): void {
-		this.entryByPath[newUri.path] = this._lookup(oldUri);
-		delete this.entryByPath[oldUri.path];
-	}
-
-	delete(uri: vscode.Uri): void {
-		delete this.entryByPath[uri.path];
-	}
-
-	createDirectory(uri: vscode.Uri): void {
-		console.log("Directory CREATE : "+uri.path);
-		const splitPath = uri.path.split("/");
-		this.entryByPath[uri.path] = new Directory(splitPath.pop() as string);
-		(this.entryByPath[splitPath.join("/")] as Directory).entries.push(this.entryByPath[uri.path]);
-	}
-
-	private _lookup(uri: vscode.Uri, silent?: boolean): Entry {
-		const entry = this.entryByPath[uri.path];
-
-		if(!entry && !silent) {
+		
+		const response = await this.callFileApi(`/stats?path=${this.trimNamespace(uri.path)}`);
+		if(!response.ok) {
 			throw vscode.FileSystemError.FileNotFound(uri);
 		}
 
-		return entry;
+		return fileStatFromKestraFileAttrs(await response.json() as KestraFileAttributes);
+	}
+
+	async readDirectory(uri: vscode.Uri): Promise<[string, vscode.FileType][]> {
+		const response = await this.callFileApi("/directory" + (uri ? `?path=${this.trimNamespace(uri.path)}` : ""));
+		if(!response.ok) {
+			throw vscode.FileSystemError.FileNotFound(uri);
+		}
+
+		return (await response.json() as Array<KestraFileAttributes>)
+			.map(attr => [attr.fileName, vscode.FileType[attr.type]]);
+	}
+
+	async readFile(uri: vscode.Uri): Promise<Uint8Array> {
+		if (this.isExcludedFolder(uri)) {
+			throw vscode.FileSystemError.FileNotFound(uri);
+		}
+
+		const response = await this.callFileApi("?path=" + this.trimNamespace(uri.path));
+
+		return new Uint8Array(await response.arrayBuffer());
+	}
+
+	async writeFile(uri: vscode.Uri, content: Uint8Array, options: { create: boolean, overwrite: boolean }): Promise<void> {
+		const formData = new FormData();
+		formData.append('fileContent', new Blob([content]));
+		
+		await this.callFileApi("?path=" + this.trimNamespace(uri.path), {
+			method: "POST",
+			body: formData
+		});
+	}
+
+	async rename(oldUri: vscode.Uri, newUri: vscode.Uri, options: { overwrite: boolean }): Promise<void> {
+		await this.callFileApi(`?from=${this.trimNamespace(oldUri.path)}&to=${this.trimNamespace(newUri.path)}`, { method: "PUT" });
+	}
+
+	async delete(uri: vscode.Uri): Promise<void> {
+		await this.callFileApi(`?path=${this.trimNamespace(uri.path)}`, { method: "DELETE" });
+	}
+
+	async createDirectory(uri?: vscode.Uri): Promise<void> {
+		await this.callFileApi("/directory" + (uri ? `?path=${this.trimNamespace(uri.path)}` : ""), { method: "POST" });
 	}
 
 	// --- manage file events
 
 	private _emitter = new vscode.EventEmitter<vscode.FileChangeEvent[]>();
-	private _bufferedEvents: vscode.FileChangeEvent[] = [];
-	private _fireSoonHandle?: NodeJS.Timeout;
 
 	readonly onDidChangeFile: vscode.Event<vscode.FileChangeEvent[]> = this._emitter.event;
 
 	watch(_resource: vscode.Uri): vscode.Disposable {
 		// ignore, fires for all changes...
 		return new vscode.Disposable(() => { });
-	}
-
-	private _fireSoon(...events: vscode.FileChangeEvent[]): void {
-		this._bufferedEvents.push(...events);
-
-		if (this._fireSoonHandle) {
-			clearTimeout(this._fireSoonHandle);
-		}
-
-		this._fireSoonHandle = setTimeout(() => {
-			this._emitter.fire(this._bufferedEvents);
-			this._bufferedEvents.length = 0;
-		}, 5);
 	}
 }

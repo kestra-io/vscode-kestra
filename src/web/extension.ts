@@ -90,8 +90,12 @@ function downloadSchemaCommand(extensionPath: string) {
 }
 
 export async function activate(context: vscode.ExtensionContext) {
-	context.subscriptions.push(vscode.workspace.registerFileSystemProvider('kestra', new KestraFS(), { isCaseSensitive: true }));
-	vscode.workspace.updateWorkspaceFolders(0, vscode.workspace.workspaceFolders?.length, { uri: Uri.parse("kestra:root"), name: "Kestra"});
+	const openedWs = vscode.workspace.workspaceFolders?.[0];
+	if(openedWs?.uri?.scheme === "kestra") {
+		const kestraFs = new KestraFS(openedWs.name);
+		kestraFs.createDirectory();
+		context.subscriptions.push(vscode.workspace.registerFileSystemProvider('kestra', kestraFs));
+	}
 	context.subscriptions.push(downloadSchemaCommand(context.extensionPath));
 }
 
