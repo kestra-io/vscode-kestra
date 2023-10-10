@@ -38,7 +38,11 @@ export class KestraFS implements vscode.FileSystemProvider {
 	}
 
 	private async callFileApi(suffix?: string, options?: RequestInit): Promise<Response> {
-		return await fetch(`${this.url}/api/v1/files/${this.namespace}${suffix ?? ""}`, options);
+		const fetchResponse = await fetch(`${this.url}/api/v1/files/${this.namespace}${suffix ?? ""}`, options);
+		if(fetchResponse.status === 404) {
+			throw vscode.FileSystemError.FileNotFound(suffix);
+		}
+		return fetchResponse;
 	}
 
 	private isExcludedFolder(uri: vscode.Uri) {
@@ -55,18 +59,12 @@ export class KestraFS implements vscode.FileSystemProvider {
 		}
 		
 		const response = await this.callFileApi(`/stats?path=${this.trimNamespace(uri.path)}`);
-		if(!response.ok) {
-			throw vscode.FileSystemError.FileNotFound(uri);
-		}
 
 		return fileStatFromKestraFileAttrs(await response.json() as KestraFileAttributes);
 	}
 
 	async readDirectory(uri: vscode.Uri): Promise<[string, vscode.FileType][]> {
 		const response = await this.callFileApi("/directory" + (uri ? `?path=${this.trimNamespace(uri.path)}` : ""));
-		if(!response.ok) {
-			throw vscode.FileSystemError.FileNotFound(uri);
-		}
 
 		return (await response.json() as Array<KestraFileAttributes>)
 			.map(attr => [attr.fileName, vscode.FileType[attr.type]]);
