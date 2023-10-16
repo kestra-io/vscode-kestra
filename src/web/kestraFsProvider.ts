@@ -27,6 +27,7 @@ const fileStatFromKestraFileAttrs = ({ fileName, type, creationTime, lastModifie
 };
 
 const EXCLUDED_FOLDERS = [".git", ".vscode"];
+const DEFAULT_DIRECTORY_SIZE = 4096;
 
 export class KestraFS implements vscode.FileSystemProvider {
 	namespace: string;
@@ -92,12 +93,11 @@ export class KestraFS implements vscode.FileSystemProvider {
 		}
 
 		if (this.isFlowsDirectory(uri)) {
-			const defaultDirectorySize = 4096;
 			return {
 				type: vscode.FileType.Directory,
 				ctime: 0,
 				mtime: 0,
-				size: defaultDirectorySize
+				size: DEFAULT_DIRECTORY_SIZE
 			};
 		}
 
