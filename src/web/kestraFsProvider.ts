@@ -39,7 +39,7 @@ export class KestraFS implements vscode.FileSystemProvider {
 	}
 
 	private async callFileApi(suffix?: string, options?: RequestInit): Promise<Response> {
-		const fetchResponse = await fetch(`${this.url}/api/v1/files/${this.namespace}${suffix ?? ""}`, options);
+		const fetchResponse = await fetch(`${this.url}/api/v1/files/namespaces/${this.namespace}${suffix ?? ""}`, options);
 		if(fetchResponse.status === 404) {
 			throw vscode.FileSystemError.FileNotFound(suffix);
 		}
@@ -79,7 +79,8 @@ export class KestraFS implements vscode.FileSystemProvider {
 	}
 
 	private extractFlowId(uri: vscode.Uri): string {
-		return uri.path.substring(uri.path.lastIndexOf("/") + 1);
+		const extensionIdx = uri.path.lastIndexOf(".");
+		return uri.path.substring(uri.path.lastIndexOf("/") + 1, extensionIdx === -1 ? uri.path.length : extensionIdx);
 	}
 
 	private async getFlowSource(uri: vscode.Uri): Promise<string> {
@@ -116,10 +117,10 @@ export class KestraFS implements vscode.FileSystemProvider {
 	}
 
 	async readDirectory(uri: vscode.Uri): Promise<[string, vscode.FileType][]> {
-		if(this.isFlowsDirectory(uri)) {
-			const flowsResponse = (await (await this.callFlowsApi(`/search?namespace=${this.namespace}&size=-1`)).json());
-			return (flowsResponse.results as Array<{ id: string }>)
-				.map(r => [r.id, vscode.FileType.File]);
+		if (this.isFlowsDirectory(uri)) {
+			const flowsResponse = await (await this.callFlowsApi(`/${this.namespace}`)).json();
+			return (flowsResponse as Array<{ id: string }>)
+				.map(r => [`${r.id}.yaml`, vscode.FileType.File]);
 		}
 
 		const response = await this.callFileApi("/directory" + (uri ? `?path=${this.trimNamespace(uri.path)}` : ""));
@@ -149,15 +150,24 @@ export class KestraFS implements vscode.FileSystemProvider {
 	}
 
 	async writeFile(uri: vscode.Uri, content: Uint8Array, options: { create: boolean, overwrite: boolean }): Promise<void> {
-		if(options.create && uri.path.startsWith(`/${this.namespace}/flows`)) {
-			throw vscode.FileSystemError.NoPermissions("Cannot create files in 'flows' directory as it's a reserved directory for flows");
-		}
-
 		if(this.isFlow(uri)) {
-			await this.callFlowsApi(`/${this.namespace}/${this.extractFlowId(uri)}`, {
+			try {
+				await this.getFlowSource(uri);
+			} catch(e) {
+				throw vscode.FileSystemError.NoPermissions("Cannot create files in 'flows' directory as it's a reserved directory for flows");
+			}
+			
+			const response = (await this.callFlowsApi(`/${this.namespace}/${this.extractFlowId(uri)}`, {
 				method: "PUT",
-				body: new TextDecoder().decode(content)
-			});
+				body: new TextDecoder().decode(content),
+				headers: {
+					"Content-Type": "application/x-yaml"
+				}
+			}));
+			if(!response.ok) {
+				throw vscode.FileSystemError.NoPermissions("Invalid flow update: " + (await response.json())?.message);
+			}
+
 			return;
 		}
 
