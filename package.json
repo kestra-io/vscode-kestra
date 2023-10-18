@@ -2,7 +2,7 @@
   "name": "kestra",
   "displayName": "Kestra",
   "description": "Kestra extension for VSCode to bring you smart autocompletion for your flows",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "icon": "images/icon.png",
   "publisher": "kestra-io",
   "engines": {
@@ -59,7 +59,9 @@
     "lint": "eslint src --ext ts",
     "run-in-browser": "vscode-test-web --browserType=chromium --extensionDevelopmentPath=. ."
   },
-  "extensionDependencies": ["redhat.vscode-yaml"],
+  "extensionDependencies": [
+    "redhat.vscode-yaml"
+  ],
   "devDependencies": {
     "@types/eslint": "^8.44.2",
     "@types/mocha": "^10.0.1",
