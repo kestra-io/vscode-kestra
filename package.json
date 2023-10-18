@@ -15,7 +15,8 @@
     "virtualWorkspaces": true
   },
   "activationEvents": [
-    "onFileSystem:kestra"
+    "onFileSystem:kestra",
+    "onLanguage:yaml"
   ],
   "main": "./dist/web/extension.js",
   "browser": "./dist/web/extension.js",
