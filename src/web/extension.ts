@@ -10,8 +10,8 @@ function basicAuthHeader(username: string | undefined, password: string | undefi
 	} : undefined;
 }
 
-function writeJsonSchemaToExtensionPath(extensionPath: string, jsonSchema: string) {
-	vscode.workspace.fs.writeFile(Uri.parse(`${extensionPath}/flow-schema.json`), new TextEncoder().encode(jsonSchema));
+function writeYamlSchemaToUri(uri: Uri, yamlSchema: string) {
+	vscode.workspace.fs.writeFile(Uri.joinPath(uri, "flow-schema.json"), new TextEncoder().encode(yamlSchema));
 }
 
 async function askCredentialsAndFetch(url: string) {
@@ -49,8 +49,8 @@ async function askCredentialsAndFetch(url: string) {
 	return flowSchema;
 }
 
-function downloadSchemaCommand(extensionPath: string) {
-	return vscode.commands.registerCommand('kestra.schema.download', async () => {
+function downloadSchemaCommand(extensionUri: vscode.Uri) {
+	return vscode.commands.registerCommand('kestra.schema.download', async () => {		
 		const kestraApi = "https://api.kestra.io";
 		const kestraUrl = await vscode.window.showInputBox({ prompt: "Kestra Webserver URL", value: kestraApi });
 		if (kestraUrl === undefined) {
@@ -76,7 +76,7 @@ function downloadSchemaCommand(extensionPath: string) {
 			return;
 		}
 
-		writeJsonSchemaToExtensionPath(extensionPath, await flowSchema.text());
+		writeYamlSchemaToUri(extensionUri, await flowSchema.text());
 
 		const decision = await vscode.window.showInformationMessage(
 			`Successfully downloaded schema. Must reload window for schema to be effective, please save all your changes before`,
@@ -96,7 +96,7 @@ export async function activate(context: vscode.ExtensionContext) {
 		kestraFs.createDirectory();
 		context.subscriptions.push(vscode.workspace.registerFileSystemProvider('kestra', kestraFs));
 	}
-	context.subscriptions.push(downloadSchemaCommand(context.extensionPath));
+	context.subscriptions.push(downloadSchemaCommand(context.extensionUri));
 }
 
 export function deactivate() { }

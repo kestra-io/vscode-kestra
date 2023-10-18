@@ -17,6 +17,7 @@
   "activationEvents": [
     "onFileSystem:kestra"
   ],
+  "main": "./dist/web/extension.js",
   "browser": "./dist/web/extension.js",
   "contributes": {
     "yamlValidation": [
@@ -44,14 +45,6 @@
           ],
           "default": null,
           "description": "Specify the webserver root url."
-        },
-        "kestra.api.jwt": {
-          "type": [
-            "string",
-            "null"
-          ],
-          "default": null,
-          "description": "Specify the JWT token to use for Kestra authentication."
         }
       }
     }
@@ -65,6 +58,7 @@
     "lint": "eslint src --ext ts",
     "run-in-browser": "vscode-test-web --browserType=chromium --extensionDevelopmentPath=. ."
   },
+  "extensionDependencies": ["redhat.vscode-yaml"],
   "devDependencies": {
     "@types/eslint": "^8.44.2",
     "@types/mocha": "^10.0.1",
