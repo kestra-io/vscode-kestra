@@ -1,7 +1,6 @@
 /* eslint-disable @typescript-eslint/naming-convention */
 import fetch from 'node-fetch';
 import * as vscode from 'vscode';
-import { Uri } from 'vscode';
 import { KestraFS } from './kestraFsProvider';
 
 function basicAuthHeader(username: string | undefined, password: string | undefined) {
@@ -10,8 +9,8 @@ function basicAuthHeader(username: string | undefined, password: string | undefi
 	} : undefined;
 }
 
-function writeYamlSchemaToUri(uri: Uri, yamlSchema: string) {
-	vscode.workspace.fs.writeFile(Uri.joinPath(uri, "flow-schema.json"), new TextEncoder().encode(yamlSchema));
+function writeYamlSchemaToKestra(globalState: vscode.Memento, yamlSchema: string) {
+	globalState.update("kestra.yaml.schema", yamlSchema);
 }
 
 async function askCredentialsAndFetch(url: string) {
@@ -49,8 +48,8 @@ async function askCredentialsAndFetch(url: string) {
 	return flowSchema;
 }
 
-function downloadSchemaCommand(extensionUri: vscode.Uri) {
-	return vscode.commands.registerCommand('kestra.schema.download', async () => {		
+function downloadSchemaCommand(globalState: vscode.Memento) {
+	return vscode.commands.registerCommand('kestra.schema.download', async () => {
 		const kestraApi = "https://api.kestra.io";
 		const kestraUrl = await vscode.window.showInputBox({ prompt: "Kestra Webserver URL", value: kestraApi });
 		if (kestraUrl === undefined) {
@@ -75,17 +74,9 @@ function downloadSchemaCommand(extensionUri: vscode.Uri) {
 			vscode.window.showErrorMessage(`Error while loading Kestra's schema: ${flowSchema.statusText}`);
 			return;
 		}
+		writeYamlSchemaToKestra(globalState, await flowSchema.text());
 
-		writeYamlSchemaToUri(extensionUri, await flowSchema.text());
-
-		const decision = await vscode.window.showInformationMessage(
-			`Successfully downloaded schema. Must reload window for schema to be effective, please save all your changes before`,
-			"Reload",
-			"Cancel"
-		);
-		if (decision === "Reload") {
-			vscode.commands.executeCommand("workbench.action.reloadWindow");
-		}
+		vscode.window.showInformationMessage("Flow schema successfully downloaded. You can start using autocompletion.");
 	});
 }
 
@@ -96,7 +87,27 @@ export async function activate(context: vscode.ExtensionContext) {
 		kestraFs.createDirectory();
 		context.subscriptions.push(vscode.workspace.registerFileSystemProvider('kestra', kestraFs));
 	}
-	context.subscriptions.push(downloadSchemaCommand(context.extensionUri));
+	context.subscriptions.push(downloadSchemaCommand(context.globalState));
+
+	// Auto download schema
+	if (vscode.env.uiKind === vscode.UIKind.Web) {
+		const schemaUrl = (vscode.workspace.getConfiguration("kestra.root").get("url") as string) + "/api/v1/plugins/schemas/flow";
+		const flowSchemaResponse = await fetch(schemaUrl);
+
+		if (flowSchemaResponse.ok) {
+			writeYamlSchemaToKestra(context.globalState, await flowSchemaResponse.text());
+			vscode.window.showInformationMessage("Auto-downloaded flow schema successfully. You can start using autocompletion for your flows.");
+		}
+	}
+
+	const yamlExtension = await vscode.extensions.getExtension('redhat.vscode-yaml')?.activate();
+	yamlExtension.registerContributor("kestra", (resource: string) => {
+		if(vscode.env.uiKind === vscode.UIKind.Desktop || resource.includes("/flows/")) {
+			return "kestra:/flow-schema.json";
+		}
+
+		return undefined;
+	}, () => context.globalState.get("kestra.yaml.schema"));
 }
 
 export function deactivate() { }

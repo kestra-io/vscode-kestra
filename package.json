@@ -2,7 +2,7 @@
   "name": "kestra",
   "displayName": "Kestra",
   "description": "Kestra extension for VSCode to bring you smart autocompletion for your flows",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "icon": "images/icon.png",
   "publisher": "kestra-io",
   "engines": {
@@ -21,15 +21,6 @@
   "main": "./dist/web/extension.js",
   "browser": "./dist/web/extension.js",
   "contributes": {
-    "yamlValidation": [
-      {
-        "fileMatch": [
-          "*.yaml",
-          "*.yml"
-        ],
-        "url": "./flow-schema.json"
-      }
-    ],
     "commands": [
       {
         "command": "kestra.schema.download",
@@ -39,7 +30,7 @@
     "configuration": {
       "title": "Kestra",
       "properties": {
-        "kestra.api.url": {
+        "kestra.root.url": {
           "type": [
             "string",
             "null"

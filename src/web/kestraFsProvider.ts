@@ -34,7 +34,7 @@ export class KestraFS implements vscode.FileSystemProvider {
 
 	constructor(namespace: string) {
 		this.namespace = namespace;
-		this.url = vscode.workspace.getConfiguration("kestra.api").get("url") as string;
+		this.url = vscode.workspace.getConfiguration("kestra.root").get("url") as string;
 	}
 
 	private async callFileApi(suffix?: string, options?: RequestInit): Promise<Response> {
@@ -70,7 +70,7 @@ export class KestraFS implements vscode.FileSystemProvider {
 	}
 
 	private impactsFlowsDirectory(uri?: vscode.Uri) {
-		if(!uri) {
+		if (!uri) {
 			return false;
 		}
 
