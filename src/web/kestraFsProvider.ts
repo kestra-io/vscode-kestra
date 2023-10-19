@@ -31,15 +31,15 @@ const AUTHENTICATION_EXPIRED_ERROR = "Permission issue while calling Kestra's AP
 
 export class KestraFS implements vscode.FileSystemProvider {
 	namespace: string;
-	url: string;
+	apiUrl: string;
 
 	constructor(namespace: string) {
 		this.namespace = namespace;
-		this.url = vscode.workspace.getConfiguration("kestra.root").get("url") as string;
+		this.apiUrl = vscode.workspace.getConfiguration("kestra.api").get("url") as string;
 	}
 
 	private async callFileApi(suffix?: string, options?: RequestInit): Promise<Response> {
-		const fetchResponse = await fetch(`${this.url}/api/v1/files/namespaces/${this.namespace}${suffix ?? ""}`, options);
+		const fetchResponse = await fetch(`${this.apiUrl}/files/namespaces/${this.namespace}${suffix ?? ""}`, options);
 		if (fetchResponse.status === 404) {
 			throw vscode.FileSystemError.FileNotFound(suffix);
 		}
@@ -50,7 +50,7 @@ export class KestraFS implements vscode.FileSystemProvider {
 	}
 
 	private async callFlowsApi(suffix?: string, options?: RequestInit): Promise<Response> {
-		const fetchResponse = await fetch(`${this.url}/api/v1/flows${suffix ?? ""}`, options);
+		const fetchResponse = await fetch(`${this.apiUrl}/flows${suffix ?? ""}`, options);
 		if (fetchResponse.status === 404) {
 			throw vscode.FileSystemError.FileNotFound(suffix);
 		}
@@ -126,7 +126,7 @@ export class KestraFS implements vscode.FileSystemProvider {
 		if (this.isFlowsDirectory(uri)) {
 			const flowsResponse = await (await this.callFlowsApi(`/${this.namespace}`)).json();
 			return (flowsResponse as Array<{ id: string }>)
-				.map(r => [`${r.id}.yaml`, vscode.FileType.File]);
+				.map(r => [`${r.id}.yml`, vscode.FileType.File]);
 		}
 
 		const response = await this.callFileApi("/directory" + (uri ? `?path=${this.trimNamespace(uri.path)}` : ""));

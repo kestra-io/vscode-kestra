@@ -30,13 +30,13 @@
     "configuration": {
       "title": "Kestra",
       "properties": {
-        "kestra.root.url": {
+        "kestra.api.url": {
           "type": [
             "string",
             "null"
           ],
           "default": null,
-          "description": "Specify the webserver root url."
+          "description": "Specify the api root url."
         }
       }
     }
