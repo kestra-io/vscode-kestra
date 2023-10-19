@@ -27,6 +27,7 @@ const fileStatFromKestraFileAttrs = ({ fileName, type, creationTime, lastModifie
 
 const EXCLUDED_FOLDERS = [".git", ".vscode"];
 const DEFAULT_DIRECTORY_SIZE = 4096;
+const AUTHENTICATION_EXPIRED_ERROR = "Permission issue while calling Kestra's API. Please reload the page to reauthenticate (your changes are kept locally by VSCode cache).";
 
 export class KestraFS implements vscode.FileSystemProvider {
 	namespace: string;
@@ -39,16 +40,22 @@ export class KestraFS implements vscode.FileSystemProvider {
 
 	private async callFileApi(suffix?: string, options?: RequestInit): Promise<Response> {
 		const fetchResponse = await fetch(`${this.url}/api/v1/files/namespaces/${this.namespace}${suffix ?? ""}`, options);
-		if(fetchResponse.status === 404) {
+		if (fetchResponse.status === 404) {
 			throw vscode.FileSystemError.FileNotFound(suffix);
+		}
+		if (fetchResponse.status === 401) {
+			throw vscode.FileSystemError.NoPermissions(AUTHENTICATION_EXPIRED_ERROR);
 		}
 		return fetchResponse;
 	}
 
 	private async callFlowsApi(suffix?: string, options?: RequestInit): Promise<Response> {
 		const fetchResponse = await fetch(`${this.url}/api/v1/flows${suffix ?? ""}`, options);
-		if(fetchResponse.status === 404) {
+		if (fetchResponse.status === 404) {
 			throw vscode.FileSystemError.FileNotFound(suffix);
+		}
+		if (fetchResponse.status === 401) {
+			throw vscode.FileSystemError.NoPermissions(AUTHENTICATION_EXPIRED_ERROR);
 		}
 		return fetchResponse;
 	}
@@ -153,7 +160,10 @@ export class KestraFS implements vscode.FileSystemProvider {
 			try {
 				await this.getFlowSource(uri);
 			} catch(e) {
-				throw vscode.FileSystemError.NoPermissions("Cannot create files in 'flows' directory as it's a reserved directory for flows");
+				if(e instanceof vscode.FileSystemError && e.code === 'FileNotFound') {
+					throw vscode.FileSystemError.NoPermissions("Cannot create files in 'flows' directory as it's a reserved directory for flows");
+				}
+				throw e;
 			}
 			
 			const response = (await this.callFlowsApi(`/${this.namespace}/${this.extractFlowId(uri)}`, {
