@@ -50,14 +50,17 @@ async function askCredentialsAndFetch(url: string) {
 
 function downloadSchemaCommand(globalState: vscode.Memento) {
 	return vscode.commands.registerCommand('kestra.schema.download', async () => {
-		const kestraApi = "https://api.kestra.io";
+		let kestraApi = "https://api.kestra.io";
+		if (vscode.env.uiKind === vscode.UIKind.Web) {
+			kestraApi = (vscode.workspace.getConfiguration("kestra.api").get("url") as string);
+		}
 		const kestraUrl = await vscode.window.showInputBox({ prompt: "Kestra Webserver URL", value: kestraApi });
 		if (kestraUrl === undefined) {
 			vscode.window.showErrorMessage("Cannot download schema without proper Kestra URL.");
 			return;
 		}
 
-		const url = kestraUrl.replace(/\/$/, "") + (kestraUrl === kestraApi ? "" : "/api") + "/v1/plugins/schemas/flow";
+		const url = kestraUrl.replace(/\/$/, "") + (kestraUrl === kestraApi ? "" : "/api/v1") + "/plugins/schemas/flow";
 		let flowSchema = await fetch(url);
 		if (flowSchema.status === 401) {
 			vscode.window.showInformationMessage("This Kestra instance is secured. Please provide credentials.");
@@ -91,9 +94,8 @@ export async function activate(context: vscode.ExtensionContext) {
 
 	// Auto download schema
 	if (vscode.env.uiKind === vscode.UIKind.Web) {
-		const schemaUrl = (vscode.workspace.getConfiguration("kestra.root").get("url") as string) + "/api/v1/plugins/schemas/flow";
+		const schemaUrl = (vscode.workspace.getConfiguration("kestra.api").get("url") as string) + "/plugins/schemas/flow";
 		const flowSchemaResponse = await fetch(schemaUrl);
-
 		if (flowSchemaResponse.ok) {
 			writeYamlSchemaToKestra(context.globalState, await flowSchemaResponse.text());
 			vscode.window.showInformationMessage("Auto-downloaded flow schema successfully. You can start using autocompletion for your flows.");
