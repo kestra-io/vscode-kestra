@@ -100,6 +100,12 @@ export async function activate(context: vscode.ExtensionContext) {
 			writeYamlSchemaToKestra(context.globalState, await flowSchemaResponse.text());
 			vscode.window.showInformationMessage("Auto-downloaded flow schema successfully. You can start using autocompletion for your flows.");
 		}
+
+		vscode.window.onDidChangeActiveTextEditor(async (editor) => {
+			if (editor) {
+				vscode.commands.executeCommand("custom.postMessage", editor.document.uri);
+			}
+ 		});
 	}
 
 	const yamlExtension = await vscode.extensions.getExtension('redhat.vscode-yaml')?.activate();
