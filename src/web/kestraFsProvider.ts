@@ -69,11 +69,11 @@ export class KestraFS implements vscode.FileSystemProvider {
 	}
 
 	private isFlow(uri: vscode.Uri) {
-		return uri.path.startsWith(`/${this.namespace}/flows/`);
+		return uri.path.startsWith(`/${this.namespace}/_flows/`);
 	}
 
 	private isFlowsDirectory(uri: vscode.Uri) {
-		return uri.path === `/${this.namespace}/flows`;
+		return uri.path === `/${this.namespace}/_flows`;
 	}
 
 	private impactsFlowsDirectory(uri?: vscode.Uri) {
@@ -135,7 +135,7 @@ export class KestraFS implements vscode.FileSystemProvider {
 			.map(attr => [attr.fileName, vscode.FileType[attr.type]]);
 		
 		if(uri.path === `/${this.namespace}`) {
-			directoryEntries = [...directoryEntries, ["flows", vscode.FileType.Directory]];
+			directoryEntries = [...directoryEntries, ["_flows", vscode.FileType.Directory]];
 		}
 
 		return directoryEntries;
