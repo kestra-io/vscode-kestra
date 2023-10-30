@@ -161,7 +161,18 @@ export class KestraFS implements vscode.FileSystemProvider {
 				await this.getFlowSource(uri);
 			} catch(e) {
 				if(e instanceof vscode.FileSystemError && e.code === 'FileNotFound') {
-					throw vscode.FileSystemError.NoPermissions("Cannot create files in 'flows' directory as it's a reserved directory for flows");
+					const response = (await this.callFlowsApi(``, {
+						method: "POST",
+						body: this.getDefaultFlow(this.extractFlowId(uri)),
+						headers: {
+							"Content-Type": "application/x-yaml"
+						}
+					}));
+					if(!response.ok) {
+						// Should never happen
+						throw vscode.FileSystemError.NoPermissions("Invalid flow creation: " + (await response.json())?.message);
+					}
+					return;
 				}
 				throw e;
 			}
@@ -198,7 +209,9 @@ export class KestraFS implements vscode.FileSystemProvider {
 
 	async delete(uri: vscode.Uri): Promise<void> {
 		if(this.impactsFlowsDirectory(uri)) {
-			throw vscode.FileSystemError.NoPermissions("Cannot create files in 'flows' directory as it's a reserved directory for flows");
+			await this.callFlowsApi(`/${this.namespace}/${this.extractFlowId(uri)}`, {
+				method: "DELETE"
+			});
 		}
 
 		await this.callFileApi(`?path=${this.trimNamespace(uri.path)}`, { method: "DELETE" });
@@ -210,6 +223,15 @@ export class KestraFS implements vscode.FileSystemProvider {
 		}
 
 		await this.callFileApi("/directory" + (uri ? `?path=${this.trimNamespace(uri.path)}` : ""), { method: "POST" });
+	}
+
+	private getDefaultFlow(flowId: string): string  {
+		return `id: ${flowId}
+namespace: ${this.namespace}
+tasks:
+  - id: hello
+    type: io.kestra.core.tasks.log.Log
+    message: Kestra team wishes you a great day! 👋`;
 	}
 
 	// --- manage file events
