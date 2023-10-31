@@ -137,7 +137,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
 	const yamlExtension = await vscode.extensions.getExtension('redhat.vscode-yaml')?.activate();
 	yamlExtension.registerContributor("kestra", (resource: string) => {
-		if(vscode.env.uiKind === vscode.UIKind.Desktop || resource.includes("/flows/")) {
+		if(vscode.env.uiKind === vscode.UIKind.Desktop || resource.includes("/_flows/")) {
 			return "kestra:/flow-schema.json";
 		}
 
