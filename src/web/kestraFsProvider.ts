@@ -5,6 +5,7 @@
 
 
 import * as vscode from 'vscode';
+import readme from './readme.md';
 
 type KestraFileAttributes = {
 	fileName: string;
@@ -223,6 +224,23 @@ export class KestraFS implements vscode.FileSystemProvider {
 		}
 
 		await this.callFileApi("/directory" + (uri ? `?path=${this.trimNamespace(uri.path)}` : ""), { method: "POST" });
+	}
+
+	async init() {
+		const readmeUri = vscode.Uri.parse(`/${this.namespace}/readme.md`);
+		try {
+			await this.readFile(readmeUri);
+		}
+		catch (e) {
+			if (e instanceof vscode.FileSystemError && e.code === 'FileNotFound') {
+				this.writeFile(readmeUri, new TextEncoder().encode(readme), {
+					create: true,
+					overwrite: false
+				});
+				vscode.commands.executeCommand("workbench.action.files.openFile", readmeUri);
+			}
+		}
+		this.createDirectory();
 	}
 
 	private getDefaultFlow(flowId: string): string  {
