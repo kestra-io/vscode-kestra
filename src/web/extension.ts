@@ -103,9 +103,36 @@ export async function activate(context: vscode.ExtensionContext) {
 
 		vscode.window.onDidChangeActiveTextEditor(async (editor) => {
 			if (editor) {
-				vscode.commands.executeCommand("custom.postMessage", editor.document.uri);
+				vscode.commands.executeCommand("custom.postMessage", {type: "kestra.tabFileChanged", filePath: editor.document.uri});
 			}
  		});
+
+		vscode.window.tabGroups.onDidChangeTabs(async (event) => {
+			const tabs = {
+				dirty: event.changed.filter(tab => tab.isDirty).map(tab =>
+					{
+						// Required because tab.input is of type unknown so we must narrow it before accessing its properties
+						const input = tab.input;
+						if (input instanceof vscode.TabInputText) {
+							return input.uri.path;
+						}
+						return tab.label;
+					}
+				),
+				closed: event.closed.concat(event.changed).filter(tab => !tab.isDirty).map(tab =>
+					{
+						// Required because tab.input is of type unknown so we must narrow it before accessing its properties
+						const input = tab.input;
+						if (input instanceof vscode.TabInputText) {
+							return input.uri.path;
+						}
+						return tab.label;
+					}
+				),
+			};
+			vscode.commands.executeCommand("custom.postMessage", {type: "kestra.tabsChanged", tabs: tabs});
+		});
+
 	}
 
 	const yamlExtension = await vscode.extensions.getExtension('redhat.vscode-yaml')?.activate();
