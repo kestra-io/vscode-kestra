@@ -40,7 +40,7 @@ export class KestraFS implements vscode.FileSystemProvider {
 	}
 
 	private async callFileApi(suffix?: string, options?: RequestInit): Promise<Response> {
-		const fetchResponse = await fetch(`${this.apiUrl}/files/namespaces/${this.namespace}${suffix ?? ""}`, options);
+		const fetchResponse = await fetch(`${this.apiUrl}/namespaces/${this.namespace}/files/${suffix ?? ""}`, options);
 		if (fetchResponse.status === 404) {
 			throw vscode.FileSystemError.FileNotFound(suffix);
 		}

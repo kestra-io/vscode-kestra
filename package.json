@@ -2,11 +2,11 @@
   "name": "kestra",
   "displayName": "Kestra",
   "description": "Kestra extension for VSCode to bring you smart autocompletion for your flows",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "icon": "images/icon.png",
   "publisher": "kestra-io",
   "engines": {
-    "vscode": "^1.80.0"
+    "vscode": "^1.82.0"
   },
   "categories": [
     "Other"
@@ -58,7 +58,7 @@
     "@types/mocha": "^10.0.1",
     "@types/node": "^20.6.3",
     "@types/node-fetch": "^2.6.5",
-    "@types/vscode": "^1.80.0",
+    "@types/vscode": "^1.82.0",
     "@types/webpack-env": "^1.18.1",
     "@typescript-eslint/eslint-plugin": "^6.4.1",
     "@typescript-eslint/parser": "^6.4.1",
