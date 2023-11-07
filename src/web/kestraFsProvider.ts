@@ -5,7 +5,7 @@
 
 
 import * as vscode from 'vscode';
-import readme from './readme.md';
+import {FilePermission} from 'vscode';
 
 type KestraFileAttributes = {
 	fileName: string;
@@ -13,17 +13,17 @@ type KestraFileAttributes = {
 	creationTime: number;
 	type: keyof typeof vscode.FileType;
 	size: number;
+	readOnly: boolean;
 };
 
-const fileStatFromKestraFileAttrs = ({ fileName, type, creationTime, lastModifiedTime, size }: KestraFileAttributes): vscode.FileStat => {
-	const finalStats = {
+const fileStatFromKestraFileAttrs = ({ type, creationTime, lastModifiedTime, size, readOnly }: KestraFileAttributes): vscode.FileStat => {
+	return {
 		type: vscode.FileType[type],
 		ctime: creationTime,
 		mtime: lastModifiedTime,
-		size
+		size,
+		permissions: readOnly ? FilePermission.Readonly : undefined
 	};
-
-	return finalStats;
 };
 
 const EXCLUDED_FOLDERS = [".git", ".vscode"];
@@ -226,21 +226,15 @@ export class KestraFS implements vscode.FileSystemProvider {
 		await this.callFileApi("/directory" + (uri ? `?path=${this.trimNamespace(uri.path)}` : ""), { method: "POST" });
 	}
 
-	async init() {
-		const readmeUri = vscode.Uri.parse(`/${this.namespace}/readme.md`);
+	async start() {
 		try {
-			await this.readFile(readmeUri);
-		}
-		catch (e) {
-			if (e instanceof vscode.FileSystemError && e.code === 'FileNotFound') {
-				this.writeFile(readmeUri, new TextEncoder().encode(readme), {
-					create: true,
-					overwrite: false
-				});
-				vscode.commands.executeCommand("workbench.action.files.openFile", readmeUri);
+			await this.stat(vscode.Uri.parse(`kestra:///${this.namespace}/README.md`));
+			await vscode.commands.executeCommand("vscode.open", vscode.Uri.parse(`kestra:///${this.namespace}/README.md`));
+		} catch (e) {
+			if(e instanceof vscode.FileSystemError && e.code === 'FileNotFound') {
+				await vscode.commands.executeCommand("vscode.open", vscode.Uri.parse(`kestra:///${this.namespace}/getting-started.md`));
 			}
 		}
-		this.createDirectory();
 	}
 
 	private getDefaultFlow(flowId: string): string  {

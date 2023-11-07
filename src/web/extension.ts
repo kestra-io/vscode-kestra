@@ -87,8 +87,10 @@ export async function activate(context: vscode.ExtensionContext) {
 	const openedWs = vscode.workspace.workspaceFolders?.[0];
 	if(openedWs?.uri?.scheme === "kestra") {
 		const kestraFs = new KestraFS(openedWs.name);
-		kestraFs.init();
+
 		context.subscriptions.push(vscode.workspace.registerFileSystemProvider('kestra', kestraFs));
+
+		await kestraFs.start();
 	}
 	context.subscriptions.push(downloadSchemaCommand(context.globalState));
 
