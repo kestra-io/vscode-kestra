@@ -46,10 +46,6 @@ const webExtensionConfig = {
 			use: [{
 				loader: 'ts-loader'
 			}]
-		},
-		{
-			test: /\.md$/,
-			use: ['raw-loader'],
 		}]
 	},
 	plugins: [
