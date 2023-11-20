@@ -27,6 +27,12 @@
         "title": "Download Kestra schema"
       }
     ],
+    "menus": {
+      "editor/context": [{
+        "when": "resourceLangId == yaml",
+        "command": "kestra.schema.download"
+      }]
+    },
     "configuration": {
       "title": "Kestra",
       "properties": {
