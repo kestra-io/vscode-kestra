@@ -1,85 +1,53 @@
 /* eslint-disable @typescript-eslint/naming-convention */
-import fetch from 'node-fetch';
+import fetch, { Response } from 'node-fetch';
 import * as vscode from 'vscode';
 import { KestraFS } from './kestraFsProvider';
+import DocumentationPanel from "./documentation";
+import ApiClient from './apiClient';
 
-function basicAuthHeader(username: string | undefined, password: string | undefined) {
-	return username && password ? {
-		Authorization: `Basic ${btoa(username + ':' + password)}`
-	} : undefined;
-}
+const kestraBaseUrl = "https://api.kestra.io/v1";
 
 function writeYamlSchemaToKestra(globalState: vscode.Memento, yamlSchema: string) {
 	globalState.update("kestra.yaml.schema", yamlSchema);
 }
 
-async function askCredentialsAndFetch(url: string) {
-	const username = await vscode.window.showInputBox({ prompt: "Basic auth username (ESC for none)" });
-	let password;
-	let flowSchema;
-	if (username !== undefined && username !== "") {
-		password = await vscode.window.showInputBox({ prompt: "Basic auth password", password: true });
-		if (password === undefined || password === "") {
-			throw new Error("You should provide a basic auth password if username is provided.");
-		}
-		flowSchema = await fetch(url, {
-			headers: basicAuthHeader(username, password)
-		});
-	}
+async function getKestraUrl() {
+	let kestraConfigUrl = (vscode.workspace.getConfiguration("kestra.api").get("url") as string);
+	let kestraUrl = kestraConfigUrl;
 
-	// Still need JWT token
-	if (flowSchema === undefined || flowSchema.status === 401) {
-		const jwtToken = await vscode.window.showInputBox({ prompt: "JWT Token (copy it when logged in, under logout button)" });
-		if (jwtToken === undefined) {
-			throw new Error("You should provide a JWT Token or your basic auth credentials were incorrect.");
-		}
-		flowSchema = await fetch(url, {
-			headers: {
-				...(basicAuthHeader(username, password) ?? {}),
-				cookie: `JWT=${jwtToken}`
-			}
-		});
+	if (vscode.env.uiKind !== vscode.UIKind.Web && !kestraConfigUrl) {
+		const kestraInputUrl = await vscode.window.showInputBox({ prompt: "Kestra Webserver URL", value: kestraBaseUrl });
 
-		if (flowSchema.status === 401) {
-			throw new Error("Wrong credentials, please retry with proper ones.");
+		if (kestraInputUrl === undefined) {
+			vscode.window.showErrorMessage("Cannot get informations without proper Kestra URL.");
+			return;
+		} else {
+			kestraUrl = kestraInputUrl;
+			// Store user URl
+			vscode.workspace.getConfiguration('kestra.api').update('url', kestraUrl, vscode.ConfigurationTarget.Global);
 		}
 	}
-
-	return flowSchema;
+	return kestraUrl.replace("/api/v1", "");
 }
 
 function downloadSchemaCommand(globalState: vscode.Memento) {
 	return vscode.commands.registerCommand('kestra.schema.download', async () => {
-		let kestraApi = "https://api.kestra.io";
-		if (vscode.env.uiKind === vscode.UIKind.Web) {
-			kestraApi = (vscode.workspace.getConfiguration("kestra.api").get("url") as string);
-		}
-		const kestraUrl = await vscode.window.showInputBox({ prompt: "Kestra Webserver URL", value: kestraApi });
-		if (kestraUrl === undefined) {
-			vscode.window.showErrorMessage("Cannot download schema without proper Kestra URL.");
-			return;
-		}
-
-		const url = kestraUrl.replace(/\/$/, "") + (kestraUrl === kestraApi ? "" : "/api/v1") + "/plugins/schemas/flow";
-		let flowSchema = await fetch(url);
-		if (flowSchema.status === 401) {
-			vscode.window.showInformationMessage("This Kestra instance is secured. Please provide credentials.");
-			try {
-				flowSchema = await askCredentialsAndFetch(url);
-			} catch (e) {
-				if (e instanceof Error) {
-					vscode.window.showErrorMessage(e.message);
-				}
-			}
-		}
-
+		const kestraUrl = (await getKestraUrl() as string);
+		const url = kestraUrl.replace(/\/$/, "") + (kestraUrl === kestraBaseUrl ? "" : "/api/v1") + "/plugins/schemas/flow";
+		
+		let flowSchema = await ApiClient.fetch(url, null, "Error while downloading Kestra's flow schema:");
 		if (flowSchema.status !== 200) {
-			vscode.window.showErrorMessage(`Error while loading Kestra's schema: ${flowSchema.statusText}`);
 			return;
 		}
 		writeYamlSchemaToKestra(globalState, await flowSchema.text());
 
 		vscode.window.showInformationMessage("Flow schema successfully downloaded. You can start using autocompletion.");
+	});
+}
+
+function showDocumentation(context: vscode.ExtensionContext) {
+	return vscode.commands.registerCommand('kestra.view.documentation', async () => {
+		DocumentationPanel.createOrShow(context.extensionUri,(await getKestraUrl() as string));
 	});
 }
 
@@ -93,6 +61,7 @@ export async function activate(context: vscode.ExtensionContext) {
 		await kestraFs.start();
 	}
 	context.subscriptions.push(downloadSchemaCommand(context.globalState));
+	context.subscriptions.push(showDocumentation(context));
 
 	// Auto download schema
 	if (vscode.env.uiKind === vscode.UIKind.Web) {
@@ -100,7 +69,7 @@ export async function activate(context: vscode.ExtensionContext) {
 		const flowSchemaResponse = await fetch(schemaUrl);
 		if (flowSchemaResponse.ok) {
 			writeYamlSchemaToKestra(context.globalState, await flowSchemaResponse.text());
-			vscode.window.showInformationMessage("Auto-downloaded flow schema successfully. You can start using autocompletion for your flows.");
+			vscode.window.showInformationMessage("!Auto-downloaded flow schema successfully. You can start using autocompletion for your flows.");
 		}
 
 		vscode.window.onDidChangeActiveTextEditor(async (editor) => {
@@ -147,4 +116,5 @@ export async function activate(context: vscode.ExtensionContext) {
 	}, () => context.globalState.get("kestra.yaml.schema"));
 }
 
-export function deactivate() { }
+export function deactivate() {
+}
