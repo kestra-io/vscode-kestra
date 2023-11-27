@@ -1,9 +1,11 @@
 import * as vscode from 'vscode';
-import {YamlUtils} from './libs/yamlUtils';
-import Markdown from './libs/markdown';
-import ApiClient from './apiClient';
-import taskHome from './documentation/task_home.md';
-import basic from './documentation/basic.md';
+import {YamlUtils} from '../libs/yamlUtils';
+import Markdown from '../libs/markdown';
+import ApiClient from '../apiClient';
+import taskHome from './task_home.md';
+import basic from './basic.md';
+
+let channel = vscode.window.createOutputChannel("Kestra - Docs");
 
 const kestraBaseUrl = "https://api.kestra.io/v1";
 
@@ -36,7 +38,8 @@ export default class DocumentationPanel {
             column,
             {
                 enableScripts: true,
-                localResourceRoots: [vscode.Uri.joinPath(extensionUri, 'documentation')]
+                enableCommandUris: true,
+                localResourceRoots: [vscode.Uri.joinPath(extensionUri, 'media')]
             }
         );
 
@@ -51,6 +54,8 @@ export default class DocumentationPanel {
         this._panel = panel;
         this._extensionUri = extensionUri;
         this._kestraUrl = kestraUrl;
+
+        this._panel.onDidDispose(() => this.dispose(), null, this._disposables);
 
         // By default, show tasks documentation
         this._panel.webview.html = this.getWebviewDocumentationContent(Markdown.render(taskHome));
@@ -74,7 +79,7 @@ export default class DocumentationPanel {
               const markdown = ((await response.json()).markdown as string);
                
               this._panel.webview.html = this.getWebviewDocumentationContent(Markdown.render(markdown));
-
+              channel.appendLine(`[Kestra] HTML : ${this._panel.webview.html}`);
             }
           }
 				}
@@ -95,22 +100,42 @@ export default class DocumentationPanel {
 					this._panel.webview.html = this.getWebviewDocumentationContent(Markdown.render(taskHome));
 					break;
 			  }
+        if (message.command === 'openExternal') {
+          vscode.env.openExternal(vscode.Uri.parse(message.text));
+      }
 			},
 			undefined,
 			this._disposables
 		  );
     }
 
+
+    public dispose() {
+      DocumentationPanel.current = undefined;
+
+      this._panel.dispose();
+
+      while (this._disposables.length) {
+        const x = this._disposables.pop();
+        if (x) {
+          x.dispose();
+        }
+      }
+    }
+
+
     private getWebviewDocumentationContent(webViewContent: string) {
 
-      // const stylesPathMarkdownPath = vscode.Uri.joinPath(this._extensionUri, 'documentation', 'markdown.css');
-      // const stylesMarkdownUri = this._panel.webview.asWebviewUri(stylesPathMarkdownPath);
+      const stylesPathMarkdownPath = vscode.Uri.joinPath(this._extensionUri, 'media', 'markdown.css');
+      const stylesMarkdownUri = this._panel.webview.asWebviewUri(stylesPathMarkdownPath);
+
       return `<!DOCTYPE html>
       <html lang="en">
       <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Kestra Documentation</title>
+				<link href="${stylesMarkdownUri}" rel="stylesheet">
         <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-okaidia.css" rel="stylesheet" />
         <script>
           window.onload = function() {
@@ -125,94 +150,21 @@ export default class DocumentationPanel {
                   view: 'tasks'
               })
             });
+            document.body.addEventListener('click', event => {
+              if (event.target.tagName === 'A') {
+                  const href = event.target.getAttribute('href');
+                  if (href) {
+                      event.preventDefault();
+                      vscode.postMessage({
+                          command: 'openExternal',
+                          text: href
+                      });
+                  }
+              }
+          });
           }
           </script>
         <style>
-        body {
-          margin: 1rem;
-        }
-        p, pre, code {
-          border-radius: 0.15rem;
-        }
-
-        mark {
-          line-height: 1.5;
-        }
-
-        code {
-          color: #FD3C97;
-        }
-
-        h1 {
-          font-size: 2rem;
-        }
-        
-        blockquote {
-          margin-top: 0;
-          background: none;
-        }
-        
-        mark {
-          background: #03daba;
-          color: #fff;
-          font-size: 0.875rem;
-          padding: 2px 8px 2px 8px;
-          border-radius: 0.15rem;
-        
-          * {
-            color: #fff !important;
-          }
-        }
-        
-        h2 {
-          margin-top: 2rem;
-          border-bottom: 1px solid #2f3342;
-          font-weight: bold;
-          color: #918ba9;
-        }
-        
-        h3 {
-          code {
-            display: inline-block;
-            font-size: 1.1rem;
-            font-weight: 400;
-          }
-        }
-        
-        h2,
-        h3 {
-          margin-left: -15px;
-        
-          .header-anchor {
-            opacity: 0;
-            transition: all ease 0.2s;
-          }
-        
-          &:hover {
-            .header-anchor {
-              opacity: 1;
-            }
-          }
-        }
-        
-        h4 {
-          code {
-            display: inline-block;
-            font-size: 1rem;
-            font-weight: 400;
-          }
-        }
-        button {
-          background-color: #8405FF;
-          color: #fff;
-          border: none;
-          border-radius: 0.15rem;
-          cursor: pointer;
-
-          &:hover {
-            background-color: #6A03CC;
-          }
-        }
         </style>
       </head>
       <body>

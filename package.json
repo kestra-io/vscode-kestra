@@ -24,11 +24,14 @@
     "commands": [
       {
         "command": "kestra.schema.download",
-        "title": "Download Kestra schema"
+        "title": "Download Kestra schema",
+        "category": "Kestra"
       },
       {
         "command": "kestra.view.documentation",
-        "title": "Open Kestra documentation"
+        "title": "Open Kestra documentation",
+        "category": "Kestra",
+        "icon": "images/icons/kestra-documentation.svg"
       }
     ],
     "menus": {
@@ -40,10 +43,8 @@
         {
           "when": "resourceLangId == yaml",
           "command": "kestra.view.documentation",
-          "icon": {
-            "light": "./images/icons/book-multiple-outline.svg",
-            "dark": "./images/icons/book-multiple.svg"
-          }
+          "alt": "Kestra documentation",
+          "group": "navigation"
         }
       ]
     },

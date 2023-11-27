@@ -1,6 +1,8 @@
-p,
-pre,
-code {
+
+body {
+  margin: 1rem;
+}
+p, pre, code {
   border-radius: 0.15rem;
 }
 
@@ -9,7 +11,7 @@ mark {
 }
 
 code {
-  color: #fd3c97;
+  color: #FD3C97;
 }
 
 h1 {
@@ -72,13 +74,13 @@ h4 {
   }
 }
 button {
-  background-color: #8405ff;
+  background-color: #8405FF;
   color: #fff;
   border: none;
   border-radius: 0.15rem;
   cursor: pointer;
 
   &:hover {
-    background-color: #6a03cc;
+    background-color: #6A03CC;
   }
 }

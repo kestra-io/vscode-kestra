@@ -2,7 +2,7 @@
 import fetch, { Response } from 'node-fetch';
 import * as vscode from 'vscode';
 import { KestraFS } from './kestraFsProvider';
-import DocumentationPanel from "./documentation";
+import DocumentationPanel from "./documentation/documentation";
 import ApiClient from './apiClient';
 
 const kestraBaseUrl = "https://api.kestra.io/v1";

@@ -2,8 +2,6 @@
 import fetch, { Response } from 'node-fetch';
 import * as vscode from 'vscode';
 
-let channel = vscode.window.createOutputChannel("Kestra - API");
-
 export default class ApiClient {
 
     // ignoreCodes allows to ignore some http codes, like 404 for the tasks documentation
