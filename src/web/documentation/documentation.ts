@@ -4,12 +4,12 @@ import Markdown from '../libs/markdown';
 import ApiClient from '../apiClient';
 import taskHome from './task_home.md';
 import basic from './basic.md';
-import { kestraBaseUrl } from '../constants';
+import {kestraBaseUrl} from '../constants';
 
 export default class DocumentationPanel {
-    
+
     public static current: DocumentationPanel | undefined;
-    
+
     private view = "tasks";
     private latestType: string | null = null;
 
@@ -58,74 +58,76 @@ export default class DocumentationPanel {
         this._panel.webview.html = this.getWebviewDocumentationContent(Markdown.render(taskHome));
 
 
+        vscode.window.onDidChangeTextEditorSelection(async (editor) => {
+            if (editor && this._panel.visible) {
+                const content = vscode.window.activeTextEditor?.document.getText();
+                const position = editor.textEditor.selection.active;
+                if (content && position) {
+                    const type = YamlUtils.getTaskType(content, {
+                        lineNumber: position.line,
+                        column: position.character
+                    });
+                    if (JSON.stringify(type) !== JSON.stringify(this.latestType) && type !== null) {
+                        const kestraUrl = await ApiClient.getKestraUrl();
+                        const path = kestraBaseUrl === kestraUrl ? `/plugins/definitions/${type}` : `/api/v1/plugins/${type}`;
+                        const url = kestraUrl.replace(/\/$/, "") + path;
 
-		vscode.window.onDidChangeTextEditorSelection(async (editor) => {
-			if (editor && this._panel.visible) {
-				const content = vscode.window.activeTextEditor?.document.getText();
-				const position = editor.textEditor.selection.active;
-				if (content && position) {
-					const type = YamlUtils.getTaskType(content, { lineNumber: position.line, column: position.character});
-          if (JSON.stringify(type) !== JSON.stringify(this.latestType) && type !== null) {
-              const kestraUrl = await ApiClient.getKestraUrl();
-              const path = kestraBaseUrl === kestraUrl ? `/plugins/definitions/${type}` : `/api/v1/plugins/${type}`;
-              const url = kestraUrl.replace(/\/$/, "") + path;
+                        let response = await this._apiClient.apiCall(url, "Error while loading Kestra's task definition:", [404]);
+                        if (response?.status === 200 && this.view === "tasks") {
+                            this.latestType = type;
+                            const markdown = (await response.json() as {markdown: string}).markdown;
 
-            let response = await this._apiClient.fetch(url,"Error while loading Kestra's task definition:", [404]);
-            if (response?.status === 200 && this.view === "tasks") {
-              this.latestType = type;
-              const markdown = ((await response.json()).markdown as string);
-               
-              this._panel.webview.html = this.getWebviewDocumentationContent(Markdown.render(markdown));
+                            this._panel.webview.html = this.getWebviewDocumentationContent(Markdown.render(markdown));
+                        }
+                    }
+                }
             }
-          }
-				}
-			}
-		});
+        });
 
 
-		this._panel.webview.onDidReceiveMessage(
-			message => {
-			  switch(message.view) {
-				case "basics":
-					this.view = message.view;
-					this._panel.webview.html = this.getWebviewDocumentationContent(Markdown.render(basic));
-					break;
-				case "tasks":
-					this.view = message.view;
-          this.latestType = null;
-					this._panel.webview.html = this.getWebviewDocumentationContent(Markdown.render(taskHome));
-					break;
-			  }
-        if (message.command === 'openExternal') {
-          vscode.env.openExternal(vscode.Uri.parse(message.text));
-      }
-			},
-			undefined,
-			this._disposables
-		  );
+        this._panel.webview.onDidReceiveMessage(
+            message => {
+                switch (message.view) {
+                    case "basics":
+                        this.view = message.view;
+                        this._panel.webview.html = this.getWebviewDocumentationContent(Markdown.render(basic));
+                        break;
+                    case "tasks":
+                        this.view = message.view;
+                        this.latestType = null;
+                        this._panel.webview.html = this.getWebviewDocumentationContent(Markdown.render(taskHome));
+                        break;
+                }
+                if (message.command === 'openExternal') {
+                    vscode.env.openExternal(vscode.Uri.parse(message.text));
+                }
+            },
+            undefined,
+            this._disposables
+        );
     }
 
 
     public dispose() {
-      DocumentationPanel.current = undefined;
+        DocumentationPanel.current = undefined;
 
-      this._panel.dispose();
+        this._panel.dispose();
 
-      while (this._disposables.length) {
-        const x = this._disposables.pop();
-        if (x) {
-          x.dispose();
+        while (this._disposables.length) {
+            const x = this._disposables.pop();
+            if (x) {
+                x.dispose();
+            }
         }
-      }
     }
 
 
     private getWebviewDocumentationContent(webViewContent: string) {
 
-      const stylesPathMarkdownPath = vscode.Uri.joinPath(this._extensionUri, 'media', 'markdown.css');
-      const stylesMarkdownUri = this._panel.webview.asWebviewUri(stylesPathMarkdownPath);
+        const stylesPathMarkdownPath = vscode.Uri.joinPath(this._extensionUri, 'media', 'markdown.css');
+        const stylesMarkdownUri = this._panel.webview.asWebviewUri(stylesPathMarkdownPath);
 
-      return `<!DOCTYPE html>
+        return `<!DOCTYPE html>
       <html lang="en">
       <head>
         <meta charset="UTF-8">
@@ -175,7 +177,5 @@ export default class DocumentationPanel {
         </div>
       </body>
       </html>`;
-  }
-
+    }
 }
-

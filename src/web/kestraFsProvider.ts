@@ -5,7 +5,16 @@
 
 
 import * as vscode from 'vscode';
-import {FilePermission} from 'vscode';
+import {
+	CancellationToken,
+	FilePermission,
+	FileSearchOptions,
+	FileSearchProvider,
+	FileSearchQuery,
+	ProviderResult,
+	Uri
+} from 'vscode';
+import ApiClient from "./apiClient";
 
 type KestraFileAttributes = {
 	fileName: string;
@@ -28,38 +37,19 @@ const fileStatFromKestraFileAttrs = ({ type, creationTime, lastModifiedTime, siz
 
 const EXCLUDED_FOLDERS = [".git", ".vscode"];
 const DEFAULT_DIRECTORY_SIZE = 4096;
-const AUTHENTICATION_EXPIRED_ERROR = "Permission issue while calling Kestra's API. Please reload the page to reauthenticate (your changes are kept locally by VSCode cache).";
 
 export class KestraFS implements vscode.FileSystemProvider {
+	public readonly FLOWS_DIRECTORY = `_flows`;
+
 	namespace: string;
-	apiUrl: string;
+	apiClient: ApiClient;
 
-	constructor(namespace: string) {
+	constructor(namespace: string, apiClient: ApiClient) {
 		this.namespace = namespace;
-		this.apiUrl = vscode.workspace.getConfiguration("kestra.api").get("url") as string;
+		this.apiClient = apiClient;
 	}
 
-	private async callFileApi(suffix?: string, options?: RequestInit): Promise<Response> {
-		const fetchResponse = await fetch(`${this.apiUrl}/namespaces/${this.namespace}/files${suffix ?? ""}`, options);
-		if (fetchResponse.status === 404) {
-			throw vscode.FileSystemError.FileNotFound(suffix);
-		}
-		if (fetchResponse.status === 401) {
-			throw vscode.FileSystemError.NoPermissions(AUTHENTICATION_EXPIRED_ERROR);
-		}
-		return fetchResponse;
-	}
 
-	private async callFlowsApi(suffix?: string, options?: RequestInit): Promise<Response> {
-		const fetchResponse = await fetch(`${this.apiUrl}/flows${suffix ?? ""}`, options);
-		if (fetchResponse.status === 404) {
-			throw vscode.FileSystemError.FileNotFound(suffix);
-		}
-		if (fetchResponse.status === 401) {
-			throw vscode.FileSystemError.NoPermissions(AUTHENTICATION_EXPIRED_ERROR);
-		}
-		return fetchResponse;
-	}
 
 	private isExcludedFolder(uri: vscode.Uri) {
 		return EXCLUDED_FOLDERS.some(f => uri.path.includes(f));
@@ -70,11 +60,11 @@ export class KestraFS implements vscode.FileSystemProvider {
 	}
 
 	private isFlow(uri: vscode.Uri) {
-		return uri.path.startsWith(`/${this.namespace}/_flows/`);
+		return uri.path.startsWith(`/${this.namespace}/${this.FLOWS_DIRECTORY}/`);
 	}
 
 	private isFlowsDirectory(uri: vscode.Uri) {
-		return uri.path === `/${this.namespace}/_flows`;
+		return uri.path === `/${this.namespace}/${this.FLOWS_DIRECTORY}`;
 	}
 
 	private impactsFlowsDirectory(uri?: vscode.Uri) {
@@ -92,7 +82,7 @@ export class KestraFS implements vscode.FileSystemProvider {
 
 	private async getFlowSource(uri: vscode.Uri): Promise<string> {
 		const flowId = this.extractFlowId(uri);
-		return (await (await this.callFlowsApi(`/${this.namespace}/${flowId}?source=true`)).json()).source;
+		return ((await (await this.apiClient.flowsApi(`/${this.namespace}/${flowId}?source=true`)).json()) as {source: string}).source;
 	}
 
 	async stat(uri: vscode.Uri): Promise<vscode.FileStat> {
@@ -118,25 +108,25 @@ export class KestraFS implements vscode.FileSystemProvider {
 			};
 		}
 		
-		const response = await this.callFileApi(`/stats?path=${this.trimNamespace(uri.path)}`);
+		const response = await this.apiClient.fileApi(this.namespace, `/stats?path=${this.trimNamespace(uri.path)}`);
 
 		return fileStatFromKestraFileAttrs(await response.json() as KestraFileAttributes);
 	}
 
 	async readDirectory(uri: vscode.Uri): Promise<[string, vscode.FileType][]> {
 		if (this.isFlowsDirectory(uri)) {
-			const flowsResponse = await (await this.callFlowsApi(`/${this.namespace}`)).json();
+			const flowsResponse = await (await this.apiClient.flowsApi(`/${this.namespace}`)).json();
 			return (flowsResponse as Array<{ id: string }>)
 				.map(r => [`${r.id}.yml`, vscode.FileType.File]);
 		}
 
-		const response = await this.callFileApi("/directory" + (uri ? `?path=${this.trimNamespace(uri.path)}` : ""));
+		const response = await this.apiClient.fileApi(this.namespace, "/directory" + (uri ? `?path=${this.trimNamespace(uri.path)}` : ""));
 
 		let directoryEntries: [string, vscode.FileType][] = (await response.json() as Array<KestraFileAttributes>)
 			.map(attr => [attr.fileName, vscode.FileType[attr.type]]);
 		
 		if(uri.path === `/${this.namespace}`) {
-			directoryEntries = [...directoryEntries, ["_flows", vscode.FileType.Directory]];
+			directoryEntries = [...directoryEntries, [this.FLOWS_DIRECTORY, vscode.FileType.Directory]];
 		}
 
 		return directoryEntries;
@@ -151,7 +141,7 @@ export class KestraFS implements vscode.FileSystemProvider {
 			return new TextEncoder().encode(await this.getFlowSource(uri));
 		}
 
-		const response = await this.callFileApi("?path=" + this.trimNamespace(uri.path));
+		const response = await this.apiClient.fileApi(this.namespace, "?path=" + this.trimNamespace(uri.path));
 
 		return new Uint8Array(await response.arrayBuffer());
 	}
@@ -162,7 +152,7 @@ export class KestraFS implements vscode.FileSystemProvider {
 				await this.getFlowSource(uri);
 			} catch(e) {
 				if(e instanceof vscode.FileSystemError && e.code === 'FileNotFound') {
-					const response = (await this.callFlowsApi(``, {
+					const response = (await this.apiClient.flowsApi(``, {
 						method: "POST",
 						body: this.getDefaultFlow(this.extractFlowId(uri)),
 						headers: {
@@ -171,14 +161,14 @@ export class KestraFS implements vscode.FileSystemProvider {
 					}));
 					if(!response.ok) {
 						// Should never happen
-						throw vscode.FileSystemError.NoPermissions("Invalid flow creation: " + (await response.json())?.message);
+						throw vscode.FileSystemError.NoPermissions("Invalid flow creation: " + ((await response.json()) as {message?: string})?.message);
 					}
 					return;
 				}
 				throw e;
 			}
 			
-			const response = (await this.callFlowsApi(`/${this.namespace}/${this.extractFlowId(uri)}`, {
+			const response = (await this.apiClient.flowsApi(`/${this.namespace}/${this.extractFlowId(uri)}`, {
 				method: "PUT",
 				body: new TextDecoder().decode(content),
 				headers: {
@@ -186,16 +176,17 @@ export class KestraFS implements vscode.FileSystemProvider {
 				}
 			}));
 			if(!response.ok) {
-				throw vscode.FileSystemError.NoPermissions("Invalid flow update: " + (await response.json())?.message);
+				throw vscode.FileSystemError.NoPermissions("Invalid flow update: " + ((await response.json()) as {message?: string})?.message);
 			}
 
 			return;
 		}
 
 		const formData = new FormData();
+
 		formData.append('fileContent', new Blob([content]));
 		
-		await this.callFileApi("?path=" + this.trimNamespace(uri.path), {
+		await this.apiClient.fileApi(this.namespace, "?path=" + this.trimNamespace(uri.path), {
 			method: "POST",
 			body: formData
 		});
@@ -205,17 +196,17 @@ export class KestraFS implements vscode.FileSystemProvider {
 		if(this.impactsFlowsDirectory(oldUri) || this.impactsFlowsDirectory(newUri)) {
 			throw vscode.FileSystemError.NoPermissions("Cannot rename flows or parent directory as their metadata are read-only");
 		}
-		await this.callFileApi(`?from=${this.trimNamespace(oldUri.path)}&to=${this.trimNamespace(newUri.path)}`, { method: "PUT" });
+		await this.apiClient.fileApi(this.namespace, `?from=${this.trimNamespace(oldUri.path)}&to=${this.trimNamespace(newUri.path)}`, { method: "PUT" });
 	}
 
 	async delete(uri: vscode.Uri): Promise<void> {
 		if(this.impactsFlowsDirectory(uri)) {
-			await this.callFlowsApi(`/${this.namespace}/${this.extractFlowId(uri)}`, {
+			await this.apiClient.flowsApi(`/${this.namespace}/${this.extractFlowId(uri)}`, {
 				method: "DELETE"
 			});
 		}
 
-		await this.callFileApi(`?path=${this.trimNamespace(uri.path)}`, { method: "DELETE" });
+		await this.apiClient.fileApi(this.namespace, `?path=${this.trimNamespace(uri.path)}`, { method: "DELETE" });
 	}
 
 	async createDirectory(uri?: vscode.Uri): Promise<void> {
@@ -223,18 +214,18 @@ export class KestraFS implements vscode.FileSystemProvider {
 			throw vscode.FileSystemError.NoPermissions("'flows' is a reserved directory name");
 		}
 
-		await this.callFileApi("/directory" + (uri ? `?path=${this.trimNamespace(uri.path)}` : ""), { method: "POST" });
+		await this.apiClient.fileApi(this.namespace, "/directory" + (uri ? `?path=${this.trimNamespace(uri.path)}` : ""), { method: "POST" });
 	}
 
 	async start() {
-		// try {
-		// 	await this.stat(vscode.Uri.parse(`kestra:///${this.namespace}/README.md`));
-		// 	await vscode.commands.executeCommand("vscode.open", vscode.Uri.parse(`kestra:///${this.namespace}/README.md`));
-		// } catch (e) {
-		// 	if(e instanceof vscode.FileSystemError && e.code === 'FileNotFound') {
-		// 		await vscode.commands.executeCommand("vscode.open", vscode.Uri.parse(`kestra:///${this.namespace}/getting-started.md`));
-		// 	}
-		// }
+		try {
+			await this.stat(vscode.Uri.parse(`kestra:///${this.namespace}/README.md`));
+			await vscode.commands.executeCommand("vscode.open", vscode.Uri.parse(`kestra:///${this.namespace}/README.md`));
+		} catch (e) {
+			if(e instanceof vscode.FileSystemError && e.code === 'FileNotFound') {
+				await vscode.commands.executeCommand("vscode.open", vscode.Uri.parse(`kestra:///${this.namespace}/getting-started.md`));
+			}
+		}
 	}
 
 	private getDefaultFlow(flowId: string): string  {
@@ -255,5 +246,36 @@ tasks:
 	watch(_resource: vscode.Uri): vscode.Disposable {
 		// ignore, fires for all changes...
 		return new vscode.Disposable(() => { });
+	}
+}
+
+export class KestraFileSearchProvider implements FileSearchProvider {
+	namespace: string;
+	fileSystemProvider: KestraFS;
+	apiClient: ApiClient;
+
+	constructor(namespace: string, fileSystemProvider: KestraFS, apiClient: ApiClient) {
+		this.namespace = namespace;
+		this.fileSystemProvider = fileSystemProvider;
+		this.apiClient = apiClient;
+	}
+
+	provideFileSearchResults(query: FileSearchQuery, options: FileSearchOptions, token: CancellationToken): ProviderResult<Uri[]> {
+		return Promise.all([
+			new Promise(async (resolve, reject) => {
+				const response = await this.apiClient.fileApi(this.namespace, `/search?q=${query.pattern}`);
+				if (!response.ok) {
+					reject(response.text());
+				}
+
+				resolve((await response.json() as Array<string>).map(path => vscode.Uri.parse("kestra:///" + this.namespace + path)));
+			}) as Promise<Uri[]>,
+			this.fileSystemProvider.readDirectory(vscode.Uri.parse("kestra:///" + this.namespace + "/" + this.fileSystemProvider.FLOWS_DIRECTORY))
+				.then(flows => flows
+					.map(([fileName]) => vscode.Uri.parse(`kestra:///${this.namespace}/${this.fileSystemProvider.FLOWS_DIRECTORY}/${fileName}`))
+				)
+		]).then(([files, flows]) => {
+			return [...files, ...flows];
+		});
 	}
 }

@@ -1,5 +1,4 @@
 // apiClient.ts
-import fetch, { Response } from 'node-fetch';
 import * as vscode from 'vscode';
 import {kestraBaseUrl, secretStorageKey} from "./constants";
 
@@ -10,12 +9,15 @@ export default class ApiClient {
         this._secretStorage = secretStorage;
     }
 
-    public static async getKestraUrl(forceInput : boolean = false) : Promise<String> {
+    public static async getKestraUrl(forceInput: boolean = false): Promise<String> {
         let kestraConfigUrl = (vscode.workspace.getConfiguration("kestra.api").get("url") as string);
         let kestraUrl = kestraConfigUrl;
 
         if (vscode.env.uiKind !== vscode.UIKind.Web && (!kestraConfigUrl || forceInput)) {
-            const kestraInputUrl = await vscode.window.showInputBox({ prompt: "Kestra Webserver URL", value: kestraConfigUrl ?? kestraBaseUrl });
+            const kestraInputUrl = await vscode.window.showInputBox({
+                prompt: "Kestra Webserver URL",
+                value: kestraConfigUrl ?? kestraBaseUrl
+            });
 
             if (kestraInputUrl === undefined) {
                 vscode.window.showErrorMessage("Cannot get informations without proper Kestra URL.");
@@ -31,17 +33,19 @@ export default class ApiClient {
     }
 
     // ignoreCodes allows to ignore some http codes, like 404 for the tasks documentation
-    public async fetch(url: string, errorMessage: string, ignoreCodes: number[] = []): Promise<Response> {
+    public async apiCall(url: string, errorMessage: string, ignoreCodes: number[] = [], options?: RequestInit): Promise<Response> {
         try {
             const jwtToken = await this._secretStorage.get(secretStorageKey.token);
             let response = jwtToken ?
                 await fetch(url,
                     {
+                        ...options,
                         headers: {
+                            ...options?.headers,
                             cookie: `JWT=${jwtToken}`
                         }
                     }) :
-                await fetch(url);
+                await fetch(url, options);
 
             if (!response.ok) {
                 const newResponse = await this.handleFetchError(response, url, errorMessage, ignoreCodes);
@@ -56,7 +60,23 @@ export default class ApiClient {
         }
     }
 
-    private  async handleFetchError(response: Response, url: string, errorMessage: string, ignoreCodes: number[] = []) {
+    public async fileApi(namespace: string, suffix?: string, options?: RequestInit): Promise<Response> {
+        const fetchResponse = await this.apiCall(`${await ApiClient.getKestraUrl()}/api/v1/namespaces/${namespace}/files${suffix ?? ""}`, "Error while fetching Kestra's file API:", [404], options);
+        if (fetchResponse.status === 404) {
+            throw vscode.FileSystemError.FileNotFound(suffix);
+        }
+        return fetchResponse;
+    }
+
+    public async flowsApi(suffix?: string, options?: RequestInit): Promise<Response> {
+        const fetchResponse = await this.apiCall(`${await ApiClient.getKestraUrl()}/api/v1/flows${suffix ?? ""}`, "Error while fetching Kestra's flow API:", [404], options);
+        if (fetchResponse.status === 404) {
+            throw vscode.FileSystemError.FileNotFound(suffix);
+        }
+        return fetchResponse;
+    }
+
+    private async handleFetchError(response: Response, url: string, errorMessage: string, ignoreCodes: number[] = []) {
         if (response.status === 401) {
             vscode.window.showInformationMessage("This Kestra instance is secured. Please provide credentials.");
             try {
@@ -78,24 +98,30 @@ export default class ApiClient {
             vscode.window.showErrorMessage(`${errorMessage} ${response.statusText}`);
             return;
         }
-        
-        return response;
-    } 
 
-    private  basicAuthHeader(username: string | undefined, password: string | undefined) {
+        return response;
+    }
+
+    private basicAuthHeader(username: string | undefined, password: string | undefined) {
         return username && password ? {
             Authorization: `Basic ${btoa(username + ':' + password)}`
         } : undefined;
     }
 
-    private  async askCredentialsAndFetch(url: string) {
-        let username : string | undefined = await this._secretStorage.get(secretStorageKey.username);
-        username = await vscode.window.showInputBox({ prompt: "Basic auth username (ESC to login with JWT Token)", value: username });
+    private async askCredentialsAndFetch(url: string) {
+        let username: string | undefined = await this._secretStorage.get(secretStorageKey.username);
+        username = await vscode.window.showInputBox({
+            prompt: "Basic auth username (ESC to login with JWT Token)",
+            value: username
+        });
         let password;
         let response;
         if (username !== undefined && username !== "") {
             this._secretStorage.store(secretStorageKey.username, username);
-            password = await vscode.window.showInputBox({ prompt: "Basic auth password (ESC to login with JWT Token)", password: true });
+            password = await vscode.window.showInputBox({
+                prompt: "Basic auth password (ESC to login with JWT Token)",
+                password: true
+            });
             if (password === undefined || password === "") {
                 throw new Error("You should provide a basic auth password if username is provided.");
             }
@@ -103,16 +129,16 @@ export default class ApiClient {
                 headers: this.basicAuthHeader(username, password)
             });
         }
-    
+
         // Still need JWT token
         if (response === undefined || response.status === 401) {
-            const jwtToken = await vscode.window.showInputBox({ prompt: "JWT Token (copy it when logged in, under logout button)" });
+            const jwtToken = await vscode.window.showInputBox({prompt: "JWT Token (copy it when logged in, under logout button)"});
             if (jwtToken === undefined) {
                 throw new Error("You should provide a JWT Token or your basic auth credentials were incorrect.");
             }
             this._secretStorage.store(secretStorageKey.token, jwtToken);
             response = await fetch(
-                url, 
+                url,
                 {
                     headers: {
                         ...(this.basicAuthHeader(username, password) ?? {}),
@@ -120,7 +146,7 @@ export default class ApiClient {
                     }
                 }
             );
-    
+
             if (response.status === 401) {
                 throw new Error("Wrong credentials, please retry with proper ones.");
             }
