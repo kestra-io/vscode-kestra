@@ -1,41 +1,23 @@
 /* eslint-disable @typescript-eslint/naming-convention */
-import fetch, { Response } from 'node-fetch';
+import fetch from 'node-fetch';
 import * as vscode from 'vscode';
 import { KestraFS } from './kestraFsProvider';
 import DocumentationPanel from "./documentation/documentation";
 import ApiClient from './apiClient';
-
-const kestraBaseUrl = "https://api.kestra.io/v1";
+import { kestraBaseUrl } from './constants';
 
 function writeYamlSchemaToKestra(globalState: vscode.Memento, yamlSchema: string) {
 	globalState.update("kestra.yaml.schema", yamlSchema);
 }
 
-async function getKestraUrl() {
-	let kestraConfigUrl = (vscode.workspace.getConfiguration("kestra.api").get("url") as string);
-	let kestraUrl = kestraConfigUrl;
 
-	if (vscode.env.uiKind !== vscode.UIKind.Web && !kestraConfigUrl) {
-		const kestraInputUrl = await vscode.window.showInputBox({ prompt: "Kestra Webserver URL", value: kestraBaseUrl });
 
-		if (kestraInputUrl === undefined) {
-			vscode.window.showErrorMessage("Cannot get informations without proper Kestra URL.");
-			return;
-		} else {
-			kestraUrl = kestraInputUrl;
-			// Store user URl
-			vscode.workspace.getConfiguration('kestra.api').update('url', kestraUrl, vscode.ConfigurationTarget.Global);
-		}
-	}
-	return kestraUrl.replace("/api/v1", "");
-}
-
-function downloadSchemaCommand(globalState: vscode.Memento) {
+function downloadSchemaCommand(globalState: vscode.Memento, apiClient: ApiClient) {
 	return vscode.commands.registerCommand('kestra.schema.download', async () => {
-		const kestraUrl = (await getKestraUrl() as string);
+		const kestraUrl = (await ApiClient.getKestraUrl(true) as string);
 		const url = kestraUrl.replace(/\/$/, "") + (kestraUrl === kestraBaseUrl ? "" : "/api/v1") + "/plugins/schemas/flow";
 		
-		let flowSchema = await ApiClient.fetch(url, null, "Error while downloading Kestra's flow schema:");
+		let flowSchema = await apiClient.fetch(url,"Error while downloading Kestra's flow schema:");
 		if (flowSchema.status !== 200) {
 			return;
 		}
@@ -45,14 +27,15 @@ function downloadSchemaCommand(globalState: vscode.Memento) {
 	});
 }
 
-function showDocumentation(context: vscode.ExtensionContext) {
+function showDocumentation(context: vscode.ExtensionContext, apiClient: ApiClient) {
 	return vscode.commands.registerCommand('kestra.view.documentation', async () => {
-		DocumentationPanel.createOrShow(context.extensionUri,(await getKestraUrl() as string));
+		DocumentationPanel.createOrShow(context.extensionUri, apiClient);
 	});
 }
 
 export async function activate(context: vscode.ExtensionContext) {
 	const openedWs = vscode.workspace.workspaceFolders?.[0];
+	const apiClient = new ApiClient(context.secrets);
 	if(openedWs?.uri?.scheme === "kestra") {
 		const kestraFs = new KestraFS(openedWs.name);
 
@@ -60,8 +43,8 @@ export async function activate(context: vscode.ExtensionContext) {
 
 		await kestraFs.start();
 	}
-	context.subscriptions.push(downloadSchemaCommand(context.globalState));
-	context.subscriptions.push(showDocumentation(context));
+	context.subscriptions.push(downloadSchemaCommand(context.globalState, apiClient));
+	context.subscriptions.push(showDocumentation(context, apiClient));
 
 	// Auto download schema
 	if (vscode.env.uiKind === vscode.UIKind.Web) {

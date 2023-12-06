@@ -4,10 +4,7 @@ import Markdown from '../libs/markdown';
 import ApiClient from '../apiClient';
 import taskHome from './task_home.md';
 import basic from './basic.md';
-
-let channel = vscode.window.createOutputChannel("Kestra - Docs");
-
-const kestraBaseUrl = "https://api.kestra.io/v1";
+import { kestraBaseUrl } from '../constants';
 
 export default class DocumentationPanel {
     
@@ -18,11 +15,11 @@ export default class DocumentationPanel {
 
     private readonly _panel: vscode.WebviewPanel;
     private readonly _extensionUri: vscode.Uri;
-    private readonly _kestraUrl: string;
+    private readonly _apiClient: ApiClient;
 
     private _disposables: vscode.Disposable[] = [];
 
-    public static createOrShow(extensionUri: vscode.Uri, kestraUrl: string) {
+    public static createOrShow(extensionUri: vscode.Uri, apiClient: ApiClient) {
         const column = vscode.ViewColumn.Two;
 
         // Panel already exist
@@ -43,17 +40,17 @@ export default class DocumentationPanel {
             }
         );
 
-        DocumentationPanel.current = new DocumentationPanel(panel, extensionUri, kestraUrl);
+        DocumentationPanel.current = new DocumentationPanel(panel, extensionUri, apiClient);
     }
 
-    public static revive(panel: vscode.WebviewPanel, extensionUri: vscode.Uri, kestraUrl: string) {
-        DocumentationPanel.current = new DocumentationPanel(panel, extensionUri, kestraUrl);
+    public static revive(panel: vscode.WebviewPanel, extensionUri: vscode.Uri, apiClient: ApiClient) {
+        DocumentationPanel.current = new DocumentationPanel(panel, extensionUri, apiClient);
     }
 
-    private constructor(panel: vscode.WebviewPanel, extensionUri: vscode.Uri, kestraUrl: string) {
+    private constructor(panel: vscode.WebviewPanel, extensionUri: vscode.Uri, apiClient: ApiClient) {
         this._panel = panel;
         this._extensionUri = extensionUri;
-        this._kestraUrl = kestraUrl;
+        this._apiClient = apiClient;
 
         this._panel.onDidDispose(() => this.dispose(), null, this._disposables);
 
@@ -69,17 +66,16 @@ export default class DocumentationPanel {
 				if (content && position) {
 					const type = YamlUtils.getTaskType(content, { lineNumber: position.line, column: position.character});
           if (JSON.stringify(type) !== JSON.stringify(this.latestType)) {
-              const kestraUrl = this._kestraUrl;
+              const kestraUrl = await ApiClient.getKestraUrl();
               const path = kestraBaseUrl === kestraUrl ? `/plugins/definitions/${type}` : `/api/v1/plugins/${type}`;
               const url = kestraUrl.replace(/\/$/, "") + path;
 
-            let response = await ApiClient.fetch(url, null, "Error while loading Kestra's task definition:", [404]);
+            let response = await this._apiClient.fetch(url,"Error while loading Kestra's task definition:", [404]);
             if (response?.status === 200 && this.view === "tasks") {
               this.latestType = type;
               const markdown = ((await response.json()).markdown as string);
                
               this._panel.webview.html = this.getWebviewDocumentationContent(Markdown.render(markdown));
-              channel.appendLine(`[Kestra] HTML : ${this._panel.webview.html}`);
             }
           }
 				}
