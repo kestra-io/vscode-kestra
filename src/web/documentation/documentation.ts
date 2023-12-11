@@ -65,7 +65,7 @@ export default class DocumentationPanel {
 				const position = editor.textEditor.selection.active;
 				if (content && position) {
 					const type = YamlUtils.getTaskType(content, { lineNumber: position.line, column: position.character});
-          if (JSON.stringify(type) !== JSON.stringify(this.latestType)) {
+          if (JSON.stringify(type) !== JSON.stringify(this.latestType) && type !== null) {
               const kestraUrl = await ApiClient.getKestraUrl();
               const path = kestraBaseUrl === kestraUrl ? `/plugins/definitions/${type}` : `/api/v1/plugins/${type}`;
               const url = kestraUrl.replace(/\/$/, "") + path;
