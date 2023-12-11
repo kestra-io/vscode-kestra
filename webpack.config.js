@@ -40,13 +40,39 @@ const webExtensionConfig = {
 		}
 	},
 	module: {
-		rules: [{
+		rules: [
+		{
 			test: /\.ts$/,
 			exclude: /node_modules/,
 			use: [{
 				loader: 'ts-loader'
 			}]
-		}]
+		},
+		{
+			test: /\.md$/,
+			use: ['raw-loader'],
+		}
+		// Below config to work with Vue (especially with kestra UI lib)
+		// {
+		//   test: /\.scss$/,
+		//   use: [
+		// 	'style-loader',
+		// 	'css-loader',
+		// 	'sass-loader'
+		//   ]
+		// },
+		// {
+		//   test: /\.css$/,
+		//   use: [
+		// 	'style-loader',
+		// 	'css-loader'
+		//   ]
+		// },
+		// {
+		//   test: /\.vue$/,
+		//   loader: 'vue-loader'
+		// }
+	]
 	},
 	plugins: [
 		new webpack.optimize.LimitChunkCountPlugin({
@@ -55,6 +81,7 @@ const webExtensionConfig = {
 		new webpack.ProvidePlugin({
 			process: 'process/browser', // provide a shim for the global `process` variable
 		}),
+		// new VueLoaderPlugin()
 	],
 	externals: {
 		'vscode': 'commonjs vscode', // ignored because it doesn't exist
@@ -65,7 +92,7 @@ const webExtensionConfig = {
 	devtool: 'nosources-source-map', // create a source map that points to the original source file
 	infrastructureLogging: {
 		level: "log", // enables logging required for problem matchers
-	},
+	}
 };
 
 module.exports = [ webExtensionConfig ];

@@ -1,13 +1,32 @@
 # Kestra extension for VSCode
 
 ## Features
-- Flow autocompletion & validation on .yaml / .yml files by downloading the JSON schema from your Kestra's instance or Kestra's API server as a fallback (meaning you will see all plugins except custom ones, even those which are not yet installed on your instance)
+
+- Flow autocompletion & validation on `.yaml` / `.yml` files by downloading the JSON schema.
+- Dynamic documentation depending on tasks your flow includes.
 
 ## Requirements
+
 - [Redhat's YAML extension](https://marketplace.visualstudio.com/items?itemName=redhat.vscode-yaml)
 
 ## Usage 
-After installing the extension, you will get a new command called "Download Kestra schema" which will prompt you for a Kestra's instance URL and eventually credentials if your instance is secured. If you have a JWT based authentication (EE), please copy your token from the "Copy JWT token" button available in the same menu as the Logout button.
-By default it will use the Kestra's API server which has the above-described issues.
-Once you proceed, you will get a notification once the schema is ready for usage.
-You now have autocompletion and validation for every .yaml / .yml files. If you have multiple yaml autocompletion helpers, please select the Kestra's one.
+
+### Kestra Schema - Enabling autocompletion
+
+After installing the extension, you will get a new command called "Download Kestra schema".
+You can use this command to download the schema that will enable autocompletion in YAML files.
+
+To avoid having the schema apply on every YAML file, you can [set up the mapping in your settings file](https://code.visualstudio.com/docs/languages/json#_mapping-in-the-user-settings).
+
+**Using the extension on the Kestra VSCode Kestra will automatically download the Schema.**
+
+### Kestra Documentation - enabling live documentation
+
+Kestra VSCode extension embeds the documentation. When on a YAML file, a new action called `Open Kestra Documentation` will appear and will open a new Webview. This webview contains the default properties of a flow and its tasks, but clicking on a specific task in your code will show its documentation.
+
+## Configure
+
+When using the extension on your local instance of VSCode, you will be prompted to enter a URL.
+The default URL is the Kestra API that includes all plugins, but if you want to only display available plugins in your instance, use your Kestra Instance URL 
+
+**If you have a JWT-based authentication (EE), please copy your token from the "Copy JWT token" button available in the same menu as the Logout button on the UI.**

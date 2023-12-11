@@ -227,14 +227,14 @@ export class KestraFS implements vscode.FileSystemProvider {
 	}
 
 	async start() {
-		try {
-			await this.stat(vscode.Uri.parse(`kestra:///${this.namespace}/README.md`));
-			await vscode.commands.executeCommand("vscode.open", vscode.Uri.parse(`kestra:///${this.namespace}/README.md`));
-		} catch (e) {
-			if(e instanceof vscode.FileSystemError && e.code === 'FileNotFound') {
-				await vscode.commands.executeCommand("vscode.open", vscode.Uri.parse(`kestra:///${this.namespace}/getting-started.md`));
-			}
-		}
+		// try {
+		// 	await this.stat(vscode.Uri.parse(`kestra:///${this.namespace}/README.md`));
+		// 	await vscode.commands.executeCommand("vscode.open", vscode.Uri.parse(`kestra:///${this.namespace}/README.md`));
+		// } catch (e) {
+		// 	if(e instanceof vscode.FileSystemError && e.code === 'FileNotFound') {
+		// 		await vscode.commands.executeCommand("vscode.open", vscode.Uri.parse(`kestra:///${this.namespace}/getting-started.md`));
+		// 	}
+		// }
 	}
 
 	private getDefaultFlow(flowId: string): string  {
