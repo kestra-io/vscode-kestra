@@ -1,0 +1,26 @@
+on:
+  push:
+    tags:
+      - v*
+
+name: Deploy Extension
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-node@v1
+        with:
+          node-version: 16
+      - name: Extract version
+        run: |
+          echo "VERSION=${GITHUB_REF#refs/*/v}" >> $GITHUB_ENV
+      - name: Set package.json version
+        run: npm version ${VERSION} --no-git-tag-version
+      - name: Install dependencies
+        run: npm install
+      - name: Publish to Visual Studio Marketplace
+        uses: HaaLeo/publish-vscode-extension@v1
+        with:
+          pat: ${{ secrets.AZURE_DEVOPS_TOKEN }}
+          registryUrl: https://marketplace.visualstudio.com
