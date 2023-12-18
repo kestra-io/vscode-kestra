@@ -86,10 +86,6 @@ export class KestraFS implements vscode.FileSystemProvider {
 	}
 
 	async stat(uri: vscode.Uri): Promise<vscode.FileStat> {
-		if (this.isExcludedFolder(uri)) {
-			throw vscode.FileSystemError.FileNotFound(uri);
-		}
-
 		if (this.isFlowsDirectory(uri)) {
 			return {
 				type: vscode.FileType.Directory,
@@ -110,10 +106,20 @@ export class KestraFS implements vscode.FileSystemProvider {
 		
 		const response = await this.apiClient.fileApi(this.namespace, `/stats?path=${this.trimNamespace(uri.path)}`);
 
+		try {
+			this.checkExcludedFolderOrThrow(uri);
+		} catch (e) {
+			// If the file is in an excluded folder, we delete it to purge bad files from storage
+			await this.callDeleteApi(uri);
+			throw vscode.FileSystemError.FileNotFound(uri);
+		}
+
 		return fileStatFromKestraFileAttrs(await response.json() as KestraFileAttributes);
 	}
 
 	async readDirectory(uri: vscode.Uri): Promise<[string, vscode.FileType][]> {
+		this.checkExcludedFolderOrThrow(uri);
+
 		if (this.isFlowsDirectory(uri)) {
 			const flowsResponse = await (await this.apiClient.flowsApi(`/${this.namespace}`)).json();
 			return (flowsResponse as Array<{ id: string }>)
@@ -133,9 +139,7 @@ export class KestraFS implements vscode.FileSystemProvider {
 	}
 
 	async readFile(uri: vscode.Uri): Promise<Uint8Array> {
-		if (this.isExcludedFolder(uri)) {
-			throw vscode.FileSystemError.FileNotFound(uri);
-		}
+		this.checkExcludedFolderOrThrow(uri);
 
 		if (this.isFlow(uri)) {
 			return new TextEncoder().encode(await this.getFlowSource(uri));
@@ -147,6 +151,8 @@ export class KestraFS implements vscode.FileSystemProvider {
 	}
 
 	async writeFile(uri: vscode.Uri, content: Uint8Array, options: { create: boolean, overwrite: boolean }): Promise<void> {
+		this.checkExcludedFolderOrThrow(uri);
+
 		if(this.isFlow(uri)) {
 			try {
 				await this.getFlowSource(uri);
@@ -193,13 +199,21 @@ export class KestraFS implements vscode.FileSystemProvider {
 	}
 
 	async rename(oldUri: vscode.Uri, newUri: vscode.Uri, options: { overwrite: boolean }): Promise<void> {
+		this.checkExcludedFolderOrThrow(newUri);
+
 		if(this.impactsFlowsDirectory(oldUri) || this.impactsFlowsDirectory(newUri)) {
 			throw vscode.FileSystemError.NoPermissions("Cannot rename flows or parent directory as their metadata are read-only");
 		}
 		await this.apiClient.fileApi(this.namespace, `?from=${this.trimNamespace(oldUri.path)}&to=${this.trimNamespace(newUri.path)}`, { method: "PUT" });
 	}
 
-	async delete(uri: vscode.Uri): Promise<void> {
+	delete(uri: vscode.Uri) {
+		this.checkExcludedFolderOrThrow(uri);
+
+		return this.callDeleteApi(uri);
+	}
+
+	private async callDeleteApi(uri: vscode.Uri){
 		if(this.impactsFlowsDirectory(uri)) {
 			await this.apiClient.flowsApi(`/${this.namespace}/${this.extractFlowId(uri)}`, {
 				method: "DELETE"
@@ -210,6 +224,8 @@ export class KestraFS implements vscode.FileSystemProvider {
 	}
 
 	async createDirectory(uri?: vscode.Uri): Promise<void> {
+		this.checkExcludedFolderOrThrow(uri);
+
 		if(this.impactsFlowsDirectory(uri)) {
 			throw vscode.FileSystemError.NoPermissions("'flows' is a reserved directory name");
 		}
@@ -225,6 +241,18 @@ export class KestraFS implements vscode.FileSystemProvider {
 			if(e instanceof vscode.FileSystemError && e.code === 'FileNotFound') {
 				await vscode.commands.executeCommand("vscode.open", vscode.Uri.parse(`kestra:///${this.namespace}/getting-started.md`));
 			}
+		}
+	}
+
+	private checkExcludedFolderOrThrow(uri?: vscode.Uri) {
+		if (!uri) {
+			return;
+		}
+
+		if (this.isExcludedFolder(uri)) {
+			throw vscode.FileSystemError.NoPermissions(
+				`Using ${uri.path} is forbidden because it cannot include ${EXCLUDED_FOLDERS.filter(f => uri.path.includes(f))[0]} in its path`
+			);
 		}
 	}
 
