@@ -88,6 +88,12 @@ export async function activate(context: vscode.ExtensionContext) {
             vscode.commands.executeCommand("custom.postMessage", {type: "kestra.tabsChanged", tabs: tabs});
         });
 
+        vscode.workspace.onDidSaveTextDocument(document => {
+            if (document.uri.path.includes("/_flows/")) {
+                vscode.commands.executeCommand("custom.postMessage", {type: "kestra.flowSaved"});
+            }
+        });
+
     }
 
     const yamlExtension = await vscode.extensions.getExtension('redhat.vscode-yaml')?.activate();
