@@ -30,3 +30,17 @@ When using the extension on your local instance of VSCode, you will be prompted 
 The default URL is the Kestra API that includes all plugins, but if you want to only display available plugins in your instance, use your Kestra Instance URL 
 
 **If you have a JWT-based authentication (EE), please copy your token from the "Copy JWT token" button available in the same menu as the Logout button on the UI.**
+
+## Development
+
+You can use the following alias to quickly install your extension to local Kestra instance for web extension testing:
+```
+alias extension="OLD_PWD=$(pwd) && \
+    npm run package-web && \
+    cp dist/web/extension.js {pathToKestraRoot}/ui/public/vscode/extensions/kestra/extension/dist/web/ && \
+    cp package.json {pathToKestraRoot}/ui/public/vscode/extensions/kestra/extension/ && \
+    cd {pathToKestraRoot} && \
+    rm -rf webserver/src/main/resources/ui && \
+    ./gradlew assembleFrontend && \
+    cd $OLD_PWD"
+```
