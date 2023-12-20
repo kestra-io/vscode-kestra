@@ -1,22 +1,20 @@
-## Viewing Task Documentation
+## Task documentation
 
-### Load task documentation
+Flows consist of **tasks**.
 
-Kestra flow's are made of tasks.
+To inspect the properties of a **specific task**, click anywhere in that task code. The task documentation will load in this view.
 
-**To view the documentation for a specific task, simply click on the task. The documentation for that task will load in this view.**
+Note that you need *an active Internet connection* to view that documentation, as it's served via API.
 
-*Please note that the task documentation is loaded from the Kestra API, so you will need an active internet connection to view it.*
+## Task properties
 
-### Common tasks properties
+All tasks have the following core properties:
 
-* `id` - A unique identifier for the task.
-* `type` - The type of task to be executed.
-* `description` - A brief explanation of what the task does.
-* `retry` - The number of times the task should be retried in case of failure.
-  * More details on <https://kestra.io/docs/developer-guide/errors-handling#retries>.
-* `timeout` - The maximum time allowed for the task to complete. 
-  * More details on <https://kestra.io/docs/flow-examples/timeout>.
-* `disabled` - A boolean value indicating whether the task is disabled or not.
-* `workerGroup` - The group of workers that are eligible to execute the task.
-* `logLevel` - The level of log detail for the task.
+* `id` - a unique identifier for the task
+* `type` - a full Java class name that represents the type of task
+* `description` - your custom documentation of what the task does
+* `retry` - how often should the task be retried in case of a failure, and the [type of retry strategy](https://kestra.io/docs/developer-guide/errors-handling#retries) 
+* `timeout` - the [maximum time allowed](https://kestra.io/docs/flow-examples/timeout) for the task to complete. 
+* `disabled` - a boolean flag indicating whether the task is disabled or not; if set to `true`, the task will be skipped during execution
+* `workerGroup` - the [group of workers](https://kestra.io/blogs/2023-07-10-release-0-10-blueprints-worker-groups-scripts#worker-group) that are eligible to execute the task; you can specify a `workerGroup.key`
+* `logLevel` - the level of log detail to be stored.
