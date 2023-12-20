@@ -17,4 +17,5 @@ All tasks have the following core properties:
 * `timeout` - the [maximum time allowed](https://kestra.io/docs/flow-examples/timeout) for the task to complete. 
 * `disabled` - a boolean flag indicating whether the task is disabled or not; if set to `true`, the task will be skipped during execution
 * `workerGroup` - the [group of workers](https://kestra.io/blogs/2023-07-10-release-0-10-blueprints-worker-groups-scripts#worker-group) that are eligible to execute the task; you can specify a `workerGroup.key`
+* `allowFailure` - a boolean flag allowing to continue the execution even if this task fails
 * `logLevel` - the level of log detail to be stored.
