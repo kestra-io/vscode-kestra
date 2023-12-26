@@ -3,7 +3,6 @@ import * as vscode from 'vscode';
 import {KestraFileSearchProvider, KestraFS} from './kestraFsProvider';
 import DocumentationPanel from "./documentation/documentation";
 import ApiClient from './apiClient';
-import {kestraBaseUrl} from './constants';
 
 function writeYamlSchemaToKestra(globalState: vscode.Memento, yamlSchema: string) {
     globalState.update("kestra.yaml.schema", yamlSchema);
@@ -13,11 +12,7 @@ function writeYamlSchemaToKestra(globalState: vscode.Memento, yamlSchema: string
 function downloadSchemaCommand(globalState: vscode.Memento, apiClient: ApiClient) {
     return vscode.commands.registerCommand('kestra.schema.download', async () => {
         const kestraUrl = (await ApiClient.getKestraApiUrl(true) as string);
-        let apiPrefix = "";
-        if (kestraUrl !== kestraBaseUrl && !kestraUrl.includes("/api/v1")) {
-            apiPrefix = "/api/v1";
-        }
-        const url = kestraUrl.replace(/\/$/, "") + apiPrefix + "/plugins/schemas/flow";
+        const url = kestraUrl + "/plugins/schemas/flow";
 
         let flowSchema = await apiClient.apiCall(url, "Error while downloading Kestra's flow schema:");
         if (flowSchema.status !== 200) {
