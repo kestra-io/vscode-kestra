@@ -218,6 +218,7 @@ export class KestraFS implements vscode.FileSystemProvider {
 			await this.apiClient.flowsApi(`/${this.namespace}/${this.extractFlowId(uri)}`, {
 				method: "DELETE"
 			});
+			return;
 		}
 
 		await this.apiClient.fileApi(this.namespace, `?path=${this.trimNamespace(uri.path)}`, { method: "DELETE" });

@@ -12,8 +12,12 @@ function writeYamlSchemaToKestra(globalState: vscode.Memento, yamlSchema: string
 
 function downloadSchemaCommand(globalState: vscode.Memento, apiClient: ApiClient) {
     return vscode.commands.registerCommand('kestra.schema.download', async () => {
-        const kestraUrl = (await ApiClient.getKestraUrl(true) as string);
-        const url = kestraUrl.replace(/\/$/, "") + (kestraUrl === kestraBaseUrl ? "" : "/api/v1") + "/plugins/schemas/flow";
+        const kestraUrl = (await ApiClient.getKestraApiUrl(true) as string);
+        let apiPrefix = "";
+        if (kestraUrl !== kestraBaseUrl && !kestraUrl.includes("/api/v1")) {
+            apiPrefix = "/api/v1";
+        }
+        const url = kestraUrl.replace(/\/$/, "") + apiPrefix + "/plugins/schemas/flow";
 
         let flowSchema = await apiClient.apiCall(url, "Error while downloading Kestra's flow schema:");
         if (flowSchema.status !== 200) {

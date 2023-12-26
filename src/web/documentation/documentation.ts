@@ -68,8 +68,8 @@ export default class DocumentationPanel {
                         column: position.character
                     });
                     if (JSON.stringify(type) !== JSON.stringify(this.latestType) && type !== null) {
-                        const kestraUrl = await ApiClient.getKestraUrl();
-                        const path = kestraBaseUrl === kestraUrl ? `/plugins/definitions/${type}` : `/api/v1/plugins/${type}`;
+                        const kestraUrl = await ApiClient.getKestraApiUrl();
+                        const path = kestraBaseUrl === kestraUrl ? `/plugins/definitions/${type}` : `/plugins/${type}`;
                         const url = kestraUrl.replace(/\/$/, "") + path;
 
                         let response = await this._apiClient.apiCall(url, "Error while loading Kestra's task definition:", [404]);
