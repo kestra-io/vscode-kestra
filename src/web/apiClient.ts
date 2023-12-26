@@ -9,7 +9,7 @@ export default class ApiClient {
         this._secretStorage = secretStorage;
     }
 
-    public static async getKestraUrl(forceInput: boolean = false): Promise<String> {
+    public static async getKestraApiUrl(forceInput: boolean = false): Promise<String> {
         let kestraConfigUrl = (vscode.workspace.getConfiguration("kestra.api").get("url") as string);
         let kestraUrl = kestraConfigUrl;
 
@@ -29,7 +29,7 @@ export default class ApiClient {
             }
         }
 
-        return kestraUrl.replace("/api/v1", "");
+        return kestraUrl;
     }
 
     // ignoreCodes allows to ignore some http codes, like 404 for the tasks documentation
@@ -61,7 +61,7 @@ export default class ApiClient {
     }
 
     public async fileApi(namespace: string, suffix?: string, options?: RequestInit): Promise<Response> {
-        const fetchResponse = await this.apiCall(`${await ApiClient.getKestraUrl()}/api/v1/namespaces/${namespace}/files${suffix ?? ""}`, "Error while fetching Kestra's file API:", [404], options);
+        const fetchResponse = await this.apiCall(`${await ApiClient.getKestraApiUrl()}/namespaces/${namespace}/files${suffix ?? ""}`, "Error while fetching Kestra's file API:", [404], options);
         if (fetchResponse.status === 404) {
             throw vscode.FileSystemError.FileNotFound(suffix);
         }
@@ -69,7 +69,7 @@ export default class ApiClient {
     }
 
     public async flowsApi(suffix?: string, options?: RequestInit): Promise<Response> {
-        const fetchResponse = await this.apiCall(`${await ApiClient.getKestraUrl()}/api/v1/flows${suffix ?? ""}`, "Error while fetching Kestra's flow API:", [404], options);
+        const fetchResponse = await this.apiCall(`${await ApiClient.getKestraApiUrl()}/flows${suffix ?? ""}`, "Error while fetching Kestra's flow API:", [404], options);
         if (fetchResponse.status === 404) {
             throw vscode.FileSystemError.FileNotFound(suffix);
         }
