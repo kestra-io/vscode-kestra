@@ -13,6 +13,7 @@ export default class ApiClient {
         let kestraConfigUrl = (vscode.workspace.getConfiguration("kestra.api").get("url") as string);
         let kestraUrl = kestraConfigUrl;
 
+        let finalUrl = this.formatApiUrl(kestraUrl);
         if (vscode.env.uiKind !== vscode.UIKind.Web && (!kestraConfigUrl || forceInput)) {
             const kestraInputUrl = await vscode.window.showInputBox({
                 prompt: "Kestra Webserver URL",
@@ -22,9 +23,13 @@ export default class ApiClient {
             if (kestraInputUrl === undefined) {
                 vscode.window.showErrorMessage("Cannot get informations without proper Kestra URL.");
                 return "";
-            } else {
-                kestraUrl = kestraInputUrl;
-                // Store user URl
+            }
+
+            finalUrl = this.formatApiUrl(kestraUrl);
+
+            // url was updated, we must save it to config
+            if (kestraUrl !== finalUrl) {
+                kestraUrl = finalUrl;
                 vscode.workspace.getConfiguration('kestra.api').update('url', kestraUrl, vscode.ConfigurationTarget.Global);
             }
         }
@@ -32,7 +37,21 @@ export default class ApiClient {
         return kestraUrl;
     }
 
-    // ignoreCodes allows to ignore some http codes, like 404 for the tasks documentation
+    private static formatApiUrl(kestraUrl?: string) {
+        if (!kestraUrl) {
+            return "";
+        }
+        if (kestraUrl.endsWith("/")) {
+            kestraUrl = kestraUrl.substring(0, kestraUrl.length - 1);
+        }
+        if (kestraUrl !== kestraBaseUrl && !kestraUrl.includes("/api/v1")) {
+            kestraUrl += "/api/v1";
+        }
+
+        return kestraUrl;
+    }
+
+// ignoreCodes allows to ignore some http codes, like 404 for the tasks documentation
     public async apiCall(url: string, errorMessage: string, ignoreCodes: number[] = [], options?: RequestInit): Promise<Response> {
         try {
             const jwtToken = await this._secretStorage.get(secretStorageKey.token);
