@@ -25,7 +25,7 @@ export default class ApiClient {
                 return "";
             }
 
-            finalUrl = this.formatApiUrl(kestraUrl);
+            finalUrl = this.formatApiUrl(kestraInputUrl);
 
             // url was updated, we must save it to config
             if (kestraUrl !== finalUrl) {
