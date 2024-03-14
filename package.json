@@ -73,7 +73,7 @@
     "lint": "eslint src --ext ts",
     "run-in-browser": "vscode-test-web --browserType=chromium --extensionDevelopmentPath=. .",
     "vsix": "vsce package",
-    "publish": "vsce publish patch"
+    "publish": "vsce publish"
   },
   "extensionDependencies": [
     "redhat.vscode-yaml"

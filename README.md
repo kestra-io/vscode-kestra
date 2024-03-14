@@ -49,5 +49,5 @@ alias extension="OLD_PWD=$(pwd) && \
 `npm run vsix` will create a VSIX of your extension which you can use for local extension installation
 
 ## Publish
-̀`npm run publish` will increment the patch version and publish the package to VSCode extension marketplace.
+̀`npm run publish -- {your_version}` will publish the package to VSCode extension marketplace.
 However you should use `vsce login kestra-io` before to be able to do so.
