@@ -46,8 +46,7 @@ alias extension="OLD_PWD=$(pwd) && \
 ```
 
 ## Package for local VSIX installation
-`npm run vsix` will create a VSIX of your extension which you can use for local extension installation
+`npm run vsix` will create a VSIX of your extension which you can use for local extension installation.
 
 ## Publish
-̀`npm run publish -- {your_version}` will publish the package to VSCode extension marketplace.
-However you should use `vsce login kestra-io` before to be able to do so.
+Simply tag your commit with `v{major}.{minor}.{patch}` and it will trigger a GHA to do it.
