@@ -50,3 +50,11 @@ alias extension="OLD_PWD=$(pwd) && \
 
 ## Publish
 Simply tag your commit with `v{major}.{minor}.{patch}` and it will trigger a GHA to do it.
+
+## Configuration
+
+The library allows two possible configurations:
+
+- `kestra.api.url`: The URL of your Kestra instance
+- `kestra.schema.match-path`: The path files should match to have schema applied
+  

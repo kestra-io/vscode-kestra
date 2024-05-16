@@ -60,6 +60,14 @@
           ],
           "default": null,
           "description": "Specify the api root url."
+        },
+        "kestra.schema.match-path": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null,
+          "description": "Specify the path to files that will should match the schema."
         }
       }
     }
