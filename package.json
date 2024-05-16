@@ -67,7 +67,7 @@
             "null"
           ],
           "default": null,
-          "description": "Specify the path to files that will should match the schema."
+          "description": "Specify a directory to your Kestra flows so that only YAML files from that directory will be validated against the Kestra API schema."
         }
       }
     }
