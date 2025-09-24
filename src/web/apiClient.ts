@@ -1,6 +1,6 @@
 // apiClient.ts
 import * as vscode from 'vscode';
-import {kestraBaseUrl, secretStorageKey} from "./constants";
+import { kestraBaseUrl, secretStorageKey } from "./constants";
 
 export default class ApiClient {
     private readonly _secretStorage: vscode.SecretStorage;
@@ -51,7 +51,7 @@ export default class ApiClient {
         return kestraUrl;
     }
 
-// ignoreCodes allows to ignore some http codes, like 404 for the tasks documentation
+    // ignoreCodes allows to ignore some http codes, like 404 for the tasks documentation
     public async apiCall(url: string, errorMessage: string, ignoreCodes: number[] = [], options?: RequestInit): Promise<Response> {
         try {
             const jwtToken = await this._secretStorage.get(secretStorageKey.token);
@@ -123,54 +123,96 @@ export default class ApiClient {
 
     private basicAuthHeader(username: string | undefined, password: string | undefined) {
         return username && password ? {
-            Authorization: `Basic ${btoa(username + ':' + password)}`
+            // eslint-disable-next-line @typescript-eslint/naming-convention
+            'Authorization': `Basic ${btoa(username + ':' + password)}`
         } : undefined;
     }
 
-    private async askCredentialsAndFetch(url: string) {
-        let username: string | undefined = await this._secretStorage.get(secretStorageKey.username);
-        username = await vscode.window.showInputBox({
-            prompt: "Basic auth username (ESC to login with JWT Token)",
-            value: username
-        });
-        let password;
-        let response;
-        if (username !== undefined && username !== "") {
-            this._secretStorage.store(secretStorageKey.username, username);
-            password = await vscode.window.showInputBox({
-                prompt: "Basic auth password (ESC to login with JWT Token)",
-                password: true
-            });
-            if (password === undefined || password === "") {
-                throw new Error("You should provide a basic auth password if username is provided.");
-            }
-            response = await fetch(url, {
-                headers: this.basicAuthHeader(username, password)
-            });
-        }
+    private async askCredentialsAndFetch(url: string): Promise<Response> {
+        // Try basic auth first
+        try {
+            // Get stored credentials
+            const storedUsername = await this._secretStorage.get(secretStorageKey.username);
+            const storedPassword = await this._secretStorage.get(secretStorageKey.password);
 
-        // Still need JWT token
-        if (response === undefined || response.status === 401) {
-            const jwtToken = await vscode.window.showInputBox({prompt: "JWT Token (copy it when logged in, under logout button)"});
-            if (jwtToken === undefined) {
-                throw new Error("You should provide a JWT Token or your basic auth credentials were incorrect.");
-            }
-            this._secretStorage.store(secretStorageKey.token, jwtToken);
-            response = await fetch(
-                url,
-                {
-                    headers: {
-                        ...(this.basicAuthHeader(username, password) ?? {}),
-                        cookie: `JWT=${jwtToken}`
-                    }
+            let username = storedUsername;
+            let password = storedPassword;
+
+            // If we don't have stored credentials, prompt for them
+            if (!storedUsername || !storedPassword) {
+                // Prompt for username
+                username = await vscode.window.showInputBox({
+                    prompt: "Basic auth username (ESC to skip and use JWT Token)",
+                    value: storedUsername || "",
+                    placeHolder: "Enter username or press ESC for JWT authentication"
+                });
+
+                // If username is provided, try basic auth
+                if (username !== undefined && username.trim()) {
+                    password = await vscode.window.showInputBox({
+                        prompt: "Basic auth password",
+                        password: true,
+                        value: storedPassword || "",
+                        placeHolder: "Enter password for basic authentication"
+                    });
                 }
-            );
-
-            if (response.status === 401) {
-                throw new Error("Wrong credentials, please retry with proper ones.");
             }
+
+            // Try basic auth if we have both username and password
+            if (username && username.trim() && password && password.trim()) {
+                const basicAuthResponse = await fetch(url, {
+                    headers: this.basicAuthHeader(username.trim(), password.trim())
+                });
+
+                if (basicAuthResponse.ok) {
+                    // Only store credentials if authentication was successful
+                    await this._secretStorage.store(secretStorageKey.username, username.trim());
+                    await this._secretStorage.store(secretStorageKey.password, password.trim());
+                    vscode.window.showInformationMessage("Saved basic credentials.");
+                    return basicAuthResponse;
+                }
+
+                if (basicAuthResponse.status === 401) {
+                    vscode.window.showWarningMessage("Basic auth failed. Please try JWT token authentication.");
+                } else {
+                    // Return non-401 responses as they might be valid (e.g., 403, 500, etc.)
+                    return basicAuthResponse;
+                }
+            } else if (password === undefined) {
+                // User cancelled password input, fall through to JWT
+            } else if (username && username.trim() && (!password || !password.trim())) {
+                vscode.window.showErrorMessage("Password is required when username is provided.");
+            }
+        } catch (error) {
+            console.error("Basic auth attempt failed:", error);
         }
 
-        return response;
+        // If basic auth fails or user cancels, try JWT token
+        const jwtToken = await vscode.window.showInputBox({
+            prompt: "JWT Token (copy it when logged in, under logout button)",
+            placeHolder: "Paste your JWT token here"
+        });
+
+        if (!jwtToken || !jwtToken.trim()) {
+            throw new Error("JWT Token is required for authentication.");
+        }
+
+        const jwtResponse = await fetch(url, {
+            headers: {
+                cookie: `JWT=${jwtToken.trim()}`
+            }
+        });
+
+        if (jwtResponse.status === 401) {
+            throw new Error("Invalid JWT Token. Please check your token and try again.");
+        }
+
+        if (jwtResponse.ok) {
+            // Only store JWT token if authentication was successful
+            await this._secretStorage.store(secretStorageKey.token, jwtToken.trim());
+            vscode.window.showInformationMessage("JWT authentication successful.");
+        }
+
+        return jwtResponse;
     }
 }
