@@ -32,6 +32,16 @@
         "title": "Open Kestra documentation",
         "category": "Kestra",
         "icon": "images/icons/kestra-documentation.svg"
+      },
+      {
+        "command": "kestra.auth.signIn",
+        "title": "Sign in",
+        "category": "Kestra"
+      },
+      {
+        "command": "kestra.auth.signOut",
+        "title": "Sign out",
+        "category": "Kestra"
       }
     ],
     "menus": {
@@ -61,6 +71,14 @@
           "default": null,
           "description": "Specify the api root url."
         },
+        "kestra.api.tenant": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null,
+          "description": "Tenant id for multi-tenant instances. Leave empty for instances that do not use tenant-scoped API routes."
+        },
         "kestra.schema.match-path": {
           "type": [
             "string",
@@ -73,7 +91,7 @@
     }
   },
   "scripts": {
-    "pretest": "npm run compile-web",
+    "test": "mocha",
     "vscode:prepublish": "npm run package-web",
     "compile-web": "webpack",
     "watch-web": "webpack --watch",
@@ -100,6 +118,7 @@
     "mocha": "^10.8.2",
     "process": "^0.11.10",
     "ts-loader": "^9.4.4",
+    "ts-node": "^10.9.2",
     "typescript": "^5.1.6",
     "webpack": "^5.101.3",
     "webpack-cli": "^5.1.4",

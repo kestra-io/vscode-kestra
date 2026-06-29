@@ -1,6 +1,6 @@
 // apiClient.ts
 import * as vscode from 'vscode';
-import { kestraBaseUrl, secretStorageKey } from "./constants";
+import { kestraBaseUrl, secretStorageKey, yamlContentType, PebbleFunctionDef } from "./constants";
 
 export default class ApiClient {
     private readonly _secretStorage: vscode.SecretStorage;
@@ -9,32 +9,97 @@ export default class ApiClient {
         this._secretStorage = secretStorage;
     }
 
-    public static async getKestraApiUrl(forceInput: boolean = false): Promise<String> {
-        let kestraConfigUrl = (vscode.workspace.getConfiguration("kestra.api").get("url") as string);
-        let kestraUrl = kestraConfigUrl;
+    public async signIn(): Promise<void> {
+        const basic = "Basic auth", apiToken = "API token (EE)", jwt = "JWT token (legacy)";
+        const choice = await vscode.window.showQuickPick([basic, apiToken, jwt], {placeHolder: "Select how to authenticate to Kestra"});
+        if (!choice) {
+            return;
+        }
 
-        let finalUrl = this.formatApiUrl(kestraUrl);
+        if (choice === basic) {
+            const username = await vscode.window.showInputBox({prompt: "Username"});
+            if (!username?.trim()) {
+                return;
+            }
+            const password = await vscode.window.showInputBox({prompt: "Password", password: true});
+            if (!password?.trim()) {
+                return;
+            }
+            await this.clearSecrets();
+            await this._secretStorage.store(secretStorageKey.username, username.trim());
+            await this._secretStorage.store(secretStorageKey.password, password.trim());
+        } else {
+            const token = await vscode.window.showInputBox({prompt: choice === apiToken ? "Kestra API token" : "JWT token", password: true});
+            if (!token?.trim()) {
+                return;
+            }
+            await this.clearSecrets();
+            await this._secretStorage.store(choice === apiToken ? secretStorageKey.apiToken : secretStorageKey.token, token.trim());
+        }
+
+        const status = await this.verifyCredentials();
+        if (status === "unauthorized") {
+            await this.clearSecrets();
+            vscode.window.showErrorMessage("Sign in failed: invalid credentials");
+        } else if (status === "unreachable") {
+            vscode.window.showWarningMessage("Could not reach Kestra. Check the URL and that the instance is running.");
+        } else {
+            vscode.window.showInformationMessage("Signed in to Kestra");
+        }
+    }
+
+    // GET /configs is the lightweight authenticated endpoint the Kestra UI itself uses to validate a login.
+    public async verifyCredentials(): Promise<"ok" | "unauthorized" | "unreachable"> {
+        const response = await this.silentFetch("/configs", {}, false);
+        if (!response) {
+            return "unreachable";
+        }
+        return response.status === 401 ? "unauthorized" : "ok";
+    }
+
+    public async signOut(): Promise<void> {
+        await this.clearSecrets();
+        vscode.window.showInformationMessage("Signed out of Kestra");
+    }
+
+    private async clearSecrets(): Promise<void> {
+        for (const key of Object.values(secretStorageKey)) {
+            await this._secretStorage.delete(key);
+        }
+    }
+
+    public static async getKestraApiUrl(forceInput: boolean = false, includeTenant: boolean = true): Promise<string> {
+        const kestraConfigUrl = (vscode.workspace.getConfiguration("kestra.api").get("url") as string);
+        let finalUrl = this.formatApiUrl(kestraConfigUrl);
+
         if (vscode.env.uiKind !== vscode.UIKind.Web && (!kestraConfigUrl || forceInput)) {
             const kestraInputUrl = await vscode.window.showInputBox({
-                prompt: "Kestra Webserver URL",
+                prompt: "Kestra instance URL",
                 value: kestraConfigUrl ?? kestraBaseUrl
             });
 
             if (kestraInputUrl === undefined) {
-                vscode.window.showErrorMessage("Cannot get informations without proper Kestra URL.");
+                vscode.window.showErrorMessage("A Kestra instance URL is required.");
                 return "";
             }
 
             finalUrl = this.formatApiUrl(kestraInputUrl);
 
             // url was updated, we must save it to config
-            if (kestraUrl !== finalUrl) {
-                kestraUrl = finalUrl;
-                vscode.workspace.getConfiguration('kestra.api').update('url', kestraUrl, vscode.ConfigurationTarget.Global);
+            if (kestraConfigUrl !== finalUrl) {
+                vscode.workspace.getConfiguration('kestra.api').update('url', finalUrl, vscode.ConfigurationTarget.Global);
             }
         }
 
-        return kestraUrl;
+        return includeTenant ? this.withTenant(finalUrl) : finalUrl;
+    }
+
+    private static withTenant(url: string): string {
+        const tenant = (vscode.workspace.getConfiguration("kestra.api").get("tenant") as string);
+        if (!url || !tenant) {
+            return url;
+        }
+        return url.includes("/api/v1") ? url.replace("/api/v1", `/api/v1/${tenant}`) : `${url}/${tenant}`;
     }
 
     private static formatApiUrl(kestraUrl?: string) {
@@ -51,30 +116,58 @@ export default class ApiClient {
         return kestraUrl;
     }
 
+    private async storedAuthHeaders(): Promise<Record<string, string> | undefined> {
+        const apiToken = await this._secretStorage.get(secretStorageKey.apiToken);
+        if (apiToken) {
+            return this.bearerHeader(apiToken);
+        }
+        const jwtToken = await this._secretStorage.get(secretStorageKey.token);
+        if (jwtToken) {
+            return {cookie: `JWT=${jwtToken}`};
+        }
+        const username = await this._secretStorage.get(secretStorageKey.username);
+        const password = await this._secretStorage.get(secretStorageKey.password);
+        return this.basicAuthHeader(username, password);
+    }
+
+    private bearerHeader(token: string) {
+        return {"Authorization": `Bearer ${token}`};
+    }
+
     // ignoreCodes allows to ignore some http codes, like 404 for the tasks documentation
     public async apiCall(url: string, errorMessage: string, ignoreCodes: number[] = [], options?: RequestInit): Promise<Response> {
         try {
-            const jwtToken = await this._secretStorage.get(secretStorageKey.token);
-            let response = jwtToken ?
+            const authHeaders = await this.storedAuthHeaders();
+            let response = authHeaders ?
                 await fetch(url,
                     {
                         ...options,
                         headers: {
                             ...options?.headers,
-                            cookie: `JWT=${jwtToken}`
+                            ...authHeaders
                         }
                     }) :
                 await fetch(url, options);
 
             if (!response.ok) {
-                const newResponse = await this.handleFetchError(response, url, errorMessage, ignoreCodes);
+                const newResponse = await this.handleFetchError(response, url, errorMessage, ignoreCodes, options);
                 if (newResponse) {
                     return newResponse;
                 }
             }
             return response;
         } catch (error) {
-            vscode.window.showErrorMessage(`Fetch error: ${error}`);
+            let origin: string | undefined;
+            try {
+                origin = new URL(url).origin;
+            } catch {
+                origin = undefined;
+            }
+            vscode.window.showErrorMessage(
+                origin
+                    ? `Cannot reach Kestra at ${origin}. Check that the instance is running and that kestra.api.url is correct.`
+                    : `No valid Kestra URL configured. Set "kestra.api.url" in settings (current value: "${url}").`
+            );
             throw error;
         }
     }
@@ -95,11 +188,65 @@ export default class ApiClient {
         return fetchResponse;
     }
 
-    private async handleFetchError(response: Response, url: string, errorMessage: string, ignoreCodes: number[] = []) {
+    public async validateFlowSilent(source: string, signal?: AbortSignal): Promise<Response | null> {
+        const response = await this.silentFetch("/flows/validate", {
+            method: "POST",
+            body: source,
+            signal,
+            headers: {"Content-Type": yamlContentType}
+        });
+        return response?.ok ? response : null;
+    }
+
+    public async pebbleFilters(): Promise<string[] | null> {
+        const response = await this.silentFetch("/pebble/filters", {}, false);
+        return response?.ok ? (await response.json().catch(() => null)) as string[] | null : null;
+    }
+
+    public async pebbleFunctions(): Promise<Array<string | PebbleFunctionDef> | null> {
+        const response = await this.silentFetch("/pebble/functions", {}, false);
+        return response?.ok ? (await response.json().catch(() => null)) as Array<string | PebbleFunctionDef> | null : null;
+    }
+
+    private async silentFetch(suffix: string, options: RequestInit = {}, includeTenant: boolean = true): Promise<Response | null> {
+        if (!(vscode.workspace.getConfiguration("kestra.api").get("url") as string)) {
+            return null;
+        }
+        try {
+            const base = await ApiClient.getKestraApiUrl(false, includeTenant);
+            const authHeaders = await this.storedAuthHeaders();
+            return await ApiClient.fetchWithTimeout(`${base}${suffix}`, {
+                ...options,
+                headers: {...(authHeaders ?? {}), ...(options.headers ?? {})}
+            });
+        } catch {
+            return null;
+        }
+    }
+
+    private static async fetchWithTimeout(url: string, options: RequestInit, timeoutMs: number = 15000): Promise<Response> {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), timeoutMs);
+        const external = options.signal;
+        if (external) {
+            if (external.aborted) {
+                controller.abort();
+            } else {
+                external.addEventListener("abort", () => controller.abort(), {once: true});
+            }
+        }
+        try {
+            return await fetch(url, {...options, signal: controller.signal});
+        } finally {
+            clearTimeout(timer);
+        }
+    }
+
+    private async handleFetchError(response: Response, url: string, errorMessage: string, ignoreCodes: number[] = [], options?: RequestInit) {
         if (response.status === 401) {
-            vscode.window.showInformationMessage("This Kestra instance is secured. Please provide credentials.");
+            vscode.window.showInformationMessage("This Kestra instance requires authentication.");
             try {
-                let newResponse = await this.askCredentialsAndFetch(url);
+                let newResponse = await this.askCredentialsAndFetch(url, options);
 
                 if (newResponse.status >= 400 && !ignoreCodes.includes(newResponse.status)) {
                     vscode.window.showErrorMessage(`${errorMessage} ${response.statusText}`);
@@ -123,96 +270,89 @@ export default class ApiClient {
 
     private basicAuthHeader(username: string | undefined, password: string | undefined) {
         return username && password ? {
-            // eslint-disable-next-line @typescript-eslint/naming-convention
-            'Authorization': `Basic ${btoa(username + ':' + password)}`
+            "Authorization": `Basic ${btoa(username + ':' + password)}`
         } : undefined;
     }
 
-    private async askCredentialsAndFetch(url: string): Promise<Response> {
-        // Try basic auth first
+    private async askCredentialsAndFetch(url: string, options?: RequestInit): Promise<Response> {
         try {
-            // Get stored credentials
             const storedUsername = await this._secretStorage.get(secretStorageKey.username);
             const storedPassword = await this._secretStorage.get(secretStorageKey.password);
 
             let username = storedUsername;
             let password = storedPassword;
 
-            // If we don't have stored credentials, prompt for them
             if (!storedUsername || !storedPassword) {
-                // Prompt for username
                 username = await vscode.window.showInputBox({
-                    prompt: "Basic auth username (ESC to skip and use JWT Token)",
-                    value: storedUsername || "",
-                    placeHolder: "Enter username or press ESC for JWT authentication"
+                    prompt: "Username (press Escape to use a token instead)",
+                    value: storedUsername || ""
                 });
 
-                // If username is provided, try basic auth
                 if (username !== undefined && username.trim()) {
                     password = await vscode.window.showInputBox({
-                        prompt: "Basic auth password",
+                        prompt: "Password",
                         password: true,
-                        value: storedPassword || "",
-                        placeHolder: "Enter password for basic authentication"
+                        value: storedPassword || ""
                     });
                 }
             }
 
-            // Try basic auth if we have both username and password
             if (username && username.trim() && password && password.trim()) {
                 const basicAuthResponse = await fetch(url, {
-                    headers: this.basicAuthHeader(username.trim(), password.trim())
+                    ...options,
+                    headers: {
+                        ...options?.headers,
+                        ...this.basicAuthHeader(username.trim(), password.trim())
+                    }
                 });
 
-                if (basicAuthResponse.ok) {
-                    // Only store credentials if authentication was successful
+                if (basicAuthResponse.status === 401) {
+                    vscode.window.showWarningMessage("Invalid credentials. Try a token instead.");
+                } else {
                     await this._secretStorage.store(secretStorageKey.username, username.trim());
                     await this._secretStorage.store(secretStorageKey.password, password.trim());
-                    vscode.window.showInformationMessage("Saved basic credentials.");
-                    return basicAuthResponse;
-                }
-
-                if (basicAuthResponse.status === 401) {
-                    vscode.window.showWarningMessage("Basic auth failed. Please try JWT token authentication.");
-                } else {
-                    // Return non-401 responses as they might be valid (e.g., 403, 500, etc.)
+                    if (basicAuthResponse.ok) {
+                        vscode.window.showInformationMessage("Signed in to Kestra");
+                    }
                     return basicAuthResponse;
                 }
             } else if (password === undefined) {
-                // User cancelled password input, fall through to JWT
+                // cancelled, fall through to the token prompt
             } else if (username && username.trim() && (!password || !password.trim())) {
-                vscode.window.showErrorMessage("Password is required when username is provided.");
+                vscode.window.showErrorMessage("A password is required.");
             }
         } catch (error) {
             console.error("Basic auth attempt failed:", error);
         }
 
-        // If basic auth fails or user cancels, try JWT token
-        const jwtToken = await vscode.window.showInputBox({
-            prompt: "JWT Token (copy it when logged in, under logout button)",
-            placeHolder: "Paste your JWT token here"
+        const apiToken = "API token (EE)";
+        const jwt = "JWT token (legacy)";
+        const choice = await vscode.window.showQuickPick([apiToken, jwt], {placeHolder: "Select how to authenticate to Kestra"});
+        if (!choice) {
+            throw new Error("Authentication is required.");
+        }
+        const isApiToken = choice === apiToken;
+
+        const token = await vscode.window.showInputBox({
+            prompt: isApiToken ? "Kestra API token" : "JWT token (copy it from the Kestra UI)",
+            password: true,
+            placeHolder: "Paste your token here"
         });
-
-        if (!jwtToken || !jwtToken.trim()) {
-            throw new Error("JWT Token is required for authentication.");
+        if (!token || !token.trim()) {
+            throw new Error("A token is required.");
         }
 
-        const jwtResponse = await fetch(url, {
-            headers: {
-                cookie: `JWT=${jwtToken.trim()}`
-            }
-        });
+        const tokenHeaders = isApiToken ? this.bearerHeader(token.trim()) : {cookie: `JWT=${token.trim()}`};
+        const tokenResponse = await fetch(url, {...options, headers: {...options?.headers, ...tokenHeaders}});
 
-        if (jwtResponse.status === 401) {
-            throw new Error("Invalid JWT Token. Please check your token and try again.");
+        if (tokenResponse.status === 401) {
+            throw new Error("Invalid token.");
+        }
+        if (tokenResponse.ok) {
+            await this._secretStorage.store(isApiToken ? secretStorageKey.apiToken : secretStorageKey.token, token.trim());
+            vscode.window.showInformationMessage("Signed in to Kestra");
         }
 
-        if (jwtResponse.ok) {
-            // Only store JWT token if authentication was successful
-            await this._secretStorage.store(secretStorageKey.token, jwtToken.trim());
-            vscode.window.showInformationMessage("JWT authentication successful.");
-        }
-
-        return jwtResponse;
+        return tokenResponse;
     }
 }

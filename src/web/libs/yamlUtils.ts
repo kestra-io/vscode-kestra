@@ -1,4 +1,4 @@
-import { LineCounter, parseDocument, YAMLMap, visit, Range } from "yaml";
+import { LineCounter, parseDocument, YAMLMap, visit, isMap, Range } from "yaml";
 
 
 export class YamlUtils {
@@ -7,16 +7,13 @@ export class YamlUtils {
     const types: { type: string, range: number[] }[] = [];
     const contents = yamlDoc.contents as YAMLMap;
     if (contents && contents.items && contents.items.find((e: any) => ["tasks", "triggers", "errors"].includes(e.key?.value))) {
-      visit(yamlDoc, {
-        Map(_, map) {
-            if (map.items) {
-                for (const item of map.items) {
-                    if (item.key == "type") {
-                        const type = item.value;
-                        types.push({type: (type as string), range: (map.range as Range)});
-                    } 
-                }
+      visit(yamlDoc, (_, node) => {
+        if (isMap(node)) {
+          for (const item of node.items as any[]) {
+            if (item.key?.value === "type") {
+              types.push({type: (item.value as string), range: (node.range as Range)});
             }
+          }
         }
       });
     }
@@ -39,6 +36,72 @@ export class YamlUtils {
       }
     }
     return null;
+  }
+
+  static isFlow(source: string): boolean {
+    try {
+      const doc = parseDocument(source);
+      return Boolean(doc.get("id") && doc.get("namespace") && (doc.get("tasks") || doc.get("triggers")));
+    } catch {
+      return false;
+    }
+  }
+
+  static nodeRange(source: string, path: Array<string | number>): [number, number] | undefined {
+    if (path.length === 0) {
+      return undefined;
+    }
+    try {
+      const node = parseDocument(source).getIn(path, true) as { range?: [number, number, number] } | undefined;
+      return node?.range ? [node.range[0], node.range[1]] : undefined;
+    } catch {
+      return undefined;
+    }
+  }
+
+  static inputIds(source: string): string[] {
+    const inputs = this.toObject(source)?.inputs;
+    return Array.isArray(inputs)
+      ? inputs.map(input => (input as { id?: string })?.id).filter((id): id is string => Boolean(id))
+      : [];
+  }
+
+  static taskIds(source: string): string[] {
+    const root = this.toObject(source);
+    const ids: string[] = [];
+    const walk = (tasks: unknown) => {
+      if (!Array.isArray(tasks)) {
+        return;
+      }
+      for (const task of tasks) {
+        if (task && typeof task === "object") {
+          const t = task as { id?: string; tasks?: unknown; errors?: unknown; finally?: unknown };
+          if (t.id) {
+            ids.push(t.id);
+          }
+          walk(t.tasks);
+          walk(t.errors);
+          walk(t.finally);
+        }
+      }
+    };
+    walk(root?.tasks);
+    walk(root?.errors);
+    walk(root?.finally);
+    return ids;
+  }
+
+  static sectionKeys(source: string, section: string): string[] {
+    const value = this.toObject(source)?.[section];
+    return value && typeof value === "object" && !Array.isArray(value) ? Object.keys(value) : [];
+  }
+
+  private static toObject(source: string): Record<string, unknown> | null {
+    try {
+      return parseDocument(source).toJS() as Record<string, unknown> | null;
+    } catch {
+      return null;
+    }
   }
 }
 
