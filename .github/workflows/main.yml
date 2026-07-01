@@ -1,26 +1,48 @@
+name: Main
+
 on:
   push:
-    tags:
-      - v*
+    branches: [main]
+  pull_request:
 
-name: Deploy Extension
+permissions:
+  contents: read
+
 jobs:
-  deploy:
+  check:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-node@v1
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
         with:
-          node-version: 16
-      - name: Extract version
-        run: |
-          echo "VERSION=${GITHUB_REF#refs/*/v}" >> $GITHUB_ENV
-      - name: Set package.json version
-        run: npm version ${VERSION} --no-git-tag-version
+          node-version: 20
+
       - name: Install dependencies
-        run: npm install
-      - name: Publish to Visual Studio Marketplace
-        uses: HaaLeo/publish-vscode-extension@v1
+        run: npm ci
+
+      - name: Lint code
+        run: npm run lint
+
+      - name: Build extension
+        run: npm run compile-web
+
+      - name: Run tests
+        run: npm run test --if-present
+
+  notify-failure:
+    name: Notify CI failure
+    needs: check
+    if: always() && github.event_name != 'pull_request' && needs.check.result == 'failure'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Mark failure
+        run: echo "CI failed" && exit 1
+
+      - name: Slack - Notify CI failure
+        if: always()
+        uses: kestra-io/actions/composite/slack-status@main
         with:
-          pat: ${{ secrets.AZURE_DEVOPS_TOKEN }}
-          registryUrl: https://marketplace.visualstudio.com
+          channel: 'C09FE0QCN2E'
+          webhook-url: ${{ secrets.SLACK_WEBHOOK_URL }}
+          users-map: ${{ vars.GITHUB_TO_SLACK_MAP }}
