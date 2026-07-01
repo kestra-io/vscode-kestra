@@ -1,63 +1,66 @@
-# Kestra extension for VSCode
+# Kestra for VS Code
+
+Author Kestra flows in VS Code with live validation, `{{ }}` autocompletion, and per-task documentation, all backed by the schema and validation of the Kestra instance you connect to.
+
+<!-- Capture a short demo GIF, commit it under docs/, then uncomment:
+![Kestra extension demo](https://raw.githubusercontent.com/kestra-io/vscode-kestra/main/docs/demo.gif)
+-->
 
 ## Features
 
-- Flow autocompletion & validation on `.yaml` / `.yml` files by downloading the JSON schema.
-- Dynamic documentation depending on tasks your flow includes.
+- **Live validation** as you type: the connected instance's validate endpoint runs on each edit and surfaces the same errors as `flow validate`.
+- **`{{ }}` autocompletion** for Pebble expressions: context variables, functions, filters, and the flow's own input and task ids.
+- **Instance-aware schema**: task and property autocompletion plus structural validation from your instance's installed plugin versions, not a generic all-plugins schema.
+- **Missing required fields**: inline suggestions for the required properties a task still needs.
+- **Task documentation**: open a task's documentation in a side panel.
 
 ## Requirements
 
-- [Redhat's YAML extension](https://marketplace.visualstudio.com/items?itemName=redhat.vscode-yaml)
+- [Red Hat YAML extension](https://marketplace.visualstudio.com/items?itemName=redhat.vscode-yaml)
 
-## Usage 
+## Setup
 
-### Kestra Schema - Enabling autocompletion
+Set the URL of your Kestra instance, and a tenant if it is multi-tenant:
 
-After installing the extension, you will get a new command called "Download Kestra schema".
-You can use this command to download the schema that will enable autocompletion in YAML files.
-
-To avoid having the schema apply on every YAML file, you can [set up the mapping in your settings file](https://code.visualstudio.com/docs/languages/json#_mapping-in-the-user-settings).
-
-**Using the extension on the Kestra VSCode Kestra will automatically download the Schema.**
-
-### Kestra Documentation - enabling live documentation
-
-Kestra VSCode extension embeds the documentation. When on a YAML file, a new action called `Open Kestra Documentation` will appear and will open a new Webview. This webview contains the default properties of a flow and its tasks, but clicking on a specific task in your code will show its documentation.
-
-## Configure
-
-When using the extension on your local instance of VSCode, you will be prompted to enter a URL.
-The default URL is the Kestra API that includes all plugins, but if you want to only display available plugins in your instance, use your Kestra Instance URL 
-
-**If you have a JWT-based authentication (EE), please copy your token from the "Copy JWT token" button available in the same menu as the Logout button on the UI.**
-
-## Development
-
-You can use the following alias to quickly install your extension to local Kestra instance for web extension testing:
-```
-alias extension="OLD_PWD=$(pwd) && \
-    npm run package-web && \
-    cp dist/web/extension.js {pathToKestraRoot}/ui/public/vscode/extensions/kestra/extension/dist/web/ && \
-    cp package.json {pathToKestraRoot}/ui/public/vscode/extensions/kestra/extension/ && \
-    cd {pathToKestraRoot} && \
-    rm -rf webserver/src/main/resources/ui && \
-    ./gradlew assembleFrontend && \
-    cd $OLD_PWD"
+```json
+"kestra.api.url": "http://localhost:8080/api/v1",
+"kestra.api.tenant": "main"
 ```
 
-## Package for local VSIX installation
-`npm run vsix` will create a VSIX of your extension which you can use for local extension installation.
+On a secured instance you are prompted for credentials on the first request. It supports basic auth (username and password), an Enterprise Edition API token (sent as a Bearer token), and a legacy JWT session token. Use the `Kestra: Sign in` command to set or change credentials, and `Kestra: Sign out` to clear them.
 
-## Publish
-Simply tag your commit with `v{major}.{minor}.{patch}` and it will trigger a GHA to do it.
+## Usage
+
+### Schema and autocompletion
+
+The flow schema is downloaded from the instance set in `kestra.api.url`, so it matches that instance's installed plugin versions. It is cached per instance and re-downloaded when the URL or tenant changes. A property valid in `latest` but missing on your instance is therefore flagged. The `Download Kestra schema` command forces a refresh, for example after installing a plugin.
+
+The schema attaches to any open YAML detected as a flow (it declares `id`, `namespace`, and `tasks` or `triggers`). To restrict it to a specific folder instead, [set up a file mapping](https://code.visualstudio.com/docs/languages/json#_mapping-in-the-user-settings).
+
+### Documentation
+
+On a flow file, the `Open Kestra Documentation` action opens a panel with the flow and task documentation. Clicking a task in your code shows that task's documentation.
 
 ## Configuration
 
-The library allows two possible configurations:
+- `kestra.api.url`: URL of your Kestra instance.
+- `kestra.api.tenant`: Tenant id for multi-tenant instances. Leave empty for instances that do not use tenant-scoped API routes.
+- `kestra.schema.match-path`: Restrict the schema to files under a path, for example `_flows`.
 
-- `kestra.api.url`: The URL of your Kestra instance
-- `kestra.schema.match-path`: The path to files for which the Kestra API schema should be applied; this allows the extension to validate only YAML files from a specific folder desginated for kestra. For example, adding the following configuration to your `settings.json` will ensure that only files from the `_flows` directory will be validated as kestra flows:
+## Screenshots
 
-```json
-"kestra.schema.match-path": "_flow"
-```
+<!-- Capture short GIFs (VS Code screen recordings), commit them under docs/, then uncomment:
+
+### Live validation
+![Live validation](https://raw.githubusercontent.com/kestra-io/vscode-kestra/main/docs/validation.gif)
+
+### Expression autocompletion
+![Expression autocompletion](https://raw.githubusercontent.com/kestra-io/vscode-kestra/main/docs/autocomplete.gif)
+
+### Missing required fields
+![Missing required fields](https://raw.githubusercontent.com/kestra-io/vscode-kestra/main/docs/required-fields.gif)
+-->
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for building, packaging, and releasing the extension.
