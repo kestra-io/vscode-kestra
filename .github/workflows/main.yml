@@ -30,17 +30,8 @@ jobs:
       - name: Run tests
         run: npm run test --if-present
 
-  notify-failure:
-    name: Notify CI failure
-    needs: check
-    if: always() && github.event_name != 'pull_request' && needs.check.result == 'failure'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Mark failure
-        run: echo "CI failed" && exit 1
-
-      - name: Slack - Notify CI failure
-        if: always()
+      - name: Slack - Notify on failure
+        if: always() && github.event_name != 'pull_request' && job.status == 'failure'
         uses: kestra-io/actions/composite/slack-status@main
         with:
           channel: 'C09FE0QCN2E'
