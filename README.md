@@ -8,6 +8,10 @@
     Kestra for VS Code
 </h1>
 
+<h3 align="center" style="border-bottom: none">
+    Event-Driven Declarative Orchestrator
+</h3>
+
 <div align="center">
   <a href="https://marketplace.visualstudio.com/items?itemName=kestra-io.kestra"><img src="https://img.shields.io/visual-studio-marketplace/v/kestra-io.kestra?color=blueviolet&label=VS%20Marketplace" alt="VS Marketplace version" /></a>
   <a href="https://marketplace.visualstudio.com/items?itemName=kestra-io.kestra"><img src="https://img.shields.io/visual-studio-marketplace/i/kestra-io.kestra?color=blueviolet&label=installs" alt="Installs" /></a>
