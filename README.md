@@ -37,7 +37,7 @@
 
 <br />
 
-# Kestra extension for VS Code
+# Kestra for VS Code
 
 Author Kestra flows in VS Code with live validation, `{{ }}` autocompletion, and per-task documentation, all backed by the schema and validation of the Kestra instance you connect to.
 
