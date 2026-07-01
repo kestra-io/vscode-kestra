@@ -28,6 +28,15 @@
 
 <br />
 
+<p align="center">
+    <a href="https://go.kestra.io/video/product-overview" target="_blank">
+        <img src="https://kestra.io/startvideo.png" alt="Get started in 4 minutes with Kestra" width="640px" />
+    </a>
+</p>
+<p align="center" style="color:grey;"><i>Get started with Kestra in 4 minutes.</i></p>
+
+<br />
+
 Author Kestra flows in VS Code with live validation, `{{ }}` autocompletion, and per-task documentation, all backed by the schema and validation of the Kestra instance you connect to.
 
 <!-- Capture a short demo GIF, commit it under docs/, then uncomment:
