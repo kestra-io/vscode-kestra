@@ -1,0 +1,58 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - v*
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Extract version
+        run: echo "VERSION=${GITHUB_REF#refs/*/v}" >> $GITHUB_ENV
+
+      - name: Set package.json version
+        run: npm version ${VERSION} --no-git-tag-version
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Publish to Visual Studio Marketplace
+        uses: HaaLeo/publish-vscode-extension@v1
+        with:
+          pat: ${{ secrets.AZURE_DEVOPS_TOKEN }}
+          registryUrl: https://marketplace.visualstudio.com
+
+      - name: Create GitHub release
+        run: gh release create "${{ github.ref_name }}" --generate-notes --verify-tag
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Slack notification
+        if: success()
+        uses: kestra-io/actions/composite/slack-status@main
+        with:
+          channel: 'C08KNSZGXQU'
+          webhook-url: ${{ secrets.SLACK_WEBHOOK_URL }}
+          users-map: ${{ vars.GITHUB_TO_SLACK_MAP }}
+          suffix: ${{ github.ref_name }}
+
+      - name: Slack - Notify release failure
+        if: failure()
+        uses: kestra-io/actions/composite/slack-status@main
+        with:
+          channel: 'C08KNSZGXQU'
+          webhook-url: ${{ secrets.SLACK_WEBHOOK_URL }}
+          users-map: ${{ vars.GITHUB_TO_SLACK_MAP }}
