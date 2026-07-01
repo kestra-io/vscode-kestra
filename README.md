@@ -41,10 +41,6 @@
 
 Author Kestra flows in VS Code with live validation, `{{ }}` autocompletion, and per-task documentation, all backed by the schema and validation of the Kestra instance you connect to.
 
-<!-- Capture a short demo GIF, commit it under docs/, then uncomment:
-![Kestra extension demo](https://raw.githubusercontent.com/kestra-io/vscode-kestra/main/docs/demo.gif)
--->
-
 ## Features
 
 - **Live validation** as you type: the connected instance's validate endpoint runs on each edit and surfaces the same errors as `flow validate`.
@@ -86,20 +82,12 @@ On a flow file, the `Open Kestra Documentation` action opens a panel with the fl
 - `kestra.api.tenant`: Tenant id for multi-tenant instances. Leave empty for instances that do not use tenant-scoped API routes.
 - `kestra.schema.match-path`: Restrict the schema to files under a path, for example `_flows`.
 
-## Screenshots
-
-<!-- Capture short GIFs (VS Code screen recordings), commit them under docs/, then uncomment:
-
-### Live validation
-![Live validation](https://raw.githubusercontent.com/kestra-io/vscode-kestra/main/docs/validation.gif)
-
-### Expression autocompletion
-![Expression autocompletion](https://raw.githubusercontent.com/kestra-io/vscode-kestra/main/docs/autocomplete.gif)
-
-### Missing required fields
-![Missing required fields](https://raw.githubusercontent.com/kestra-io/vscode-kestra/main/docs/required-fields.gif)
--->
-
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for building, packaging, and releasing the extension.
+
+## Stay up to date
+
+We release new versions every month. Give the [main repository](https://github.com/kestra-io/kestra) a star to stay up to date with the latest releases and get notified about future updates.
+
+![Star the repo](https://kestra.io/star.gif)
