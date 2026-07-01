@@ -18,7 +18,7 @@ export function registerFlowValidation(context: vscode.ExtensionContext, apiClie
     const timers = new Map<string, ReturnType<typeof setTimeout>>();
     const requests = new Map<string, AbortController>();
 
-    const validate = async (document: vscode.TextDocument) => {
+    const asyncValidate = async (document: vscode.TextDocument) => {
         if (document.languageId !== "yaml") {
             return;
         }
@@ -53,13 +53,13 @@ export function registerFlowValidation(context: vscode.ExtensionContext, apiClie
         }
         timers.set(key, setTimeout(() => {
             timers.delete(key);
-            validate(document);
+            asyncValidate(document);
         }, DEBOUNCE_MS));
     };
 
     context.subscriptions.push(
         vscode.workspace.onDidChangeTextDocument(event => schedule(event.document)),
-        vscode.workspace.onDidOpenTextDocument(document => validate(document)),
+        vscode.workspace.onDidOpenTextDocument(document => asyncValidate(document)),
         vscode.workspace.onDidCloseTextDocument(document => {
             diagnostics.delete(document.uri);
             const key = document.uri.toString();
@@ -70,7 +70,7 @@ export function registerFlowValidation(context: vscode.ExtensionContext, apiClie
     );
 
     if (vscode.window.activeTextEditor) {
-        validate(vscode.window.activeTextEditor.document);
+        asyncValidate(vscode.window.activeTextEditor.document);
     }
 }
 

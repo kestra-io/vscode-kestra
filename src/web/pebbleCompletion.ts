@@ -3,6 +3,8 @@ import ApiClient from './apiClient';
 import YamlUtils from './libs/yamlUtils';
 import {PebbleFunctionDef} from './constants';
 
+// Manual Pebble completion for Kestra 1.x. From 2.0, prefer the version-accurate POST /flows/expressions
+// endpoint and fall back to these lists. Follow-up: https://github.com/kestra-io/vscode-kestra/issues/33
 const VARIABLES = ['outputs', 'inputs', 'vars', 'flow', 'execution', 'trigger', 'task', 'taskrun',
     'labels', 'envs', 'globals', 'parent', 'parents', 'error', 'kestra'];
 
