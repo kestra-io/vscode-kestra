@@ -17,6 +17,17 @@
 
 <br />
 
+<p align="center">
+  <a href="https://twitter.com/kestra_io" style="margin: 0 10px;">
+        <img src="https://kestra.io/twitter.svg" alt="twitter" width="35" height="25" /></a>
+  <a href="https://www.linkedin.com/company/kestra/" style="margin: 0 10px;">
+        <img src="https://kestra.io/linkedin.svg" alt="linkedin" width="35" height="25" /></a>
+  <a href="https://www.youtube.com/@kestra-io" style="margin: 0 10px;">
+        <img src="https://kestra.io/youtube.svg" alt="youtube" width="35" height="25" /></a>
+</p>
+
+<br />
+
 Author Kestra flows in VS Code with live validation, `{{ }}` autocompletion, and per-task documentation, all backed by the schema and validation of the Kestra instance you connect to.
 
 <!-- Capture a short demo GIF, commit it under docs/, then uncomment:
