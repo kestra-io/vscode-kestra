@@ -62,9 +62,15 @@ function toElements(graph: FlowGraph, icons: Record<string, string>): cytoscape.
         }
     }
     for (const cluster of graph.clusters ?? []) {
+        // The triggers cluster has no task node; the API identifies it by its fixed uid.
+        const isTriggers = cluster.cluster.uid.endsWith('.Triggers');
         elements.push({
-            data: {id: cluster.cluster.uid, label: cluster.cluster.taskNode?.task?.id ?? '', parent: parentOf[cluster.cluster.uid]},
-            classes: 'cluster'
+            data: {
+                id: cluster.cluster.uid,
+                label: isTriggers ? 'Triggers' : cluster.cluster.taskNode?.task?.id ?? '',
+                parent: parentOf[cluster.cluster.uid]
+            },
+            classes: isTriggers ? 'cluster triggers' : 'cluster'
         });
     }
 
@@ -93,6 +99,7 @@ function toElements(graph: FlowGraph, icons: Record<string, string>): cytoscape.
 function graphStyle(): cytoscape.StylesheetJson {
     const accent = cssVar('--ks-status-running', '#9869f7');
     const clusterBorder = cssVar('--ks-topology-border-flowable-task', '#1761fd');
+    const triggersBorder = cssVar('--ks-topology-border-triggers', '#029e73');
     const foreground = cssVar('--vscode-foreground', '#cccccc');
     const cardBackground = cssVar('--vscode-editorWidget-background', '#252526');
     const edgeColor = cssVar('--vscode-foreground', '#ffffff');
@@ -152,6 +159,14 @@ function graphStyle(): cytoscape.StylesheetJson {
                 'text-halign': 'center',
                 'text-margin-y': 24,
                 'padding': '30'
+            }
+        },
+        {
+            selector: 'node.cluster.triggers',
+            style: {
+                'background-color': triggersBorder,
+                'border-color': triggersBorder,
+                'color': triggersBorder
             }
         },
         {
