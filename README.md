@@ -36,6 +36,7 @@ Author Kestra flows in VS Code with live validation, `{{ }}` autocompletion, and
 - **`{{ }}` autocompletion** for Pebble expressions: context variables, functions, filters, and the flow's own input and task ids.
 - **Instance-aware schema**: task and property autocompletion plus structural validation from your instance's installed plugin versions, not a generic all-plugins schema.
 - **Missing required fields**: inline suggestions for the required properties a task still needs.
+- **Run from the editor**: validate, deploy, and execute the open flow on the connected instance, with live logs and per-task status.
 - **Task documentation**: open a task's documentation in a side panel.
 
 ## Requirements
@@ -61,6 +62,12 @@ The flow schema is downloaded from the instance set in `kestra.api.url`, so it m
 
 The schema attaches to any open YAML detected as a flow (it declares `id`, `namespace`, and `tasks` or `triggers`). To restrict it to a specific folder instead, [set up a file mapping](https://code.visualstudio.com/docs/languages/json#_mapping-in-the-user-settings).
 
+### Running a flow
+
+On a flow file, run `Kestra: Run flow on Kestra` from the command palette, the play button in the editor title bar, or `Ctrl+Alt+R` (`Cmd+Alt+R` on macOS). The extension validates the flow, deploys the current editor content to the instance, prompts for any declared inputs, starts an execution, and streams its logs with a link to the execution page.
+
+By default the run opens in a panel with a status badge, a log-level filter, and collapsible per-task logs. Set `kestra.run.output` to `logs` to use a native output channel instead. Logs are streamed at `kestra.run.logLevel`, lower it to `DEBUG` or `TRACE` to see those lines.
+
 ### Documentation
 
 On a flow file, the `Open Kestra Documentation` action opens a panel with the flow and task documentation. Clicking a task in your code shows that task's documentation.
@@ -69,6 +76,8 @@ On a flow file, the `Open Kestra Documentation` action opens a panel with the fl
 
 - `kestra.api.url`: URL of your Kestra instance.
 - `kestra.api.tenant`: Tenant id for multi-tenant instances. Leave empty for instances that do not use tenant-scoped API routes.
+- `kestra.run.output`: Where to show a flow run, the styled `panel` (default) or the native `logs` output channel.
+- `kestra.run.logLevel`: Minimum log level streamed when running a flow. Defaults to `INFO`.
 - `kestra.schema.match-path`: Restrict the schema to files under a path, for example `_flows`.
 
 ## Contributing
