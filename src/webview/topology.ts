@@ -84,7 +84,6 @@ function toElements(graph: FlowGraph, icons: Record<string, string>): cytoscape.
 function graphStyle(): cytoscape.StylesheetJson {
     const accent = cssVar('--ks-status-running', '#9869f7');
     const clusterBorder = cssVar('--ks-topology-border-flowable-task', '#1761fd');
-    const clusterBg = cssVar('--ks-topology-bg-flowable-task', 'rgba(23, 97, 253, 0.1)');
     const foreground = cssVar('--vscode-foreground', '#cccccc');
     const cardBackground = cssVar('--vscode-editorWidget-background', '#252526');
     const edgeColor = cssVar('--vscode-foreground', '#ffffff');
@@ -126,8 +125,9 @@ function graphStyle(): cytoscape.StylesheetJson {
             selector: 'node.cluster',
             style: {
                 'shape': 'round-rectangle',
-                'background-color': clusterBg,
-                'background-opacity': 1,
+                // Cytoscape has no rgba colors; core's 10% blue fill comes from background-opacity.
+                'background-color': clusterBorder,
+                'background-opacity': 0.1,
                 'border-color': clusterBorder,
                 'border-width': 1,
                 'border-opacity': 1,
@@ -137,7 +137,7 @@ function graphStyle(): cytoscape.StylesheetJson {
                 'font-weight': 600,
                 'text-background-color': cssVar('--ks-bg-badge', '#20232d'),
                 'text-background-opacity': 1,
-                'text-background-shape': 'round-rectangle',
+                'text-background-shape': 'roundrectangle',
                 'text-background-padding': '5',
                 // valign top puts the label above the box; the margin pulls it back inside the padding band.
                 'text-valign': 'top',
