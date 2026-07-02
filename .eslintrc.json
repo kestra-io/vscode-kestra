@@ -13,8 +13,8 @@
             "warn",
             {"selector": "default", "format": ["camelCase"], "leadingUnderscore": "allow", "trailingUnderscore": "allow"},
             {"selector": "variable", "format": ["camelCase", "UPPER_CASE"], "leadingUnderscore": "allow", "trailingUnderscore": "allow"},
-            {"selector": "typeLike", "format": ["PascalCase"]},
             {"selector": "classProperty", "format": ["camelCase", "UPPER_CASE"], "leadingUnderscore": "allow"},
+            {"selector": "typeLike", "format": ["PascalCase"]},
             {"selector": "objectLiteralProperty", "format": null}
         ],
         "@typescript-eslint/semi": "warn",
