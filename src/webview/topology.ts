@@ -53,13 +53,19 @@ function showMessage(text: string) {
 function toElements(graph: FlowGraph, icons: Record<string, string>): cytoscape.ElementDefinition[] {
     const elements: cytoscape.ElementDefinition[] = [];
 
-    // Clusters become compound parent nodes wrapping all their members, including the flowable task itself.
+    // Clusters become compound parent nodes wrapping all their members, including the flowable task
+    // itself and any nested cluster, so branch boxes render inside their parent box.
     const parentOf: Record<string, string> = {};
     for (const cluster of graph.clusters ?? []) {
-        elements.push({data: {id: cluster.cluster.uid, label: cluster.cluster.taskNode?.task?.id ?? ''}, classes: 'cluster'});
         for (const child of cluster.nodes ?? []) {
             parentOf[child] = cluster.cluster.uid;
         }
+    }
+    for (const cluster of graph.clusters ?? []) {
+        elements.push({
+            data: {id: cluster.cluster.uid, label: cluster.cluster.taskNode?.task?.id ?? '', parent: parentOf[cluster.cluster.uid]},
+            classes: 'cluster'
+        });
     }
 
     for (const node of graph.nodes) {
@@ -161,7 +167,11 @@ function graphStyle(): cytoscape.StylesheetJson {
                 'target-arrow-shape': 'triangle',
                 'target-distance-from-node': 2,
                 'arrow-scale': 0.4,
-                'curve-style': 'bezier'
+                // Orthogonal elbow routing, like the Kestra UI's edges.
+                'curve-style': 'taxi',
+                'taxi-direction': 'rightward',
+                'taxi-turn': 24,
+                'taxi-turn-min-distance': 12
             }
         },
         {selector: 'edge.hl', style: {'line-color': accent, 'target-arrow-color': accent, 'line-opacity': 1, 'width': 2}}
