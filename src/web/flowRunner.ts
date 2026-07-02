@@ -14,7 +14,6 @@ type Execution = {
 };
 
 // The log indexer is asynchronous, so trailing lines can land after the execution turns terminal.
-// The Kestra UI waits 2s before closing its log stream; mirror that.
 const LOG_FLUSH_GRACE_MS = 2000;
 
 export async function runFlowFromEditor(apiClient: ApiClient, extensionUri: vscode.Uri) {
