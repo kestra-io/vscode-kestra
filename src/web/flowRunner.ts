@@ -5,7 +5,6 @@ import {durationOf} from './libs/runHelpers';
 import {readSseStream} from './libs/sse';
 import {isFlowDocument, splitConstraints, ValidateResult} from './flowValidation';
 import {RunOutput, createRunOutput} from './runOutput';
-import TopologyPanel from './topologyPanel';
 import {FlowInput, LogEntry, flattenInputs} from '../shared/flow';
 
 type Flow = {id: string; namespace: string; inputs?: FlowInput[]};
@@ -28,8 +27,6 @@ export async function runFlowFromEditor(apiClient: ApiClient, extensionUri: vsco
 
     const {output, fetchLevel, logLevel} = createRunOutput(extensionUri, flowUid);
     output.reset(flowUid, logLevel);
-    // Clear any prior run colors on the topology preview (if open) before this run starts.
-    TopologyPanel.current?.resetStates();
 
     await vscode.window.withProgress(
         {location: vscode.ProgressLocation.Notification, title: `Running ${flowUid} on Kestra`, cancellable: false},
@@ -181,8 +178,6 @@ function onExecutionFrame(data: string | undefined, output: RunOutput, sentTaskS
             if (sentTaskStates.get(taskRun.taskId) !== snapshot) {
                 sentTaskStates.set(taskRun.taskId, snapshot);
                 output.updateTask(taskRun.taskId, state, duration);
-                // Overlay the live state on the topology preview if it is open.
-                TopologyPanel.current?.setTaskState(taskRun.taskId, state);
             }
         });
         return execution.state?.current;

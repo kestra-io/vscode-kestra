@@ -3,6 +3,7 @@ import {sanitizeFileName} from './libs/runHelpers';
 import {stateSymbol} from '../shared/executionState';
 import {FlowInput, LogEntry, formatLogLine, inputFallback} from '../shared/flow';
 import RunPanel from './runPanel';
+import TopologyPanel from './topologyPanel';
 
 export interface RunOutput {
     reset(flow: string, logLevel: string): void;
@@ -22,9 +23,48 @@ export function createRunOutput(extensionUri: vscode.Uri, flowUid: string): {out
     const config = vscode.workspace.getConfiguration("kestra.run");
     const logLevel = (config.get("logLevel") as string) || "INFO";
     if (config.get("output") === "logs") {
-        return {output: RunLog.get(flowUid), fetchLevel: logLevel, logLevel};
+        return {output: new TopologyOverlay(RunLog.get(flowUid)), fetchLevel: logLevel, logLevel};
     }
-    return {output: RunPanel.createOrShow(extensionUri, flowUid), fetchLevel: "TRACE", logLevel};
+    return {output: new TopologyOverlay(RunPanel.createOrShow(extensionUri, flowUid)), fetchLevel: "TRACE", logLevel};
+}
+
+// Forwards run events to an open topology preview so the graph colors live during a run.
+class TopologyOverlay implements RunOutput {
+    public constructor(private readonly inner: RunOutput) {}
+
+    public reset(flow: string, logLevel: string) {
+        this.inner.reset(flow, logLevel);
+        TopologyPanel.current?.resetStates();
+    }
+
+    public updateTask(taskId: string, state: string, durationSeconds?: number) {
+        this.inner.updateTask(taskId, state, durationSeconds);
+        TopologyPanel.current?.setTaskState(taskId, state);
+    }
+
+    public setPhase(text: string) {
+        this.inner.setPhase(text);
+    }
+
+    public setExecution(id: string, url: string) {
+        this.inner.setExecution(id, url);
+    }
+
+    public appendLogs(entries: LogEntry[]) {
+        this.inner.appendLogs(entries);
+    }
+
+    public error(text: string) {
+        this.inner.error(text);
+    }
+
+    public setStatus(state: string) {
+        this.inner.setStatus(state);
+    }
+
+    public requestInputs(inputs: FlowInput[]): Promise<FormData | undefined> {
+        return this.inner.requestInputs(inputs);
+    }
 }
 
 export async function pickInputFile(inputId: string): Promise<{name: string; data: Uint8Array} | undefined> {
