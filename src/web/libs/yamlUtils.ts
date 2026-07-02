@@ -96,7 +96,7 @@ export class YamlUtils {
     return value && typeof value === "object" && !Array.isArray(value) ? Object.keys(value) : [];
   }
 
-  private static toObject(source: string): Record<string, unknown> | null {
+  static toObject(source: string): Record<string, unknown> | null {
     try {
       return parseDocument(source).toJS() as Record<string, unknown> | null;
     } catch {
