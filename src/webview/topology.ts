@@ -83,7 +83,8 @@ function toElements(graph: FlowGraph, icons: Record<string, string>): cytoscape.
 
 function graphStyle(): cytoscape.StylesheetJson {
     const accent = cssVar('--ks-status-running', '#9869f7');
-    const clusterColor = cssVar('--ks-status-info', '#718bfe');
+    const clusterBorder = cssVar('--ks-topology-border-flowable-task', '#1761fd');
+    const clusterBg = cssVar('--ks-topology-bg-flowable-task', 'rgba(23, 97, 253, 0.1)');
     const foreground = cssVar('--vscode-foreground', '#cccccc');
     const cardBackground = cssVar('--vscode-editorWidget-background', '#252526');
     const edgeColor = cssVar('--vscode-foreground', '#ffffff');
@@ -125,13 +126,13 @@ function graphStyle(): cytoscape.StylesheetJson {
             selector: 'node.cluster',
             style: {
                 'shape': 'round-rectangle',
-                'background-color': clusterColor,
-                'background-opacity': 0.07,
-                'border-color': clusterColor,
+                'background-color': clusterBg,
+                'background-opacity': 1,
+                'border-color': clusterBorder,
                 'border-width': 1,
-                'border-opacity': 0.6,
+                'border-opacity': 1,
                 'label': 'data(label)',
-                'color': clusterColor,
+                'color': cssVar('--ks-status-info', '#718bfe'),
                 'font-size': 11,
                 'font-weight': 600,
                 // valign top puts the label above the box; the margin pulls it back inside the padding band.

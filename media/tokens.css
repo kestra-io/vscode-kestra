@@ -10,6 +10,8 @@
     --ks-status-pending: #fce070;
     --ks-primary: #631bf3;
     --ks-primary-hover: #5212d6;
+    --ks-topology-border-flowable-task: #1761fd;
+    --ks-topology-bg-flowable-task: rgba(23, 97, 253, 0.1);
     --ks-spacing-1: 4px;
     --ks-spacing-2: 8px;
     --ks-spacing-3: 12px;
