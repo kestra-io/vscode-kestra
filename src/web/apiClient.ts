@@ -208,6 +208,17 @@ export default class ApiClient {
         return response?.ok ? (await response.json().catch(() => null)) as Array<string | PebbleFunctionDef> | null : null;
     }
 
+    // Output property names for a task type, as the UI completes `outputs.<taskId>.`. Null if unknown.
+    public async taskOutputProperties(type: string): Promise<string[] | null> {
+        // The plugins endpoint is not tenant-scoped.
+        const response = await this.silentFetch(`/plugins/${type}`, {}, false);
+        if (!response?.ok) {
+            return null;
+        }
+        const doc = (await response.json().catch(() => null)) as {schema?: {outputs?: {properties?: Record<string, unknown>}}} | null;
+        return Object.keys(doc?.schema?.outputs?.properties ?? {});
+    }
+
     private async silentFetch(suffix: string, options: RequestInit = {}, includeTenant: boolean = true): Promise<Response | null> {
         if (!(vscode.workspace.getConfiguration("kestra.api").get("url") as string)) {
             return null;
