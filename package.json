@@ -168,7 +168,6 @@
     "redhat.vscode-yaml"
   ],
   "devDependencies": {
-    "@types/cytoscape": "^3.21.9",
     "@types/eslint": "^8.44.2",
     "@types/mocha": "^10.0.1",
     "@types/node": "^20.10.4",
@@ -189,7 +188,6 @@
     "webpack-dev-server": "^5.2.2"
   },
   "dependencies": {
-    "@dagrejs/dagre": "^3.0.0",
     "@types/markdown-it": "^13.0.6",
     "buffer": "^6.0.3",
     "css-loader": "^6.8.1",
