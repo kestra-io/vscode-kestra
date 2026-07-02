@@ -131,3 +131,21 @@ describe("YamlUtils.taskRangeById", () => {
         assert.strictEqual(YamlUtils.taskRangeById(flow, "nope"), undefined);
     });
 });
+
+describe("YamlUtils.taskRangeById (input collision)", () => {
+    it("ignores an input whose id matches a task id", () => {
+        const collided = `id: f
+namespace: n
+inputs:
+  - id: download
+    type: STRING
+tasks:
+  - id: download
+    type: io.kestra.plugin.core.log.Log
+    message: hi
+`;
+        const range = YamlUtils.taskRangeById(collided, "download");
+        assert.ok(range);
+        assert.ok(collided.slice(range[0], range[1]).includes("io.kestra.plugin.core.log.Log"));
+    });
+});

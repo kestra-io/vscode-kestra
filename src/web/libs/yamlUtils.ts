@@ -1,4 +1,4 @@
-import { LineCounter, parseDocument, YAMLMap, visit, isMap, isScalar, Range } from "yaml";
+import { LineCounter, parseDocument, YAMLMap, visit, isMap, isPair, isScalar, Range } from "yaml";
 
 
 export class YamlUtils {
@@ -91,12 +91,19 @@ export class YamlUtils {
     return ids;
   }
 
-  // Character range of the map whose "id" equals taskId, for click-to-reveal navigation.
+  // Character range of the task or trigger map whose "id" equals taskId, for click-to-reveal navigation.
+  // Scoped to the task-bearing sections so an input with the same id is never matched.
   static taskRangeById(source: string, taskId: string): [number, number] | undefined {
+    const sections = new Set(["tasks", "triggers", "errors", "finally"]);
     try {
       let range: [number, number] | undefined;
       visit(parseDocument(source), {
-        Map(_key, node: YAMLMap) {
+        Map(_key, node: YAMLMap, path) {
+          const inSection = path.some(parent =>
+            isPair(parent) && isScalar(parent.key) && sections.has(String(parent.key.value)));
+          if (!inSection) {
+            return;
+          }
           const hasId = node.items.some(item =>
             isScalar(item.key) && item.key.value === "id" &&
             isScalar(item.value) && item.value.value === taskId);
