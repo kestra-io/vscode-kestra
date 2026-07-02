@@ -53,15 +53,12 @@ function showMessage(text: string) {
 function toElements(graph: FlowGraph, icons: Record<string, string>): cytoscape.ElementDefinition[] {
     const elements: cytoscape.ElementDefinition[] = [];
 
-    // Clusters become compound parent nodes; their child nodes get the cluster as parent (except the
-    // cluster's own flowable task, which stays in the main line).
+    // Clusters become compound parent nodes wrapping all their members, including the flowable task itself.
     const parentOf: Record<string, string> = {};
     for (const cluster of graph.clusters ?? []) {
         elements.push({data: {id: cluster.cluster.uid, label: cluster.cluster.taskNode?.task?.id ?? ''}, classes: 'cluster'});
         for (const child of cluster.nodes ?? []) {
-            if (child !== cluster.cluster.taskNode?.uid) {
-                parentOf[child] = cluster.cluster.uid;
-            }
+            parentOf[child] = cluster.cluster.uid;
         }
     }
 
