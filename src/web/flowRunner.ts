@@ -5,6 +5,7 @@ import {durationOf} from './libs/runHelpers';
 import {readSseStream} from './libs/sse';
 import RunPanel from './runPanel';
 import {FlowInput, LogEntry, RunOutput, RunLog} from './runOutput';
+import {flattenInputs} from '../shared/flow';
 
 type Flow = {id: string; namespace: string; inputs?: FlowInput[]};
 type TaskState = {current?: string; histories?: Array<{date?: string}>};
@@ -97,10 +98,11 @@ async function deploy(apiClient: ApiClient, namespace: string, id: string, sourc
 }
 
 async function collectInputs(inputs: FlowInput[] | undefined, panel: RunOutput): Promise<FormData | undefined | "cancelled"> {
-    if (!Array.isArray(inputs) || inputs.length === 0) {
+    const leaves = flattenInputs(Array.isArray(inputs) ? inputs : undefined);
+    if (leaves.length === 0) {
         return undefined;
     }
-    const body = await panel.requestInputs(inputs);
+    const body = await panel.requestInputs(leaves);
     if (body === undefined) {
         panel.setPhase("Run cancelled.");
         return "cancelled";

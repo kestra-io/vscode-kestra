@@ -11,6 +11,8 @@ export function durationOf(state?: {histories?: Array<{date?: string}>}): number
     return Math.max(0, (end - start) / 1000);
 }
 
+const UNSAFE_FILE_NAME_CHARS = /[^a-zA-Z0-9._-]/g;
+
 export function sanitizeFileName(name: string): string {
-    return name.replace(/[^a-zA-Z0-9._-]/g, "_");
+    return name.replace(UNSAFE_FILE_NAME_CHARS, "_");
 }
