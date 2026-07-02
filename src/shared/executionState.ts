@@ -1,6 +1,5 @@
 export type StateBucket = 'success' | 'failed' | 'warning' | 'running' | 'info' | 'neutral' | 'pending';
 
-/* eslint-disable @typescript-eslint/naming-convention */
 export const STATES: Readonly<Record<string, StateBucket>> = Object.freeze({
     SUCCESS: 'success',
     FAILED: 'failed', KILLED: 'failed',
@@ -10,7 +9,6 @@ export const STATES: Readonly<Record<string, StateBucket>> = Object.freeze({
     CANCELLED: 'neutral', SKIPPED: 'neutral', QUEUED: 'neutral',
     KILLING: 'pending'
 });
-/* eslint-enable @typescript-eslint/naming-convention */
 
 const BUCKET_SYMBOL: Readonly<Record<StateBucket, string>> = Object.freeze({
     success: '✓', failed: '✗', warning: '⚠', running: '▶', info: '•', neutral: '•', pending: '•'
