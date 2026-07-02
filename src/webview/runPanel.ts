@@ -61,7 +61,7 @@ function buildLayout() {
     const header = el('div', 'header');
     header.append(flow, badge, el('span', 'spacer'), copy, open);
     const filters = el('div', 'filters');
-    const label = el('label', 'filter-label', 'Min level');
+    const label = el('label', 'filter-label', 'Log level');
     label.htmlFor = levelFilter.id;
     filters.append(label, levelFilter);
     const toolbar = el('div', 'toolbar');
