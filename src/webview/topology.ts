@@ -133,9 +133,11 @@ function graphStyle(): cytoscape.StylesheetJson {
                 'color': accent,
                 'font-size': 11,
                 'font-weight': 600,
+                // valign top puts the label above the box; the margin pulls it back inside the padding band.
                 'text-valign': 'top',
-                'text-halign': 'left',
-                'padding': '18'
+                'text-halign': 'center',
+                'text-margin-y': 24,
+                'padding': '30'
             }
         },
         {
