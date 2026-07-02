@@ -266,17 +266,18 @@ export default class ApiClient {
         }
     }
 
+    // Update first (the common case for re-runs); a 404 means the flow does not exist yet, so create it.
     public async upsertFlow(namespace: string, id: string, source: string): Promise<Response> {
         const base = await ApiClient.getKestraApiUrl();
         const headers = {
             "Content-Type": yamlContentType
         };
 
-        const existing = await this.apiCall(`${base}/flows/${namespace}/${id}`, "", [404]);
-        if (existing.status === 404) {
+        const updated = await this.apiCall(`${base}/flows/${namespace}/${id}`, "Error while updating flow:", [404], {method: "PUT", body: source, headers});
+        if (updated.status === 404) {
             return this.apiCall(`${base}/flows`, "Error while creating flow:", [], {method: "POST", body: source, headers});
         }
-        return this.apiCall(`${base}/flows/${namespace}/${id}`, "Error while updating flow:", [], {method: "PUT", body: source, headers});
+        return updated;
     }
 
     private async handleFetchError(response: Response, url: string, errorMessage: string, ignoreCodes: number[] = [], options?: RequestInit) {
