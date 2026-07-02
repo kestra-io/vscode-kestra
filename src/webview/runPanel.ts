@@ -1,11 +1,7 @@
 import {stateBucket, logLevelRank, LOG_LEVELS} from '../shared/executionState';
 import {HostMessage, WebviewMessage} from './messages';
 import {FlowInput, LogEntry, formatLogTime, formatLogLine, inputFallback} from '../shared/flow';
-
-interface VsCodeApi {
-    postMessage(message: WebviewMessage): void;
-}
-declare function acquireVsCodeApi(): VsCodeApi;
+import {acquireApi, el} from './dom';
 
 interface TagSelectElement extends HTMLDivElement {
     getSelected(): string[];
@@ -18,14 +14,7 @@ type SectionRefs = {
     duration: HTMLElement;
 };
 
-const vscode = acquireVsCodeApi();
-
-function el<K extends keyof HTMLElementTagNameMap>(tag: K, className = '', text = ''): HTMLElementTagNameMap[K] {
-    const node = document.createElement(tag);
-    node.className = className;
-    node.textContent = text;
-    return node;
-}
+const vscode = acquireApi<WebviewMessage>();
 
 function titleCase(state: string): string {
     return state.charAt(0) + state.slice(1).toLowerCase();

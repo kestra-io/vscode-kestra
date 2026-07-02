@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import {RunOutput, pickInputFile} from './runOutput';
 import {FlowInput, LogEntry} from '../shared/flow';
-import {makeNonce} from './webviewHelpers';
+import {webviewHtml} from './webviewHelpers';
 import {HostMessage, WebviewMessage} from '../webview/messages';
 
 export default class RunPanel implements RunOutput {
@@ -9,7 +9,6 @@ export default class RunPanel implements RunOutput {
     private static panels = new Map<string, RunPanel>();
 
     private readonly _panel: vscode.WebviewPanel;
-    private readonly _extensionUri: vscode.Uri;
     private readonly _flowUid: string;
     private _disposables: vscode.Disposable[] = [];
     private _ready = false;
@@ -44,12 +43,15 @@ export default class RunPanel implements RunOutput {
         return created;
     }
 
+    private static html(webview: vscode.Webview, extensionUri: vscode.Uri): string {
+        return webviewHtml(webview, extensionUri, {title: 'Kestra Execution', style: 'runPanel.css', script: 'runPanel.js'});
+    }
+
     private constructor(panel: vscode.WebviewPanel, extensionUri: vscode.Uri, flowUid: string) {
         this._panel = panel;
-        this._extensionUri = extensionUri;
         this._flowUid = flowUid;
         this._panel.onDidDispose(() => this.dispose(), null, this._disposables);
-        this._panel.webview.html = this.getHtml();
+        this._panel.webview.html = RunPanel.html(this._panel.webview, extensionUri);
         this._panel.webview.onDidReceiveMessage(message => this.handleMessage(message), undefined, this._disposables);
     }
 
@@ -156,25 +158,4 @@ export default class RunPanel implements RunOutput {
         }
     }
 
-    private getHtml(): string {
-        const nonce = makeNonce();
-        const webview = this._panel.webview;
-        const scriptUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'dist', 'webview', 'runPanel.js'));
-        const tokensUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'media', 'tokens.css'));
-        const styleUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'media', 'runPanel.css'));
-        return `<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource}; script-src 'nonce-${nonce}';">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kestra Execution</title>
-    <link href="${tokensUri}" rel="stylesheet">
-    <link href="${styleUri}" rel="stylesheet">
-</head>
-<body>
-    <script nonce="${nonce}" src="${scriptUri}"></script>
-</body>
-</html>`;
-    }
 }
