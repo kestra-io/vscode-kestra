@@ -23,12 +23,13 @@ export async function runFlowFromEditor(apiClient: ApiClient, extensionUri: vsco
         return;
     }
     const {source, id, namespace, inputs} = flow;
+    const flowUid = `${namespace}.${id}`;
 
-    const {output, fetchLevel, logLevel} = createRunOutput(extensionUri);
-    output.reset(`${namespace}.${id}`, logLevel);
+    const {output, fetchLevel, logLevel} = createRunOutput(extensionUri, flowUid);
+    output.reset(flowUid, logLevel);
 
     await vscode.window.withProgress(
-        {location: vscode.ProgressLocation.Notification, title: `Running ${namespace}.${id} on Kestra`, cancellable: false},
+        {location: vscode.ProgressLocation.Notification, title: `Running ${flowUid} on Kestra`, cancellable: false},
         async () => {
             try {
                 if (!(await validate(apiClient, source, output)) || !(await deploy(apiClient, namespace, id, source, output))) {

@@ -5,27 +5,30 @@ import {makeNonce} from './webviewHelpers';
 import {HostMessage, WebviewMessage} from '../webview/messages';
 
 export default class RunPanel implements RunOutput {
-    public static current: RunPanel | undefined;
+    // One panel per flow, so concurrent runs of different flows never share a view.
+    private static panels = new Map<string, RunPanel>();
 
     private readonly _panel: vscode.WebviewPanel;
     private readonly _extensionUri: vscode.Uri;
+    private readonly _flowUid: string;
     private _disposables: vscode.Disposable[] = [];
     private _ready = false;
     private _queue: HostMessage[] = [];
     private _inputsResolver?: (values: FormData | undefined) => void;
     private _pendingFiles: Record<string, {name: string; data: Uint8Array}> = {};
 
-    public static createOrShow(extensionUri: vscode.Uri): RunPanel {
+    public static createOrShow(extensionUri: vscode.Uri, flowUid: string): RunPanel {
         const column = vscode.ViewColumn.Beside;
 
-        if (RunPanel.current) {
-            RunPanel.current._panel.reveal(column, true);
-            return RunPanel.current;
+        const existing = RunPanel.panels.get(flowUid);
+        if (existing) {
+            existing._panel.reveal(column, true);
+            return existing;
         }
 
         const panel = vscode.window.createWebviewPanel(
             'kestra.execution',
-            'Kestra Execution',
+            `Kestra: ${flowUid}`,
             {viewColumn: column, preserveFocus: true},
             {
                 enableScripts: true,
@@ -36,13 +39,15 @@ export default class RunPanel implements RunOutput {
                 ]
             }
         );
-        RunPanel.current = new RunPanel(panel, extensionUri);
-        return RunPanel.current;
+        const created = new RunPanel(panel, extensionUri, flowUid);
+        RunPanel.panels.set(flowUid, created);
+        return created;
     }
 
-    private constructor(panel: vscode.WebviewPanel, extensionUri: vscode.Uri) {
+    private constructor(panel: vscode.WebviewPanel, extensionUri: vscode.Uri, flowUid: string) {
         this._panel = panel;
         this._extensionUri = extensionUri;
+        this._flowUid = flowUid;
         this._panel.onDidDispose(() => this.dispose(), null, this._disposables);
         this._panel.webview.html = this.getHtml();
         this._panel.webview.onDidReceiveMessage(message => this.handleMessage(message), undefined, this._disposables);
@@ -143,7 +148,7 @@ export default class RunPanel implements RunOutput {
     }
 
     public dispose() {
-        RunPanel.current = undefined;
+        RunPanel.panels.delete(this._flowUid);
         this.resolveInputs(undefined);
         this._panel.dispose();
         while (this._disposables.length) {

@@ -18,13 +18,13 @@ export interface RunOutput {
 
 // The configured output plus the level to fetch: the panel filters client-side so it fetches
 // everything, while the log channel shows all it fetches so it fetches at the configured level.
-export function createRunOutput(extensionUri: vscode.Uri): {output: RunOutput; fetchLevel: string; logLevel: string} {
+export function createRunOutput(extensionUri: vscode.Uri, flowUid: string): {output: RunOutput; fetchLevel: string; logLevel: string} {
     const config = vscode.workspace.getConfiguration("kestra.run");
     const logLevel = (config.get("logLevel") as string) || "INFO";
     if (config.get("output") === "logs") {
-        return {output: RunLog.get(), fetchLevel: logLevel, logLevel};
+        return {output: RunLog.get(flowUid), fetchLevel: logLevel, logLevel};
     }
-    return {output: RunPanel.createOrShow(extensionUri), fetchLevel: "TRACE", logLevel};
+    return {output: RunPanel.createOrShow(extensionUri, flowUid), fetchLevel: "TRACE", logLevel};
 }
 
 export async function pickInputFile(inputId: string): Promise<{name: string; data: Uint8Array} | undefined> {
@@ -38,17 +38,22 @@ export async function pickInputFile(inputId: string): Promise<{name: string; dat
 
 // A plain channel; a {log:true} channel cannot be cleared between runs.
 // The "log" language id makes VS Code colorize timestamps and severity words.
+// One channel per flow, so concurrent runs of different flows never interleave.
 export class RunLog implements RunOutput {
-    private static instance: RunLog | undefined;
+    private static channels = new Map<string, RunLog>();
     private readonly channel: vscode.OutputChannel;
 
-    public static get(): RunLog {
-        RunLog.instance ??= new RunLog();
-        return RunLog.instance;
+    public static get(flowUid: string): RunLog {
+        let instance = RunLog.channels.get(flowUid);
+        if (!instance) {
+            instance = new RunLog(flowUid);
+            RunLog.channels.set(flowUid, instance);
+        }
+        return instance;
     }
 
-    private constructor() {
-        this.channel = vscode.window.createOutputChannel("Kestra Execution", "log");
+    private constructor(flowUid: string) {
+        this.channel = vscode.window.createOutputChannel(`Kestra: ${flowUid}`, "log");
     }
 
     public reset(flow: string) {
