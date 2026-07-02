@@ -125,7 +125,6 @@ function graphStyle(): cytoscape.StylesheetJson {
             selector: 'node.cluster',
             style: {
                 'shape': 'round-rectangle',
-                // Cytoscape has no rgba colors; core's 10% blue fill comes from background-opacity.
                 'background-color': clusterBorder,
                 'background-opacity': 0.1,
                 'border-color': clusterBorder,
