@@ -91,6 +91,32 @@ export class YamlUtils {
     return ids;
   }
 
+  static taskType(source: string, taskId: string): string | null {
+    const root = this.toObject(source);
+    let found: string | null = null;
+    const walk = (tasks: unknown) => {
+      if (found || !Array.isArray(tasks)) {
+        return;
+      }
+      for (const task of tasks) {
+        if (task && typeof task === "object") {
+          const t = task as { id?: string; type?: string; tasks?: unknown; errors?: unknown; finally?: unknown };
+          if (t.id === taskId && typeof t.type === "string") {
+            found = t.type;
+            return;
+          }
+          walk(t.tasks);
+          walk(t.errors);
+          walk(t.finally);
+        }
+      }
+    };
+    walk(root?.tasks);
+    walk(root?.errors);
+    walk(root?.finally);
+    return found;
+  }
+
   static sectionKeys(source: string, section: string): string[] {
     const value = this.toObject(source)?.[section];
     return value && typeof value === "object" && !Array.isArray(value) ? Object.keys(value) : [];
