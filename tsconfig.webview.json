@@ -2,14 +2,12 @@
 	"compilerOptions": {
 		"module": "ES2020",
 		"target": "ES2020",
-		"outDir": "dist/webview",
 		"lib": [
 			"ES2020", "DOM", "DOM.Iterable"
 		],
 		"moduleResolution": "node",
 		"esModuleInterop": true,
 		"sourceMap": true,
-		"rootDir": "src",
 		"strict": true
 	},
 	"include": [

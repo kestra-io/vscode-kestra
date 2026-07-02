@@ -31,6 +31,7 @@ export default class RunPanel implements RunOutput {
             {viewColumn: column, preserveFocus: true},
             {
                 enableScripts: true,
+                // The host never re-sends log history, so a rebuilt webview would come back blank.
                 retainContextWhenHidden: true,
                 localResourceRoots: [
                     vscode.Uri.joinPath(extensionUri, 'dist', 'webview'),
@@ -64,7 +65,7 @@ export default class RunPanel implements RunOutput {
                 break;
             case 'copy':
                 vscode.env.clipboard.writeText(message.text);
-                vscode.window.showInformationMessage("Execution logs copied to clipboard.");
+                vscode.window.showInformationMessage('Execution logs copied to clipboard.');
                 break;
             case 'submitInputs':
                 this.resolveInputs(this.buildForm(message.values));
@@ -129,8 +130,8 @@ export default class RunPanel implements RunOutput {
         this.post({type: 'logs', entries});
     }
 
-    public updateTask(taskId: string, state: string, durationSeconds?: number) {
-        this.post({type: 'task', taskId, state, duration: durationSeconds});
+    public setTaskState(taskId: string, state: string, durationSeconds?: number) {
+        this.post({type: 'taskState', taskId, state, duration: durationSeconds});
     }
 
     public requestInputs(inputs: FlowInput[]): Promise<FormData | undefined> {

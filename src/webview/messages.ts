@@ -5,7 +5,7 @@ export type HostMessage =
     | {type: 'phase'; text: string}
     | {type: 'execution'; id: string; url: string}
     | {type: 'logs'; entries: LogEntry[]}
-    | {type: 'task'; taskId: string; state: string; duration?: number}
+    | {type: 'taskState'; taskId: string; state: string; duration?: number}
     | {type: 'status'; state: string}
     | {type: 'error'; text: string}
     | {type: 'inputs'; inputs: FlowInput[]}

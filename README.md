@@ -67,7 +67,7 @@ The schema attaches to any open YAML detected as a flow (it declares `id`, `name
 
 On a flow file, run `Kestra: Run flow on Kestra` from the command palette, the play button in the editor title bar, or `Ctrl+Alt+R` (`Cmd+Alt+R` on macOS). The extension validates the flow, deploys the current editor content to the instance, prompts for any declared inputs, starts an execution, and streams its logs with a link to the execution page.
 
-By default the run opens in a panel with a status badge, a log-level filter, and collapsible per-task logs. Set `kestra.run.output` to `logs` to use a native output channel instead. Logs are streamed at `kestra.run.logLevel`, lower it to `DEBUG` or `TRACE` to see those lines.
+By default the run opens in a panel with a status badge, a log-level filter, and collapsible per-task logs. Set `kestra.run.output` to `logs` to use a native output channel instead.
 
 ### Topology preview
 

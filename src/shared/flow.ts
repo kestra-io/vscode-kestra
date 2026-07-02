@@ -15,7 +15,7 @@ export function flattenInputs(inputs: FlowInput[] | undefined): FlowInput[] {
         return [];
     }
     return inputs.flatMap(input =>
-        input.type?.toUpperCase() === "FORM"
+        input.type?.toUpperCase() === 'FORM'
             ? (input.inputs ?? []).map(child => ({...child, id: `${input.id}.${child.id}`}))
             : [input]
     );
@@ -28,9 +28,29 @@ export interface LogEntry {
     message?: string;
 }
 
-// The value that pre-populates an input's field.
 export function inputFallback(input: FlowInput): unknown {
     return input.prefill ?? input.defaults ?? '';
+}
+
+// Humanized duration showing the two largest units, as the Kestra UI displays durations.
+export function formatDuration(seconds: number): string {
+    if (seconds < 60) {
+        return `${seconds.toFixed(2)}s`;
+    }
+    const units = [{label: 'h', size: 3600}, {label: 'm', size: 60}, {label: 's', size: 1}];
+    const parts: string[] = [];
+    let rest = Math.round(seconds);
+    for (const {label, size} of units) {
+        const value = Math.floor(rest / size);
+        rest -= value * size;
+        if (value > 0) {
+            parts.push(`${value}${label}`);
+        }
+        if (parts.length === 2) {
+            break;
+        }
+    }
+    return parts.join(' ');
 }
 
 export function formatLogTime(timestamp: string | undefined): string {
