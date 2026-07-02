@@ -201,9 +201,17 @@ function createControl(type: string, input: FlowInput, fallback: unknown): HTMLE
         : type === 'EMAIL' ? 'email'
         : type === 'URI' ? 'url'
         : type === 'DATE' ? 'date'
+        : type === 'DATETIME' ? 'datetime-local'
+        : type === 'TIME' ? 'time'
         : (type === 'INT' || type === 'FLOAT' || type === 'NUMBER') ? 'number'
         : 'text';
-    text.value = String(fallback);
+    if (type === 'TIME') {
+        text.step = '1';
+    }
+    // Native datetime-local/time inputs reject zoned ISO values, so trim defaults to their local shape.
+    text.value = type === 'DATETIME' ? String(fallback).slice(0, 16)
+        : type === 'TIME' ? String(fallback).slice(0, 8)
+        : String(fallback);
     return text;
 }
 
@@ -248,6 +256,7 @@ function renderForm(inputs: FlowInput[]) {
         } else {
             const control = createControl(type, input, input.prefill ?? input.defaults ?? '');
             control.dataset.id = input.id;
+            control.dataset.type = type;
             control.dataset.required = input.required ? '1' : '';
             field.append(...(inline ? [control, label] : [label, control]));
         }
@@ -259,6 +268,7 @@ function renderForm(inputs: FlowInput[]) {
 }
 
 // Values pass through as-is; the server parses each type. Checkbox -> "true"/"false", multi -> JSON array.
+// DATETIME/TIME are the exceptions: native pickers emit local shapes the server rejects, so normalize.
 function controlValue(control: HTMLElement): string {
     if ((control as HTMLInputElement).type === 'checkbox') {
         return (control as HTMLInputElement).checked ? 'true' : 'false';
@@ -266,7 +276,17 @@ function controlValue(control: HTMLElement): string {
     if (control.dataset.multi) {
         return JSON.stringify((control as TagSelectElement).getSelected());
     }
-    return (control as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement).value;
+    const value = (control as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement).value;
+    if (!value) {
+        return value;
+    }
+    if (control.dataset.type === 'DATETIME') {
+        return new Date(value).toISOString();
+    }
+    if (control.dataset.type === 'TIME') {
+        return value.length === 5 ? `${value}:00` : value;
+    }
+    return value;
 }
 
 function submitForm() {
