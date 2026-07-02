@@ -45,58 +45,65 @@ export default class RunPanel implements RunOutput {
         this._extensionUri = extensionUri;
         this._panel.onDidDispose(() => this.dispose(), null, this._disposables);
         this._panel.webview.html = this.getHtml();
+        this._panel.webview.onDidReceiveMessage(message => this.handleMessage(message), undefined, this._disposables);
+    }
 
-        this._panel.webview.onDidReceiveMessage(
-            async (message: WebviewMessage) => {
-                if ('type' in message && message.type === 'ready') {
-                    this._ready = true;
-                    this._queue.forEach(m => this._panel.webview.postMessage(m));
-                    this._queue = [];
-                    return;
-                }
-                if (!('command' in message)) {
-                    return;
-                }
-                switch (message.command) {
-                    case 'openExternal':
-                        vscode.env.openExternal(vscode.Uri.parse(message.url));
-                        break;
-                    case 'copy':
-                        vscode.env.clipboard.writeText(message.text);
-                        vscode.window.showInformationMessage("Execution logs copied to clipboard.");
-                        break;
-                    case 'submitInputs': {
-                        const form = new FormData();
-                        for (const key of Object.keys(message.values)) {
-                            form.append(key, message.values[key]);
-                        }
-                        for (const key of Object.keys(this._pendingFiles)) {
-                            const file = this._pendingFiles[key];
-                            form.append(key, new Blob([file.data]), file.name);
-                        }
-                        this._inputsResolver?.(form);
-                        this._inputsResolver = undefined;
-                        break;
-                    }
-                    case 'cancelInputs':
-                        this._inputsResolver?.(undefined);
-                        this._inputsResolver = undefined;
-                        break;
-                    case 'pickFile': {
-                        const picked = await vscode.window.showOpenDialog({canSelectMany: false, openLabel: 'Select'});
-                        if (picked && picked[0]) {
-                            const data = await vscode.workspace.fs.readFile(picked[0]);
-                            const name = sanitizeFileName(picked[0].path.split('/').pop() ?? 'file');
-                            this._pendingFiles[message.inputId] = {name, data};
-                            this.post({type: 'fileChosen', inputId: message.inputId, name});
-                        }
-                        break;
-                    }
-                }
-            },
-            undefined,
-            this._disposables
-        );
+    private async handleMessage(message: WebviewMessage) {
+        if ('type' in message && message.type === 'ready') {
+            this._ready = true;
+            this._queue.forEach(m => this._panel.webview.postMessage(m));
+            this._queue = [];
+            return;
+        }
+        if (!('command' in message)) {
+            return;
+        }
+        switch (message.command) {
+            case 'openExternal':
+                vscode.env.openExternal(vscode.Uri.parse(message.url));
+                break;
+            case 'copy':
+                vscode.env.clipboard.writeText(message.text);
+                vscode.window.showInformationMessage("Execution logs copied to clipboard.");
+                break;
+            case 'submitInputs':
+                this.resolveInputs(this.buildForm(message.values));
+                break;
+            case 'cancelInputs':
+                this.resolveInputs(undefined);
+                break;
+            case 'pickFile':
+                await this.pickFile(message.inputId);
+                break;
+        }
+    }
+
+    private buildForm(values: Record<string, string>): FormData {
+        const form = new FormData();
+        for (const key of Object.keys(values)) {
+            form.append(key, values[key]);
+        }
+        for (const key of Object.keys(this._pendingFiles)) {
+            const file = this._pendingFiles[key];
+            form.append(key, new Blob([file.data]), file.name);
+        }
+        return form;
+    }
+
+    private resolveInputs(form: FormData | undefined) {
+        this._inputsResolver?.(form);
+        this._inputsResolver = undefined;
+    }
+
+    private async pickFile(inputId: string) {
+        const picked = await vscode.window.showOpenDialog({canSelectMany: false, openLabel: 'Select'});
+        if (!picked || !picked[0]) {
+            return;
+        }
+        const data = await vscode.workspace.fs.readFile(picked[0]);
+        const name = sanitizeFileName(picked[0].path.split('/').pop() ?? 'file');
+        this._pendingFiles[inputId] = {name, data};
+        this.post({type: 'fileChosen', inputId, name});
     }
 
     // Buffers messages until the webview signals it is ready, so the first log lines are never dropped.
@@ -146,8 +153,7 @@ export default class RunPanel implements RunOutput {
 
     public dispose() {
         RunPanel.current = undefined;
-        this._inputsResolver?.(undefined);
-        this._inputsResolver = undefined;
+        this.resolveInputs(undefined);
         this._panel.dispose();
         while (this._disposables.length) {
             this._disposables.pop()?.dispose();

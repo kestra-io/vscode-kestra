@@ -257,27 +257,27 @@ function renderForm(inputs: FlowInput[]) {
 }
 
 // Values pass through as-is; the server parses each type. Checkbox -> "true"/"false", multi -> JSON array.
+function controlValue(control: HTMLElement): string {
+    if ((control as HTMLInputElement).type === 'checkbox') {
+        return (control as HTMLInputElement).checked ? 'true' : 'false';
+    }
+    if (control.dataset.multi) {
+        return JSON.stringify((control as TagSelectElement).getSelected());
+    }
+    return (control as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement).value;
+}
+
 function submitForm() {
     const values: Record<string, string> = {};
     let missing = false;
-    form.querySelectorAll<HTMLElement>('[data-id]').forEach(el => {
-        const input = el as HTMLInputElement;
-        let value: string;
-        if (input.type === 'checkbox') {
-            value = input.checked ? 'true' : 'false';
-        } else if (el.dataset.multi) {
-            value = JSON.stringify((el as TagSelectElement).getSelected());
-        } else {
-            value = (el as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement).value;
-        }
-        if (el.dataset.required && input.type !== 'checkbox' && !String(value).trim()) {
-            missing = true;
-            el.classList.add('invalid');
-        } else {
-            el.classList.remove('invalid');
-        }
-        if (value !== '' && el.dataset.id) {
-            values[el.dataset.id] = value;
+    form.querySelectorAll<HTMLElement>('[data-id]').forEach(control => {
+        const value = controlValue(control);
+        const required = Boolean(control.dataset.required) && (control as HTMLInputElement).type !== 'checkbox';
+        const empty = !value.trim();
+        control.classList.toggle('invalid', required && empty);
+        missing ||= required && empty;
+        if (value !== '' && control.dataset.id) {
+            values[control.dataset.id] = value;
         }
     });
     if (missing) {
