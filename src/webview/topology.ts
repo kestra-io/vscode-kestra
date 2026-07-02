@@ -115,7 +115,8 @@ function graphStyle(): cytoscape.StylesheetJson {
                 'text-max-width': '130'
             }
         },
-        {selector: 'node.boundary', style: {'width': 1, 'height': 1, 'opacity': 0}},
+        // Cluster entry/exit nodes render as the small dots on the edge path, as in the Kestra UI.
+        {selector: 'node.boundary', style: {'shape': 'ellipse', 'width': 7, 'height': 7, 'background-color': edgeColor, 'background-opacity': 0.8, 'border-width': 0}},
         {selector: 'node.task.run-success', style: {'border-color': cssVar('--ks-status-success', '#43f6b6'), 'border-opacity': 1, 'border-width': 2}},
         {selector: 'node.task.run-running', style: {'border-color': accent, 'border-opacity': 1, 'border-width': 2}},
         {selector: 'node.task.run-warning', style: {'border-color': cssVar('--ks-status-warning', '#ff8b61'), 'border-opacity': 1, 'border-width': 2}},
