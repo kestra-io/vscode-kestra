@@ -48,6 +48,12 @@
         "title": "Run flow on Kestra",
         "category": "Kestra",
         "icon": "$(play)"
+      },
+      {
+        "command": "kestra.flow.topology",
+        "title": "Preview flow topology",
+        "category": "Kestra",
+        "icon": "$(type-hierarchy)"
       }
     ],
     "menus": {
@@ -59,12 +65,21 @@
         {
           "when": "resourceLangId == yaml",
           "command": "kestra.flow.execute"
+        },
+        {
+          "when": "resourceLangId == yaml",
+          "command": "kestra.flow.topology"
         }
       ],
       "editor/title": [
         {
           "when": "resourceLangId == yaml",
           "command": "kestra.flow.execute",
+          "group": "navigation"
+        },
+        {
+          "when": "resourceLangId == yaml",
+          "command": "kestra.flow.topology",
           "group": "navigation"
         },
         {
@@ -153,6 +168,7 @@
     "redhat.vscode-yaml"
   ],
   "devDependencies": {
+    "@types/cytoscape": "^3.21.9",
     "@types/eslint": "^8.44.2",
     "@types/mocha": "^10.0.1",
     "@types/node": "^20.10.4",
@@ -173,9 +189,12 @@
     "webpack-dev-server": "^5.2.2"
   },
   "dependencies": {
+    "@dagrejs/dagre": "^3.0.0",
     "@types/markdown-it": "^13.0.6",
     "buffer": "^6.0.3",
     "css-loader": "^6.8.1",
+    "cytoscape": "^3.34.0",
+    "cytoscape-dagre": "^4.0.0",
     "markdown-it": "^13.0.2",
     "markdown-it-anchor": "^8.6.7",
     "markdown-it-container": "^3.0.0",

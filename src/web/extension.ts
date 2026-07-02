@@ -5,6 +5,7 @@ import ApiClient from './apiClient';
 import {schemaStateKey, flowSchemaUri} from './constants';
 import {registerFlowValidation, isFlowDocument} from './flowValidation';
 import {registerPebbleCompletion, resetPebbleCache} from './pebbleCompletion';
+import TopologyPanel from './topologyPanel';
 import {registerRequiredFieldsCompletion} from './requiredFieldsCompletion';
 import {runFlowFromEditor} from './flowRunner';
 
@@ -39,6 +40,34 @@ function runFlowCommand(apiClient: ApiClient, extensionUri: vscode.Uri) {
     return vscode.commands.registerCommand('kestra.flow.execute', () => runFlowFromEditor(apiClient, extensionUri));
 }
 
+const TOPOLOGY_REFRESH_DEBOUNCE_MS = 600;
+
+function topologyCommand(apiClient: ApiClient, extensionUri: vscode.Uri) {
+    return vscode.commands.registerCommand('kestra.flow.topology', () =>
+        TopologyPanel.createOrShow(apiClient, extensionUri).update(vscode.window.activeTextEditor?.document)
+    );
+}
+
+// Keeps an open topology panel in sync with the active flow as it is edited.
+function registerTopologyRefresh(context: vscode.ExtensionContext) {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const refresh = (document: vscode.TextDocument | undefined) => {
+        if (!TopologyPanel.current) {
+            return;
+        }
+        clearTimeout(timer);
+        timer = setTimeout(() => TopologyPanel.current?.update(document), TOPOLOGY_REFRESH_DEBOUNCE_MS);
+    };
+    context.subscriptions.push(
+        vscode.workspace.onDidChangeTextDocument(event => {
+            if (event.document === vscode.window.activeTextEditor?.document) {
+                refresh(event.document);
+            }
+        }),
+        vscode.window.onDidChangeActiveTextEditor(editor => refresh(editor?.document))
+    );
+}
+
 function showDocumentation(context: vscode.ExtensionContext, apiClient: ApiClient) {
     return vscode.commands.registerCommand('kestra.view.documentation', async () => {
         DocumentationPanel.createOrShow(context.extensionUri, apiClient);
@@ -70,6 +99,8 @@ export async function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(signInCommand(apiClient));
     context.subscriptions.push(signOutCommand(apiClient));
     context.subscriptions.push(runFlowCommand(apiClient, context.extensionUri));
+    context.subscriptions.push(topologyCommand(apiClient, context.extensionUri));
+    registerTopologyRefresh(context);
 
     registerFlowValidation(context, apiClient);
     registerPebbleCompletion(context, apiClient);

@@ -1,4 +1,4 @@
-import { LineCounter, parseDocument, YAMLMap, visit, isMap, Range } from "yaml";
+import { LineCounter, parseDocument, YAMLMap, visit, isMap, isScalar, Range } from "yaml";
 
 
 export class YamlUtils {
@@ -89,6 +89,27 @@ export class YamlUtils {
     walk(root?.errors);
     walk(root?.finally);
     return ids;
+  }
+
+  // Character range of the map whose "id" equals taskId, for click-to-reveal navigation.
+  static taskRangeById(source: string, taskId: string): [number, number] | undefined {
+    try {
+      let range: [number, number] | undefined;
+      visit(parseDocument(source), {
+        Map(_key, node: YAMLMap) {
+          const hasId = node.items.some(item =>
+            isScalar(item.key) && item.key.value === "id" &&
+            isScalar(item.value) && item.value.value === taskId);
+          if (hasId && node.range) {
+            range = [node.range[0], node.range[1]];
+            return visit.BREAK;
+          }
+        }
+      });
+      return range;
+    } catch {
+      return undefined;
+    }
   }
 
   static sectionKeys(source: string, section: string): string[] {

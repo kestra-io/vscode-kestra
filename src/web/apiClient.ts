@@ -232,6 +232,22 @@ export default class ApiClient {
         return response?.ok ? (await response.json().catch(() => null)) as Array<string | PebbleFunctionDef> | null : null;
     }
 
+    // Generates the topology graph for a flow source, without saving the flow.
+    public async flowGraph(source: string): Promise<Response | null> {
+        const response = await this.silentFetch("/flows/graph", {
+            method: "POST",
+            body: source,
+            headers: {"Content-Type": yamlContentType}
+        });
+        return response?.ok ? response : null;
+    }
+
+    // Base64 SVG icons per plugin type. The icons endpoint is not tenant-scoped.
+    public async pluginIcons(): Promise<Record<string, {icon?: string}> | null> {
+        const response = await this.silentFetch("/plugins/icons", {}, false);
+        return response?.ok ? (await response.json().catch(() => null)) as Record<string, {icon?: string}> | null : null;
+    }
+
     private async silentFetch(suffix: string, options: RequestInit = {}, includeTenant: boolean = true): Promise<Response | null> {
         if (!(vscode.workspace.getConfiguration("kestra.api").get("url") as string)) {
             return null;

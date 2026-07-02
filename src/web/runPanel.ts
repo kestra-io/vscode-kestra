@@ -160,6 +160,7 @@ export default class RunPanel implements RunOutput {
         const nonce = makeNonce();
         const webview = this._panel.webview;
         const scriptUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'dist', 'webview', 'runPanel.js'));
+        const tokensUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'media', 'tokens.css'));
         const styleUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'media', 'runPanel.css'));
         return `<!DOCTYPE html>
 <html lang="en">
@@ -168,6 +169,7 @@ export default class RunPanel implements RunOutput {
     <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource}; script-src 'nonce-${nonce}';">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Kestra Execution</title>
+    <link href="${tokensUri}" rel="stylesheet">
     <link href="${styleUri}" rel="stylesheet">
 </head>
 <body>

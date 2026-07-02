@@ -98,9 +98,10 @@ const webExtensionConfig = {
 /** @type WebpackConfig */
 const webviewConfig = {
 	mode: 'none',
-	target: 'web', // the run panel webview runs in a browser (DOM) context, not a webworker
+	target: 'web', // webviews run in a browser (DOM) context, not a webworker
 	entry: {
-		'runPanel': './src/webview/runPanel.ts'
+		'runPanel': './src/webview/runPanel.ts',
+		'topology': './src/webview/topology.ts'
 	},
 	output: {
 		filename: '[name].js',

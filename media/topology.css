@@ -1,0 +1,16 @@
+body { font-family: var(--vscode-font-family); color: var(--vscode-foreground); margin: 0; }
+.message { color: var(--vscode-descriptionForeground); padding: var(--ks-spacing-4); }
+.graph { width: 100vw; height: 100vh; display: none; }
+.fit {
+    position: fixed;
+    bottom: var(--ks-spacing-3);
+    right: var(--ks-spacing-3);
+    display: none;
+    background: var(--vscode-button-secondaryBackground);
+    color: var(--vscode-button-secondaryForeground);
+    border: 1px solid var(--vscode-panel-border);
+    border-radius: var(--ks-radius-base);
+    padding: var(--ks-spacing-1) var(--ks-spacing-3);
+    cursor: pointer;
+    font-size: var(--ks-font-size-sm);
+}

@@ -15,7 +15,8 @@
             {"selector": "variable", "format": ["camelCase", "UPPER_CASE"], "leadingUnderscore": "allow", "trailingUnderscore": "allow"},
             {"selector": "typeLike", "format": ["PascalCase"]},
             {"selector": "classProperty", "format": ["camelCase", "UPPER_CASE"], "leadingUnderscore": "allow"},
-            {"selector": "objectLiteralProperty", "format": null}
+            {"selector": "objectLiteralProperty", "format": null},
+            {"selector": "objectLiteralMethod", "format": null}
         ],
         "@typescript-eslint/semi": "warn",
         "curly": "warn",

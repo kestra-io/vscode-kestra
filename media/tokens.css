@@ -1,0 +1,34 @@
+/* Design tokens (Kestra 1.3) */
+:root {
+    --ks-bg-badge: #20232d;
+    --ks-status-success: #43f6b6;
+    --ks-status-running: #9869f7;
+    --ks-status-warning: #ff8b61;
+    --ks-status-error: #ff6a6c;
+    --ks-status-info: #718bfe;
+    --ks-status-neutral: #9797a6;
+    --ks-status-pending: #fce070;
+    --ks-primary: #631bf3;
+    --ks-primary-hover: #5212d6;
+    --ks-spacing-1: 4px;
+    --ks-spacing-2: 8px;
+    --ks-spacing-3: 12px;
+    --ks-spacing-4: 16px;
+    --ks-radius-sm: 4px;
+    --ks-radius-base: 6px;
+    --ks-font-size-xs: 11px;
+    --ks-font-size-sm: 12px;
+    --ks-font-size-base: 13px;
+    --ks-font-weight-semibold: 600;
+}
+body.vscode-light {
+    --ks-bg-badge: #ffffff;
+    --ks-status-success: #1e875e;
+    --ks-status-running: #440ab8;
+    --ks-status-warning: #a44500;
+    --ks-status-error: #ed0011;
+    --ks-status-info: #1761fd;
+    --ks-status-neutral: #5f5f7c;
+    --ks-status-pending: #cb6e17;
+    --ks-primary-hover: #440ab8;
+}
