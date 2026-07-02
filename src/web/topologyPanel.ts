@@ -96,7 +96,7 @@ export default class TopologyPanel {
         }
         const icons: Record<string, string> = {};
         for (const node of graph?.nodes ?? []) {
-            const type = node.task?.type ?? node.trigger?.type;
+            const type = node.task?.type ?? node.triggerDeclaration?.type;
             const base64 = type ? this._icons?.[type]?.icon : undefined;
             if (type && base64) {
                 icons[type] = `data:image/svg+xml;base64,${base64}`;

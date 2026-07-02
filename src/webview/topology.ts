@@ -71,8 +71,8 @@ function toElements(graph: FlowGraph, icons: Record<string, string>): cytoscape.
     for (const node of graph.nodes) {
         // Only cluster entry/exit nodes are invisible waypoints; tasks and triggers render as cards.
         const isBoundary = node.type.endsWith('GraphClusterRoot') || node.type.endsWith('GraphClusterEnd');
-        const id = node.task?.id ?? node.trigger?.id ?? '';
-        const pluginType = node.task?.type ?? node.trigger?.type;
+        const id = node.task?.id ?? node.triggerDeclaration?.id ?? '';
+        const pluginType = node.task?.type ?? node.triggerDeclaration?.type;
         elements.push({
             data: {
                 id: node.uid,
