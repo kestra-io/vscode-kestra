@@ -115,7 +115,7 @@ function graphStyle(): cytoscape.StylesheetJson {
                 'text-max-width': '130'
             }
         },
-        // Cluster entry/exit nodes render as the small dots on the edge path, as in the Kestra UI.
+        // Cluster entry/exit nodes render as small dots on the edge path.
         {selector: 'node.boundary', style: {'shape': 'ellipse', 'width': 7, 'height': 7, 'background-color': edgeColor, 'background-opacity': 0.8, 'border-width': 0}},
         {selector: 'node.task.run-success', style: {'border-color': cssVar('--ks-status-success', '#43f6b6'), 'border-opacity': 1, 'border-width': 2}},
         {selector: 'node.task.run-running', style: {'border-color': accent, 'border-opacity': 1, 'border-width': 2}},
