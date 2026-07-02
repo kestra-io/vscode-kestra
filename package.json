@@ -42,6 +42,12 @@
         "command": "kestra.auth.signOut",
         "title": "Sign out",
         "category": "Kestra"
+      },
+      {
+        "command": "kestra.flow.execute",
+        "title": "Run flow on Kestra",
+        "category": "Kestra",
+        "icon": "$(play)"
       }
     ],
     "menus": {
@@ -49,9 +55,18 @@
         {
           "when": "resourceLangId == yaml",
           "command": "kestra.schema.download"
+        },
+        {
+          "when": "resourceLangId == yaml",
+          "command": "kestra.flow.execute"
         }
       ],
       "editor/title": [
+        {
+          "when": "resourceLangId == yaml",
+          "command": "kestra.flow.execute",
+          "group": "navigation"
+        },
         {
           "when": "resourceLangId == yaml",
           "command": "kestra.view.documentation",
@@ -60,6 +75,14 @@
         }
       ]
     },
+    "keybindings": [
+      {
+        "command": "kestra.flow.execute",
+        "key": "ctrl+alt+r",
+        "mac": "cmd+alt+r",
+        "when": "editorLangId == yaml"
+      }
+    ],
     "configuration": {
       "title": "Kestra",
       "properties": {
@@ -78,6 +101,31 @@
           ],
           "default": null,
           "description": "Tenant id for multi-tenant instances. Leave empty for instances that do not use tenant-scoped API routes."
+        },
+        "kestra.run.output": {
+          "type": "string",
+          "enum": [
+            "panel",
+            "logs"
+          ],
+          "enumDescriptions": [
+            "Webview panel with status badge, per-task colors, and an execution link.",
+            "Native log output channel with search, copy, and log-level filtering. Scales to large logs."
+          ],
+          "default": "panel",
+          "description": "Where to show a flow run: the styled webview panel or the native log output channel."
+        },
+        "kestra.run.logLevel": {
+          "type": "string",
+          "enum": [
+            "TRACE",
+            "DEBUG",
+            "INFO",
+            "WARN",
+            "ERROR"
+          ],
+          "default": "INFO",
+          "description": "Minimum log level streamed when running a flow. Lower it to DEBUG or TRACE to see those logs."
         },
         "kestra.schema.match-path": {
           "type": [
