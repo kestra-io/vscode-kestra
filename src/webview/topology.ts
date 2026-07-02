@@ -75,8 +75,14 @@ function toElements(graph: FlowGraph, icons: Record<string, string>): cytoscape.
             classes: isTask ? 'task' : 'boundary'
         });
     }
+    // Edges touching a boundary dot drop their end decorations so the dot sits alone on the dashes.
+    const boundaryUids = new Set(graph.nodes.filter(node => !node.type.endsWith('GraphTask')).map(node => node.uid));
     for (const edge of graph.edges ?? []) {
-        elements.push({data: {id: `${edge.source}->${edge.target}`, source: edge.source, target: edge.target}});
+        const classes = [
+            boundaryUids.has(edge.target) ? 'to-boundary' : '',
+            boundaryUids.has(edge.source) ? 'from-boundary' : ''
+        ].filter(Boolean).join(' ');
+        elements.push({data: {id: `${edge.source}->${edge.target}`, source: edge.source, target: edge.target}, classes});
     }
     return elements;
 }
@@ -160,6 +166,8 @@ function graphStyle(): cytoscape.StylesheetJson {
                 'curve-style': 'bezier'
             }
         },
+        {selector: 'edge.to-boundary', style: {'target-arrow-shape': 'none', 'target-distance-from-node': 0}},
+        {selector: 'edge.from-boundary', style: {'source-arrow-shape': 'none', 'source-distance-from-node': 0}},
         {selector: 'edge.hl', style: {'line-color': accent, 'target-arrow-color': accent, 'line-opacity': 1, 'width': 2}}
     ];
 }
