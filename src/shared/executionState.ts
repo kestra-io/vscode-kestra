@@ -1,6 +1,6 @@
 export type StateBucket = 'success' | 'failed' | 'warning' | 'running' | 'info' | 'neutral' | 'pending';
 
-export const STATES: Readonly<Record<string, StateBucket>> = Object.freeze({
+const STATES: Readonly<Record<string, StateBucket>> = Object.freeze({
     SUCCESS: 'success',
     FAILED: 'failed', KILLED: 'failed',
     WARNING: 'warning', PAUSED: 'warning', RETRYING: 'warning',
@@ -29,7 +29,7 @@ export function stateSymbol(state: string | undefined): string {
 
 export const LOG_LEVELS = ['ERROR', 'WARN', 'INFO', 'DEBUG', 'TRACE'] as const;
 
-export const LOG_LEVEL_RANK: Readonly<Record<string, number>> = Object.freeze(
+const LOG_LEVEL_RANK: Readonly<Record<string, number>> = Object.freeze(
     Object.fromEntries([...LOG_LEVELS].reverse().map((level, index) => [level, index]))
 );
 

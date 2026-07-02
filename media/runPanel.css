@@ -14,10 +14,8 @@
     --ks-spacing-2: 8px;
     --ks-spacing-3: 12px;
     --ks-spacing-4: 16px;
-    --ks-spacing-6: 24px;
     --ks-radius-sm: 4px;
     --ks-radius-base: 6px;
-    --ks-radius-pill: 10px;
     --ks-font-size-xs: 11px;
     --ks-font-size-sm: 12px;
     --ks-font-size-base: 13px;
@@ -77,7 +75,6 @@ body.vscode-light {
 
 /* Form */
 .ks-form { margin: var(--ks-spacing-3) 0; padding: var(--ks-spacing-3); border: 1px solid var(--vscode-panel-border); border-radius: var(--ks-radius-base); }
-.ks-form[hidden] { display: none; }
 .ks-form-title { font-weight: var(--ks-font-weight-semibold); margin-bottom: var(--ks-spacing-3); }
 .ks-field { display: flex; flex-direction: column; gap: var(--ks-spacing-1); margin-bottom: var(--ks-spacing-3); }
 .ks-field.inline { flex-direction: row; align-items: center; gap: var(--ks-spacing-2); }
@@ -132,7 +129,6 @@ textarea.ks-input { min-height: 64px; resize: vertical; }
     border: 1px solid var(--vscode-panel-border);
     border-radius: var(--ks-radius-sm);
 }
-.ks-tags-menu[hidden] { display: none; }
 .ks-tags-opt { padding: var(--ks-spacing-1) var(--ks-spacing-2); cursor: pointer; font-size: var(--ks-font-size-sm); }
 .ks-tags-opt:hover { background: var(--vscode-list-hoverBackground); }
 .ks-field-file { display: flex; align-items: center; gap: var(--ks-spacing-2); }

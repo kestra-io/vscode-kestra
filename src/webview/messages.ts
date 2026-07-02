@@ -1,10 +1,10 @@
 import {FlowInput, LogEntry} from '../shared/flow';
 
 export type HostMessage =
-    | {type: 'reset'; flow: string}
+    | {type: 'reset'; flow: string; level: string}
     | {type: 'phase'; text: string}
     | {type: 'execution'; id: string; url: string}
-    | ({type: 'log'} & LogEntry)
+    | {type: 'logs'; entries: LogEntry[]}
     | {type: 'task'; taskId: string; state: string; duration?: number}
     | {type: 'status'; state: string}
     | {type: 'error'; text: string}
@@ -13,8 +13,7 @@ export type HostMessage =
 
 export type WebviewMessage =
     | {type: 'ready'}
-    | {command: 'openExternal'; url: string}
-    | {command: 'copy'; text: string}
-    | {command: 'submitInputs'; values: Record<string, string>}
-    | {command: 'cancelInputs'}
-    | {command: 'pickFile'; inputId: string};
+    | {type: 'copy'; text: string}
+    | {type: 'submitInputs'; values: Record<string, string>}
+    | {type: 'cancelInputs'}
+    | {type: 'pickFile'; inputId: string};

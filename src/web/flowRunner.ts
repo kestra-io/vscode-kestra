@@ -3,9 +3,9 @@ import ApiClient from './apiClient';
 import YamlUtils from './libs/yamlUtils';
 import {durationOf} from './libs/runHelpers';
 import {readSseStream} from './libs/sse';
-import RunPanel from './runPanel';
-import {FlowInput, LogEntry, RunOutput, RunLog} from './runOutput';
-import {flattenInputs} from '../shared/flow';
+import {isFlowDocument, splitConstraints, ValidateResult} from './flowValidation';
+import {RunOutput, createRunOutput} from './runOutput';
+import {FlowInput, LogEntry, flattenInputs} from '../shared/flow';
 
 type Flow = {id: string; namespace: string; inputs?: FlowInput[]};
 type TaskState = {current?: string; histories?: Array<{date?: string}>};
@@ -24,33 +24,36 @@ export async function runFlowFromEditor(apiClient: ApiClient, extensionUri: vsco
     }
     const {source, id, namespace, inputs} = flow;
 
-    const mode = vscode.workspace.getConfiguration("kestra.run").get("output") as string;
-    const logLevel = (vscode.workspace.getConfiguration("kestra.run").get("logLevel") as string) || "INFO";
-    // The panel has its own level dropdown, so fetch everything for it.
-    const minLevel = mode === "logs" ? logLevel : "TRACE";
-    const panel: RunOutput = mode === "logs" ? RunLog.get() : RunPanel.createOrShow(extensionUri);
-    panel.reset(`${namespace}.${id}`);
+    const {output, fetchLevel, logLevel} = createRunOutput(extensionUri);
+    output.reset(`${namespace}.${id}`, logLevel);
 
     await vscode.window.withProgress(
         {location: vscode.ProgressLocation.Notification, title: `Running ${namespace}.${id} on Kestra`, cancellable: false},
         async () => {
             try {
-                if (!(await validate(apiClient, source, panel)) || !(await deploy(apiClient, namespace, id, source, panel))) {
+                if (!(await validate(apiClient, source, output)) || !(await deploy(apiClient, namespace, id, source, output))) {
                     return;
                 }
-                const body = await collectInputs(inputs, panel);
-                if (body === "cancelled") {
-                    return;
+
+                const leaves = flattenInputs(inputs);
+                let body: FormData | undefined;
+                if (leaves.length > 0) {
+                    body = await output.requestInputs(leaves);
+                    if (body === undefined) {
+                        output.setPhase("Run cancelled.");
+                        return;
+                    }
                 }
-                const executionId = await startExecution(apiClient, namespace, id, body, panel);
+
+                const executionId = await startExecution(apiClient, namespace, id, body, output);
                 if (!executionId) {
                     return;
                 }
-                panel.setExecution(executionId, await ApiClient.executionUiUrl(namespace, id, executionId));
-                panel.setStatus(await followExecution(apiClient, executionId, panel, minLevel));
+                output.setExecution(executionId, await ApiClient.executionUiUrl(namespace, id, executionId));
+                output.setStatus(await followExecution(apiClient, executionId, output, fetchLevel));
             } catch (error) {
-                panel.error(`Error: ${error instanceof Error ? error.message : String(error)}`);
-                panel.setStatus("FAILED");
+                output.error(`Error: ${error instanceof Error ? error.message : String(error)}`);
+                output.setStatus("FAILED");
             }
         }
     );
@@ -62,73 +65,60 @@ function activeFlow(): (Flow & {source: string}) | undefined {
         vscode.window.showErrorMessage("Open a flow YAML file to run it on Kestra.");
         return undefined;
     }
-    const source = editor.document.getText();
-    if (!YamlUtils.isFlow(source)) {
+    if (!isFlowDocument(editor.document)) {
         vscode.window.showErrorMessage("The active file is not a valid flow: it must define 'id', 'namespace', and 'tasks' or 'triggers'.");
         return undefined;
     }
+    const source = editor.document.getText();
     const flow = YamlUtils.toObject(source) as Flow | null;
     return flow ? {...flow, source} : undefined;
 }
 
-async function validate(apiClient: ApiClient, source: string, panel: RunOutput): Promise<boolean> {
+async function validate(apiClient: ApiClient, source: string, output: RunOutput): Promise<boolean> {
     const response = await apiClient.validateFlow(source);
     if (!response.ok) {
         return true;
     }
-    const results = (await response.json()) as Array<{constraints?: string | null}>;
-    const constraints = results?.map(r => r.constraints).filter((c): c is string => Boolean(c)) ?? [];
+    const results = (await response.json()) as ValidateResult[];
+    const constraints = (results ?? []).flatMap(result => splitConstraints(result.constraints));
     if (constraints.length > 0) {
-        constraints.forEach(c => panel.error(c));
-        panel.setStatus("FAILED");
+        constraints.forEach(constraint => output.error(constraint));
+        output.setStatus("FAILED");
         return false;
     }
     return true;
 }
 
-async function deploy(apiClient: ApiClient, namespace: string, id: string, source: string, panel: RunOutput): Promise<boolean> {
+async function deploy(apiClient: ApiClient, namespace: string, id: string, source: string, output: RunOutput): Promise<boolean> {
     const response = await apiClient.upsertFlow(namespace, id, source);
     if (!response.ok) {
         const message = ((await response.json().catch(() => ({}))) as {message?: string}).message;
-        panel.error(`Failed to deploy flow (HTTP ${response.status}): ${message ?? response.statusText}`);
-        panel.setStatus("FAILED");
+        output.error(`Failed to deploy flow (HTTP ${response.status}): ${message ?? response.statusText}`);
+        output.setStatus("FAILED");
         return false;
     }
     return true;
 }
 
-async function collectInputs(inputs: FlowInput[] | undefined, panel: RunOutput): Promise<FormData | undefined | "cancelled"> {
-    const leaves = flattenInputs(Array.isArray(inputs) ? inputs : undefined);
-    if (leaves.length === 0) {
-        return undefined;
-    }
-    const body = await panel.requestInputs(leaves);
-    if (body === undefined) {
-        panel.setPhase("Run cancelled.");
-        return "cancelled";
-    }
-    return body;
-}
-
-async function startExecution(apiClient: ApiClient, namespace: string, id: string, body: FormData | undefined, panel: RunOutput): Promise<string | undefined> {
+async function startExecution(apiClient: ApiClient, namespace: string, id: string, body: FormData | undefined, output: RunOutput): Promise<string | undefined> {
     const response = await apiClient.executionsApi(`/${namespace}/${id}`, {method: "POST", body});
     if (!response.ok) {
-        panel.error(`Failed to start execution (HTTP ${response.status}): ${response.statusText}`);
-        panel.setStatus("FAILED");
+        output.error(`Failed to start execution (HTTP ${response.status}): ${response.statusText}`);
+        output.setStatus("FAILED");
         return undefined;
     }
     return ((await response.json()) as {id: string}).id;
 }
 
 // Always cancel both streams; an open follow leaks memory on the server.
-async function followExecution(apiClient: ApiClient, executionId: string, panel: RunOutput, minLevel: string): Promise<string> {
-    const logsResponse = await apiClient.logsApi(`/${executionId}/follow?minLevel=${minLevel}`);
+async function followExecution(apiClient: ApiClient, executionId: string, output: RunOutput, fetchLevel: string): Promise<string> {
+    const logsResponse = await apiClient.logsApi(`/${executionId}/follow?minLevel=${fetchLevel}`);
     const logsReader = logsResponse.ok && logsResponse.body ? logsResponse.body.getReader() : undefined;
     if (!logsReader) {
-        panel.error("Could not stream logs from the instance.");
+        output.error("Could not stream logs from the instance.");
     }
     const logsStream = logsReader
-        ? readSseStream(logsReader, frame => onLogFrame(frame.name, frame.data, panel)).catch(() => undefined)
+        ? readSseStream(logsReader, frame => onLogFrame(frame.name, frame.data, output)).catch(() => undefined)
         : Promise.resolve();
 
     let finalState = "UNKNOWN";
@@ -137,8 +127,9 @@ async function followExecution(apiClient: ApiClient, executionId: string, panel:
         const execResponse = await apiClient.executionsApi(`/${executionId}/follow`);
         if (execResponse.ok && execResponse.body) {
             execReader = execResponse.body.getReader();
+            const sentTaskStates = new Map<string, string>();
             await readSseStream(execReader, frame => {
-                finalState = onExecutionFrame(frame.data, panel) ?? finalState;
+                finalState = onExecutionFrame(frame.data, output, sentTaskStates) ?? finalState;
             });
         }
     } finally {
@@ -157,27 +148,35 @@ async function followExecution(apiClient: ApiClient, executionId: string, panel:
     return finalState;
 }
 
-function onLogFrame(name: string | undefined, data: string | undefined, panel: RunOutput) {
+function onLogFrame(name: string | undefined, data: string | undefined, output: RunOutput) {
     if (name === "start" || name === "end" || !data || data === "{}") {
         return;
     }
     try {
         const entries = JSON.parse(data) as LogEntry | LogEntry[];
-        (Array.isArray(entries) ? entries : [entries]).forEach(entry => panel.appendLog(entry));
+        output.appendLogs(Array.isArray(entries) ? entries : [entries]);
     } catch {
         // Ignore keep-alive comments and non-JSON frames.
     }
 }
 
-function onExecutionFrame(data: string | undefined, panel: RunOutput): string | undefined {
+// The follow stream re-sends the full task list on every frame, so only forward actual changes.
+function onExecutionFrame(data: string | undefined, output: RunOutput, sentTaskStates: Map<string, string>): string | undefined {
     if (!data || data === "{}") {
         return undefined;
     }
     try {
         const execution = JSON.parse(data) as Execution;
         execution.taskRunList?.forEach(taskRun => {
-            if (taskRun.taskId) {
-                panel.updateTask?.(taskRun.taskId, taskRun.state?.current ?? "", durationOf(taskRun.state));
+            if (!taskRun.taskId) {
+                return;
+            }
+            const state = taskRun.state?.current ?? "";
+            const duration = durationOf(taskRun.state);
+            const snapshot = `${state}|${duration ?? ""}`;
+            if (sentTaskStates.get(taskRun.taskId) !== snapshot) {
+                sentTaskStates.set(taskRun.taskId, snapshot);
+                output.updateTask(taskRun.taskId, state, duration);
             }
         });
         return execution.state?.current;
@@ -186,4 +185,3 @@ function onExecutionFrame(data: string | undefined, panel: RunOutput): string | 
         return undefined;
     }
 }
-

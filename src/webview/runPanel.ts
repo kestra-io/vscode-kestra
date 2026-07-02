@@ -1,6 +1,6 @@
 import {stateBucket, logLevelRank, LOG_LEVELS} from '../shared/executionState';
 import {HostMessage, WebviewMessage} from './messages';
-import {FlowInput, LogEntry} from '../shared/flow';
+import {FlowInput, LogEntry, formatLogTime, formatLogLine, inputFallback} from '../shared/flow';
 
 interface VsCodeApi {
     postMessage(message: WebviewMessage): void;
@@ -41,7 +41,7 @@ const levelFilter = el('select', 'ks-select');
 const errors = el('div', 'errors');
 const tasks = el('div', 'tasks');
 
-const sections: Record<string, SectionRefs> = {};
+let sections: Record<string, SectionRefs> = {};
 
 function buildLayout() {
     open.href = '#';
@@ -54,7 +54,6 @@ function buildLayout() {
     [...LOG_LEVELS].reverse().forEach(level => {
         const option = el('option', '', titleCase(level));
         option.value = level;
-        option.selected = level === 'INFO';
         levelFilter.appendChild(option);
     });
 
@@ -85,36 +84,28 @@ levelFilter.addEventListener('change', applyFilter);
 
 // Chip multi-select, mirrors Kestra's KsSelect multiple.
 function buildTagSelect(values: string[], fallback: unknown): TagSelectElement {
-    const wrap = document.createElement('div') as TagSelectElement;
-    wrap.className = 'ks-tags';
+    const wrap = el('div', 'ks-tags') as TagSelectElement;
     wrap.dataset.multi = '1';
-    const box = document.createElement('div');
-    box.className = 'ks-tags-box';
-    const search = document.createElement('input');
-    search.className = 'ks-tags-input';
+    const box = el('div', 'ks-tags-box');
+    const search = el('input', 'ks-tags-input');
     search.placeholder = 'Select...';
     box.appendChild(search);
-    const menu = document.createElement('div');
-    menu.className = 'ks-tags-menu';
+    const menu = el('div', 'ks-tags-menu');
     menu.hidden = true;
-    wrap.appendChild(box);
-    wrap.appendChild(menu);
+    wrap.append(box, menu);
 
     const initial = Array.isArray(fallback) ? fallback : (fallback !== null && fallback !== undefined && fallback !== '' ? [fallback] : []);
     const selected = new Set<string>(initial.map(String));
 
     function renderChips() {
-        box.querySelectorAll('.ks-tag').forEach(c => c.remove());
-        selected.forEach(v => {
-            const chip = document.createElement('span');
-            chip.className = 'ks-tag';
-            chip.textContent = v;
-            const remove = document.createElement('button');
+        box.querySelectorAll('.ks-tag').forEach(chip => chip.remove());
+        selected.forEach(value => {
+            const chip = el('span', 'ks-tag', value);
+            const remove = el('button', '', '×');
             remove.type = 'button';
-            remove.textContent = '×';
             remove.addEventListener('click', event => {
                 event.stopPropagation();
-                selected.delete(v);
+                selected.delete(value);
                 renderChips();
                 renderMenu();
             });
@@ -125,13 +116,11 @@ function buildTagSelect(values: string[], fallback: unknown): TagSelectElement {
     function renderMenu() {
         menu.textContent = '';
         const filter = search.value.toLowerCase();
-        values.filter(v => !selected.has(String(v)) && String(v).toLowerCase().includes(filter)).forEach(v => {
-            const option = document.createElement('div');
-            option.className = 'ks-tags-opt';
-            option.textContent = v;
+        values.filter(value => !selected.has(String(value)) && String(value).toLowerCase().includes(filter)).forEach(value => {
+            const option = el('div', 'ks-tags-opt', value);
             option.addEventListener('mousedown', event => {
                 event.preventDefault();
-                selected.add(String(v));
+                selected.add(String(value));
                 search.value = '';
                 renderChips();
                 renderMenu();
@@ -152,37 +141,30 @@ function buildTagSelect(values: string[], fallback: unknown): TagSelectElement {
 }
 
 function createFileField(input: FlowInput): HTMLDivElement {
-    const wrap = document.createElement('div');
-    wrap.className = 'ks-field-file';
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'ks-button secondary';
-    btn.textContent = 'Choose file';
-    btn.addEventListener('click', () => vscode.postMessage({command: 'pickFile', inputId: input.id}));
-    const name = document.createElement('span');
-    name.className = 'ks-filename';
+    const wrap = el('div', 'ks-field-file');
+    const pick = el('button', 'ks-button secondary', 'Choose file');
+    pick.type = 'button';
+    pick.addEventListener('click', () => vscode.postMessage({type: 'pickFile', inputId: input.id}));
+    const name = el('span', 'ks-filename', 'No file selected');
     name.dataset.fileFor = input.id;
-    name.textContent = 'No file selected';
-    wrap.append(btn, name);
+    wrap.append(pick, name);
     return wrap;
 }
 
 function createControl(type: string, input: FlowInput, fallback: unknown): HTMLElement {
     if (type === 'BOOLEAN' || type === 'BOOL') {
-        const checkbox = document.createElement('input');
+        const checkbox = el('input');
         checkbox.type = 'checkbox';
         checkbox.checked = fallback === true || fallback === 'true';
         return checkbox;
     }
     if ((type === 'SELECT' || type === 'ENUM') && Array.isArray(input.values)) {
-        const select = document.createElement('select');
-        select.className = 'ks-select';
-        input.values.forEach(v => {
-            const opt = document.createElement('option');
-            opt.value = v;
-            opt.textContent = v;
-            opt.selected = String(fallback) === String(v);
-            select.appendChild(opt);
+        const select = el('select', 'ks-select');
+        input.values.forEach(value => {
+            const option = el('option', '', value);
+            option.value = value;
+            option.selected = String(fallback) === String(value);
+            select.appendChild(option);
         });
         return select;
     }
@@ -190,13 +172,11 @@ function createControl(type: string, input: FlowInput, fallback: unknown): HTMLE
         return buildTagSelect(input.values, fallback);
     }
     if (type === 'JSON' || type === 'YAML' || type === 'ARRAY') {
-        const textarea = document.createElement('textarea');
-        textarea.className = 'ks-input';
+        const textarea = el('textarea', 'ks-input');
         textarea.value = typeof fallback === 'string' ? fallback : JSON.stringify(fallback);
         return textarea;
     }
-    const text = document.createElement('input');
-    text.className = 'ks-input';
+    const text = el('input', 'ks-input');
     text.type = type === 'SECRET' ? 'password'
         : type === 'EMAIL' ? 'email'
         : type === 'URI' ? 'url'
@@ -216,18 +196,13 @@ function createControl(type: string, input: FlowInput, fallback: unknown): HTMLE
 }
 
 function createFormActions(): HTMLDivElement {
-    const actions = document.createElement('div');
-    actions.className = 'ks-form-actions';
-    const run = document.createElement('button');
-    run.className = 'ks-button';
-    run.textContent = 'Run';
+    const actions = el('div', 'ks-form-actions');
+    const run = el('button', 'ks-button', 'Run');
     run.addEventListener('click', submitForm);
-    const cancel = document.createElement('button');
-    cancel.className = 'ks-button secondary';
-    cancel.textContent = 'Cancel';
+    const cancel = el('button', 'ks-button secondary', 'Cancel');
     cancel.addEventListener('click', () => {
         form.hidden = true;
-        vscode.postMessage({command: 'cancelInputs'});
+        vscode.postMessage({type: 'cancelInputs'});
     });
     actions.append(run, cancel);
     return actions;
@@ -235,26 +210,21 @@ function createFormActions(): HTMLDivElement {
 
 function renderForm(inputs: FlowInput[]) {
     form.textContent = '';
-    const title = document.createElement('div');
-    title.className = 'ks-form-title';
-    title.textContent = 'Inputs';
-    form.appendChild(title);
+    form.appendChild(el('div', 'ks-form-title', 'Inputs'));
 
     inputs.forEach(input => {
         const type = (input.type || 'STRING').toUpperCase();
         const inline = type === 'BOOLEAN' || type === 'BOOL';
-        const field = document.createElement('div');
-        field.className = 'ks-field' + (inline ? ' inline' : '');
+        const field = el('div', 'ks-field' + (inline ? ' inline' : ''));
 
-        const label = document.createElement('label');
-        label.className = 'ks-label';
+        const label = el('label', 'ks-label');
         label.innerHTML = input.id + (input.required ? '<span class="req">*</span>' : '') +
             '<span class="type">' + type + '</span>';
 
         if (type === 'FILE') {
             field.append(label, createFileField(input));
         } else {
-            const control = createControl(type, input, input.prefill ?? input.defaults ?? '');
+            const control = createControl(type, input, inputFallback(input));
             control.dataset.id = input.id;
             control.dataset.type = type;
             control.dataset.required = input.required ? '1' : '';
@@ -306,7 +276,7 @@ function submitForm() {
         return;
     }
     form.hidden = true;
-    vscode.postMessage({command: 'submitInputs', values});
+    vscode.postMessage({type: 'submitInputs', values});
 }
 
 function getSection(task: string): SectionRefs {
@@ -317,24 +287,24 @@ function getSection(task: string): SectionRefs {
     }
     const section = el('div', 'task-section collapsed');
     const head = el('div', 'task-head');
-    const badge = el('span', 'ks-badge task-status');
-    badge.hidden = true;
+    const taskBadge = el('span', 'ks-badge task-status');
+    taskBadge.hidden = true;
     const duration = el('span', 'duration');
-    head.append(el('span', 'chevron'), el('span', 'task-name', task || 'flow'), badge, duration);
+    head.append(el('span', 'chevron'), el('span', 'task-name', task || 'flow'), taskBadge, duration);
     head.addEventListener('click', () => section.classList.toggle('collapsed'));
     const body = el('div', 'task-body');
     section.append(head, body);
     tasks.appendChild(section);
-    sections[key] = {section, body, badge, duration};
+    sections[key] = {section, body, badge: taskBadge, duration};
     return sections[key];
 }
 
 copy.addEventListener('click', () => {
-    const text = Array.from(document.querySelectorAll<HTMLElement>('.row')).map(r => r.dataset.copy).join('\n');
-    vscode.postMessage({command: 'copy', text});
+    const text = Array.from(document.querySelectorAll<HTMLElement>('.row')).map(row => row.dataset.copy).join('\n');
+    vscode.postMessage({type: 'copy', text});
 });
 
-function resetView(flowId: string) {
+function resetView(flowId: string, level: string) {
     flow.textContent = flowId;
     tasks.textContent = '';
     errors.textContent = '';
@@ -342,9 +312,8 @@ function resetView(flowId: string) {
     form.hidden = true;
     form.textContent = '';
     open.hidden = true;
-    for (const k in sections) {
-        delete sections[k];
-    }
+    sections = {};
+    levelFilter.value = level;
     setBadge('RUNNING');
 }
 
@@ -361,23 +330,24 @@ function updateTaskRow(taskId: string, state: string, duration?: number) {
     }
 }
 
-function appendLogRow(log: LogEntry) {
+function logRow(log: LogEntry): HTMLDivElement {
     const level = (log.level || 'INFO').toUpperCase();
-    const task = log.taskId || '';
-    const time = ((log.timestamp || '').split('T')[1] || '').replace('Z', '');
-
     const row = el('div', `row ${level.toLowerCase()}`);
     row.classList.toggle('hidden', logLevelRank(level) < logLevelRank(levelFilter.value));
     row.dataset.level = level;
-    row.dataset.copy = `${log.timestamp || ''} ${level} ${task ? `[${task}] ` : ''}${log.message || ''}`;
+    row.dataset.copy = formatLogLine(log);
     row.append(
-        el('span', 'ts', time),
+        el('span', 'ts', formatLogTime(log.timestamp)),
         el('span', `lvl ${level.toLowerCase()}`, level),
         el('span', 'msg', log.message || '')
     );
+    return row;
+}
 
+// One scroll check and one scroll per batch, not per line.
+function appendLogRows(entries: LogEntry[]) {
     const atBottom = window.innerHeight + window.scrollY >= document.body.scrollHeight - 40;
-    getSection(task).body.appendChild(row);
+    entries.forEach(entry => getSection(entry.taskId || '').body.appendChild(logRow(entry)));
     if (atBottom) {
         window.scrollTo(0, document.body.scrollHeight);
     }
@@ -387,7 +357,7 @@ window.addEventListener('message', event => {
     const m = event.data as HostMessage;
     switch (m.type) {
         case 'reset':
-            resetView(m.flow);
+            resetView(m.flow, m.level);
             break;
         case 'phase':
             phase.textContent = m.text;
@@ -396,7 +366,7 @@ window.addEventListener('message', event => {
             renderForm(m.inputs || []);
             break;
         case 'fileChosen': {
-            const span = form.querySelector('[data-file-for="' + m.inputId + '"]');
+            const span = form.querySelector(`[data-file-for="${m.inputId}"]`);
             if (span) {
                 span.textContent = m.name;
             }
@@ -405,22 +375,19 @@ window.addEventListener('message', event => {
         case 'execution':
             open.href = m.url;
             open.hidden = false;
-            phase.textContent = 'Execution ' + m.id;
+            phase.textContent = `Execution ${m.id}`;
             break;
-        case 'error': {
-            const d = document.createElement('div');
-            d.textContent = m.text;
-            errors.appendChild(d);
+        case 'error':
+            errors.appendChild(el('div', '', m.text));
             break;
-        }
         case 'status':
             setBadge(m.state);
             break;
         case 'task':
             updateTaskRow(m.taskId, m.state, m.duration);
             break;
-        case 'log':
-            appendLogRow(m);
+        case 'logs':
+            appendLogRows(m.entries);
             break;
     }
 });

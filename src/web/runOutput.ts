@@ -1,37 +1,54 @@
 import * as vscode from 'vscode';
 import {sanitizeFileName} from './libs/runHelpers';
 import {stateSymbol} from '../shared/executionState';
-import {FlowInput, LogEntry} from '../shared/flow';
-
-export {FlowInput, LogEntry};
+import {FlowInput, LogEntry, formatLogLine, inputFallback} from '../shared/flow';
+import RunPanel from './runPanel';
 
 export interface RunOutput {
-    reset(flow: string): void;
+    reset(flow: string, logLevel: string): void;
     setPhase(text: string): void;
     setExecution(id: string, url: string): void;
-    appendLog(log: LogEntry): void;
+    appendLogs(entries: LogEntry[]): void;
     error(text: string): void;
     setStatus(state: string): void;
-    updateTask?(taskId: string, state: string, durationSeconds?: number): void;
+    updateTask(taskId: string, state: string, durationSeconds?: number): void;
     // Returns undefined when the user cancels.
     requestInputs(inputs: FlowInput[]): Promise<FormData | undefined>;
+}
+
+// The configured output plus the level to fetch: the panel filters client-side so it fetches
+// everything, while the log channel shows all it fetches so it fetches at the configured level.
+export function createRunOutput(extensionUri: vscode.Uri): {output: RunOutput; fetchLevel: string; logLevel: string} {
+    const config = vscode.workspace.getConfiguration("kestra.run");
+    const logLevel = (config.get("logLevel") as string) || "INFO";
+    if (config.get("output") === "logs") {
+        return {output: RunLog.get(), fetchLevel: logLevel, logLevel};
+    }
+    return {output: RunPanel.createOrShow(extensionUri), fetchLevel: "TRACE", logLevel};
+}
+
+export async function pickInputFile(inputId: string): Promise<{name: string; data: Uint8Array} | undefined> {
+    const picked = await vscode.window.showOpenDialog({canSelectMany: false, openLabel: `Select file for "${inputId}"`});
+    if (!picked || picked.length === 0) {
+        return undefined;
+    }
+    const data = await vscode.workspace.fs.readFile(picked[0]);
+    return {name: sanitizeFileName(picked[0].path.split("/").pop() ?? inputId), data};
 }
 
 // A plain channel; a {log:true} channel cannot be cleared between runs.
 // The "log" language id makes VS Code colorize timestamps and severity words.
 export class RunLog implements RunOutput {
-    private static _channel: vscode.OutputChannel | undefined;
+    private static instance: RunLog | undefined;
     private readonly channel: vscode.OutputChannel;
 
     public static get(): RunLog {
-        if (!RunLog._channel) {
-            RunLog._channel = vscode.window.createOutputChannel("Kestra Execution", "log");
-        }
-        return new RunLog(RunLog._channel);
+        RunLog.instance ??= new RunLog();
+        return RunLog.instance;
     }
 
-    private constructor(channel: vscode.OutputChannel) {
-        this.channel = channel;
+    private constructor() {
+        this.channel = vscode.window.createOutputChannel("Kestra Execution", "log");
     }
 
     public reset(flow: string) {
@@ -49,11 +66,8 @@ export class RunLog implements RunOutput {
         this.channel.appendLine(`  Open in Kestra: ${url}`);
     }
 
-    public appendLog(log: LogEntry) {
-        const time = ((log.timestamp ?? "").split("T")[1] ?? "").replace("Z", "").slice(0, 12).padEnd(12);
-        const level = `[${(log.level ?? "INFO").toUpperCase()}]`.padEnd(8);
-        const task = log.taskId ? `[${log.taskId}] ` : "";
-        this.channel.appendLine(`${time}  ${level}${task}${log.message ?? ""}`);
+    public appendLogs(entries: LogEntry[]) {
+        entries.forEach(entry => this.channel.appendLine(formatLogLine(entry)));
     }
 
     public error(text: string) {
@@ -64,27 +78,30 @@ export class RunLog implements RunOutput {
         this.channel.appendLine(`${stateSymbol(state)} Execution finished: ${state}`);
     }
 
+    public updateTask() {
+        // Task transitions are already visible as log lines in the channel.
+    }
+
     // The log channel has no form, so collect inputs with sequential prompts (and a file dialog for FILE).
     public async requestInputs(inputs: FlowInput[]): Promise<FormData | undefined> {
         const form = new FormData();
         for (const input of inputs) {
             const type = (input.type ?? "STRING").toUpperCase();
             if (type === "FILE") {
-                const picked = await vscode.window.showOpenDialog({canSelectMany: false, openLabel: `Select file for "${input.id}"`});
-                if (!picked || picked.length === 0) {
+                const file = await pickInputFile(input.id);
+                if (!file) {
                     if (input.required) {
                         return undefined;
                     }
                     continue;
                 }
-                const data = await vscode.workspace.fs.readFile(picked[0]);
-                form.append(input.id, new Blob([data]), sanitizeFileName(picked[0].path.split("/").pop() ?? input.id));
+                form.append(input.id, new Blob([file.data]), file.name);
                 continue;
             }
-            const fallback = input.prefill ?? input.defaults;
+            const fallback = inputFallback(input);
             const value = await vscode.window.showInputBox({
                 prompt: `Input "${input.id}"${input.type ? ` (${input.type})` : ""}${input.required ? " [required]" : ""}`,
-                value: fallback === undefined || fallback === null ? "" : String(fallback),
+                value: String(fallback),
                 ignoreFocusOut: true,
                 password: type === "SECRET"
             });

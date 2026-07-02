@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
-import {FlowInput, LogEntry, RunOutput} from './runOutput';
-import {sanitizeFileName} from './libs/runHelpers';
+import {RunOutput, pickInputFile} from './runOutput';
+import {FlowInput, LogEntry} from '../shared/flow';
 import {makeNonce} from './webviewHelpers';
 import {HostMessage, WebviewMessage} from '../webview/messages';
 
@@ -49,18 +49,11 @@ export default class RunPanel implements RunOutput {
     }
 
     private async handleMessage(message: WebviewMessage) {
-        if ('type' in message && message.type === 'ready') {
-            this._ready = true;
-            this._queue.forEach(m => this._panel.webview.postMessage(m));
-            this._queue = [];
-            return;
-        }
-        if (!('command' in message)) {
-            return;
-        }
-        switch (message.command) {
-            case 'openExternal':
-                vscode.env.openExternal(vscode.Uri.parse(message.url));
+        switch (message.type) {
+            case 'ready':
+                this._ready = true;
+                this._queue.forEach(m => this._panel.webview.postMessage(m));
+                this._queue = [];
                 break;
             case 'copy':
                 vscode.env.clipboard.writeText(message.text);
@@ -96,14 +89,12 @@ export default class RunPanel implements RunOutput {
     }
 
     private async pickFile(inputId: string) {
-        const picked = await vscode.window.showOpenDialog({canSelectMany: false, openLabel: 'Select'});
-        if (!picked || !picked[0]) {
+        const file = await pickInputFile(inputId);
+        if (!file) {
             return;
         }
-        const data = await vscode.workspace.fs.readFile(picked[0]);
-        const name = sanitizeFileName(picked[0].path.split('/').pop() ?? 'file');
-        this._pendingFiles[inputId] = {name, data};
-        this.post({type: 'fileChosen', inputId, name});
+        this._pendingFiles[inputId] = file;
+        this.post({type: 'fileChosen', inputId, name: file.name});
     }
 
     // Buffers messages until the webview signals it is ready, so the first log lines are never dropped.
@@ -115,8 +106,8 @@ export default class RunPanel implements RunOutput {
         }
     }
 
-    public reset(flow: string) {
-        this.post({type: 'reset', flow});
+    public reset(flow: string, logLevel: string) {
+        this.post({type: 'reset', flow, level: logLevel});
     }
 
     public setPhase(text: string) {
@@ -127,8 +118,8 @@ export default class RunPanel implements RunOutput {
         this.post({type: 'execution', id, url});
     }
 
-    public appendLog(log: LogEntry) {
-        this.post({type: 'log', ...log});
+    public appendLogs(entries: LogEntry[]) {
+        this.post({type: 'logs', entries});
     }
 
     public updateTask(taskId: string, state: string, durationSeconds?: number) {

@@ -102,13 +102,8 @@ export default class ApiClient {
         return url.includes("/api/v1") ? url.replace("/api/v1", `/api/v1/${tenant}`) : `${url}/${tenant}`;
     }
 
-    // API URL without the /api/v1 suffix and tenant, for building UI page links.
-    public static async getKestraWebUrl(): Promise<string> {
-        return (await this.getKestraApiUrl()).split("/api/v1")[0];
-    }
-
     public static async executionUiUrl(namespace: string, flowId: string, executionId: string): Promise<string> {
-        const webUrl = await this.getKestraWebUrl();
+        const webUrl = (await this.getKestraApiUrl()).split("/api/v1")[0];
         const tenant = (vscode.workspace.getConfiguration("kestra.api").get("tenant") as string) || "main";
         return `${webUrl}/ui/${tenant}/executions/${namespace}/${flowId}/${executionId}`;
     }
