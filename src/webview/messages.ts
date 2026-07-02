@@ -18,7 +18,7 @@ export type WebviewMessage =
     | {type: 'cancelInputs'}
     | {type: 'pickFile'; inputId: string};
 
-export type GraphNode = {uid: string; type: string; task?: {id?: string; type?: string}};
+export type GraphNode = {uid: string; type: string; task?: {id?: string; type?: string}; trigger?: {id?: string; type?: string}};
 export type FlowGraph = {
     nodes: GraphNode[];
     edges: Array<{source: string; target: string}>;
