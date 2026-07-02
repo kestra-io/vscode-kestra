@@ -44,3 +44,24 @@ export function formatLogLine(log: LogEntry): string {
     const task = log.taskId ? `[${log.taskId}] ` : '';
     return `${time}  ${level}${task}${log.message ?? ''}`;
 }
+
+export interface GraphNode {
+    uid: string;
+    task?: {id?: string; type?: string};
+    triggerDeclaration?: {id?: string; type?: string};
+}
+
+export interface FlowGraph {
+    nodes: GraphNode[];
+    edges: Array<{source: string; target: string}>;
+    clusters?: Array<{cluster: {uid: string; taskNode?: GraphNode}; nodes: string[]}>;
+}
+
+// A graph node's declared id and plugin type, whether it is a task or a trigger.
+export function graphNodeId(node: GraphNode): string {
+    return node.task?.id ?? node.triggerDeclaration?.id ?? '';
+}
+
+export function graphNodePluginType(node: GraphNode): string | undefined {
+    return node.task?.type ?? node.triggerDeclaration?.type;
+}

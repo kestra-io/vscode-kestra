@@ -1,6 +1,7 @@
 // apiClient.ts
 import * as vscode from 'vscode';
 import { kestraBaseUrl, secretStorageKey, yamlContentType, PebbleFunctionDef } from "./constants";
+import { FlowGraph } from "../shared/flow";
 
 export default class ApiClient {
     private readonly _secretStorage: vscode.SecretStorage;
@@ -233,13 +234,13 @@ export default class ApiClient {
     }
 
     // Generates the topology graph for a flow source, without saving the flow.
-    public async flowGraph(source: string): Promise<Response | null> {
+    public async flowGraph(source: string): Promise<FlowGraph | null> {
         const response = await this.silentFetch("/flows/graph", {
             method: "POST",
             body: source,
             headers: {"Content-Type": yamlContentType}
         });
-        return response?.ok ? response : null;
+        return response?.ok ? (await response.json().catch(() => null)) as FlowGraph | null : null;
     }
 
     // Base64 SVG icons per plugin type. The icons endpoint is not tenant-scoped.

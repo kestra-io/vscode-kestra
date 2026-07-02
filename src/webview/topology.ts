@@ -1,43 +1,27 @@
 import cytoscape from 'cytoscape';
 import dagre from 'cytoscape-dagre';
-import {stateBucket, StateBucket} from '../shared/executionState';
-import {FlowGraph, TopologyHostMessage, TopologyWebviewMessage} from './messages';
+import {stateBucket, STATE_BUCKETS} from '../shared/executionState';
+import {FlowGraph, graphNodeId, graphNodePluginType} from '../shared/flow';
+import {TopologyHostMessage, TopologyWebviewMessage} from './messages';
+import {acquireApi, el} from './dom';
 
 cytoscape.use(dagre);
 
-interface VsCodeApi {
-    postMessage(message: TopologyWebviewMessage): void;
-}
-declare function acquireVsCodeApi(): VsCodeApi;
-
-const vscode = acquireVsCodeApi();
-
-function el<K extends keyof HTMLElementTagNameMap>(tag: K, className = '', text = ''): HTMLElementTagNameMap[K] {
-    const node = document.createElement(tag);
-    node.className = className;
-    node.textContent = text;
-    return node;
-}
+const vscode = acquireApi<TopologyWebviewMessage>();
 
 const message = el('div', 'message', 'Loading topology...');
 const graphEl = el('div', 'graph');
 const fit = el('button', 'fit', 'Fit');
 document.body.append(message, graphEl, fit);
 
-// Reused across updates so live edits swap elements instead of rebuilding the whole graph each time.
+// Reused across updates so live edits swap elements instead of recreating the view each time.
 let cy: cytoscape.Core | undefined;
 const LAYOUT = {name: 'dagre', rankDir: 'LR', nodeSep: 25, rankSep: 50, padding: 24, fit: true} as cytoscape.LayoutOptions;
 
-const RUN_CLASSES = 'run-success run-running run-warning run-failed';
-const RUN_CLASS: Record<StateBucket, string> = {
-    success: 'run-success',
-    running: 'run-running',
-    info: 'run-running',
-    warning: 'run-warning',
-    pending: 'run-warning',
-    failed: 'run-failed',
-    neutral: ''
-};
+// Icons arrive as deltas with each graph, so keep the accumulated map for re-renders.
+const iconMap: Record<string, string> = {};
+
+const RUN_CLASSES = STATE_BUCKETS.map(bucket => `run-${bucket}`).join(' ');
 
 function cssVar(name: string, fallback: string): string {
     return getComputedStyle(document.body).getPropertyValue(name).trim() || fallback;
@@ -50,7 +34,7 @@ function showMessage(text: string) {
     message.textContent = text;
 }
 
-function toElements(graph: FlowGraph, icons: Record<string, string>): cytoscape.ElementDefinition[] {
+function toElements(graph: FlowGraph): cytoscape.ElementDefinition[] {
     const elements: cytoscape.ElementDefinition[] = [];
 
     // Clusters become compound parent nodes wrapping all their members, including the flowable task
@@ -77,15 +61,15 @@ function toElements(graph: FlowGraph, icons: Record<string, string>): cytoscape.
     for (const node of graph.nodes) {
         // Nodes without a declared id (cluster entries and exits) are invisible waypoints;
         // tasks and triggers render as cards.
-        const id = node.task?.id ?? node.triggerDeclaration?.id ?? '';
-        const pluginType = node.task?.type ?? node.triggerDeclaration?.type;
+        const id = graphNodeId(node);
+        const pluginType = graphNodePluginType(node);
         elements.push({
             data: {
                 id: node.uid,
                 label: id,
                 parent: parentOf[node.uid],
                 taskId: id,
-                icon: (pluginType ? icons[pluginType] : undefined) ?? 'none'
+                icon: (pluginType ? iconMap[pluginType] : undefined) ?? 'none'
             },
             classes: id ? 'task' : 'boundary'
         });
@@ -133,10 +117,11 @@ function graphStyle(): cytoscape.StylesheetJson {
             }
         },
         {selector: 'node.boundary', style: {'width': 1, 'height': 1, 'opacity': 0}},
-        {selector: 'node.task.run-success', style: {'border-color': cssVar('--ks-status-success', '#43f6b6'), 'border-opacity': 1, 'border-width': 2}},
-        {selector: 'node.task.run-running', style: {'border-color': accent, 'border-opacity': 1, 'border-width': 2}},
-        {selector: 'node.task.run-warning', style: {'border-color': cssVar('--ks-status-warning', '#ff8b61'), 'border-opacity': 1, 'border-width': 2}},
-        {selector: 'node.task.run-failed', style: {'border-color': cssVar('--ks-status-error', '#ff6a6c'), 'border-opacity': 1, 'border-width': 2}},
+        // One live-state border per bucket, colored by the same status tokens as the run panel badges.
+        ...STATE_BUCKETS.map(bucket => ({
+            selector: `node.task.run-${bucket}`,
+            style: {'border-color': cssVar(`--ks-status-${bucket === 'failed' ? 'error' : bucket}`, '#9797a6'), 'border-opacity': 1, 'border-width': 2}
+        })),
         {
             selector: 'node.cluster',
             style: {
@@ -201,11 +186,12 @@ function render(graph: FlowGraph | undefined, icons: Record<string, string>) {
         showMessage('No graph returned.');
         return;
     }
+    Object.assign(iconMap, icons);
     message.style.display = 'none';
     graphEl.style.display = 'block';
     fit.style.display = 'block';
 
-    const elements = toElements(graph, icons);
+    const elements = toElements(graph);
     if (cy) {
         cy.batch(() => {
             cy!.elements().remove();
@@ -224,7 +210,7 @@ function render(graph: FlowGraph | undefined, icons: Record<string, string>) {
 
 function setTaskState(taskId: string, state: string) {
     const bucket = stateBucket(state);
-    const runClass = bucket ? RUN_CLASS[bucket] : '';
+    const runClass = bucket ? `run-${bucket}` : '';
     cy?.nodes('.task').forEach(node => {
         if (node.data('taskId') === taskId) {
             node.removeClass(RUN_CLASSES);
