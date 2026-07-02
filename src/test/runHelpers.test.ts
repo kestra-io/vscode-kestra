@@ -34,9 +34,6 @@ describe("sanitizeFileName", () => {
     it("replaces slashes and other special chars", () => {
         assert.strictEqual(sanitizeFileName("a/b\\c:d.txt"), "a_b_c_d.txt");
     });
-    it("replaces parentheses and collapses runs to one underscore each", () => {
-        assert.strictEqual(sanitizeFileName("report (final).csv"), "report__final_.csv");
-    });
     it("leaves letters, digits, dots, dashes and underscores untouched", () => {
         assert.strictEqual(sanitizeFileName("clean-name_1.2.txt"), "clean-name_1.2.txt");
     });

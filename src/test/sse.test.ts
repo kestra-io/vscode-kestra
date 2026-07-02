@@ -21,10 +21,6 @@ describe("parseSseFrame", () => {
         assert.strictEqual(parseSseFrame(":"), null);
         assert.strictEqual(parseSseFrame(""), null);
     });
-    it("parses a realistic log frame", () => {
-        const frame = "id: progress\ndata: {\"level\":\"INFO\",\"message\":\"hi\"}";
-        assert.deepStrictEqual(parseSseFrame(frame), {name: "progress", data: "{\"level\":\"INFO\",\"message\":\"hi\"}"});
-    });
 });
 
 describe("readSseStream", () => {

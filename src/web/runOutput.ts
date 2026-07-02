@@ -11,7 +11,7 @@ export interface RunOutput {
     appendLogs(entries: LogEntry[]): void;
     error(text: string): void;
     setStatus(state: string): void;
-    updateTask(taskId: string, state: string, durationSeconds?: number): void;
+    setTaskState(taskId: string, state: string, durationSeconds?: number): void;
     // Returns undefined when the user cancels.
     requestInputs(inputs: FlowInput[]): Promise<FormData | undefined>;
 }
@@ -20,11 +20,16 @@ export interface RunOutput {
 // everything, while the log channel shows all it fetches so it fetches at the configured level.
 export function createRunOutput(extensionUri: vscode.Uri, flowUid: string): {output: RunOutput; fetchLevel: string; logLevel: string} {
     const config = vscode.workspace.getConfiguration("kestra.run");
-    const logLevel = (config.get("logLevel") as string) || "INFO";
+    const logLevel = config.get("logLevel", "INFO");
     if (config.get("output") === "logs") {
         return {output: RunLog.get(flowUid), fetchLevel: logLevel, logLevel};
     }
     return {output: RunPanel.createOrShow(extensionUri, flowUid), fetchLevel: "TRACE", logLevel};
+}
+
+// Disposes every run log channel; registered in the extension's subscriptions.
+export function disposeRunLogs() {
+    RunLog.disposeAll();
 }
 
 export async function pickInputFile(inputId: string): Promise<{name: string; data: Uint8Array} | undefined> {
@@ -39,51 +44,56 @@ export async function pickInputFile(inputId: string): Promise<{name: string; dat
 // A plain channel; a {log:true} channel cannot be cleared between runs.
 // The "log" language id makes VS Code colorize timestamps and severity words.
 // One channel per flow, so concurrent runs of different flows never interleave.
-export class RunLog implements RunOutput {
-    private static channels = new Map<string, RunLog>();
-    private readonly channel: vscode.OutputChannel;
+class RunLog implements RunOutput {
+    private static _channels = new Map<string, RunLog>();
+    private readonly _channel: vscode.OutputChannel;
 
     public static get(flowUid: string): RunLog {
-        let instance = RunLog.channels.get(flowUid);
+        let instance = RunLog._channels.get(flowUid);
         if (!instance) {
             instance = new RunLog(flowUid);
-            RunLog.channels.set(flowUid, instance);
+            RunLog._channels.set(flowUid, instance);
         }
         return instance;
     }
 
+    public static disposeAll() {
+        RunLog._channels.forEach(log => log._channel.dispose());
+        RunLog._channels.clear();
+    }
+
     private constructor(flowUid: string) {
-        this.channel = vscode.window.createOutputChannel(`Kestra: ${flowUid}`, "log");
+        this._channel = vscode.window.createOutputChannel(`Kestra: ${flowUid}`, "log");
     }
 
     public reset(flow: string) {
-        this.channel.clear();
-        this.channel.show(true);
-        this.channel.appendLine(`▶ Running ${flow}`);
+        this._channel.clear();
+        this._channel.show(true);
+        this._channel.appendLine(`▶ Running ${flow}`);
     }
 
     public setPhase(text: string) {
-        this.channel.appendLine(text);
+        this._channel.appendLine(text);
     }
 
     public setExecution(id: string, url: string) {
-        this.channel.appendLine(`  Execution ${id}`);
-        this.channel.appendLine(`  Open in Kestra: ${url}`);
+        this._channel.appendLine(`  Execution ${id}`);
+        this._channel.appendLine(`  Open in Kestra: ${url}`);
     }
 
     public appendLogs(entries: LogEntry[]) {
-        entries.forEach(entry => this.channel.appendLine(formatLogLine(entry)));
+        entries.forEach(entry => this._channel.appendLine(formatLogLine(entry)));
     }
 
     public error(text: string) {
-        this.channel.appendLine(`✗ ${text}`);
+        this._channel.appendLine(`✗ ${text}`);
     }
 
     public setStatus(state: string) {
-        this.channel.appendLine(`${stateSymbol(state)} Execution finished: ${state}`);
+        this._channel.appendLine(`${stateSymbol(state)} Execution finished: ${state}`);
     }
 
-    public updateTask() {
+    public setTaskState() {
         // Task transitions are already visible as log lines in the channel.
     }
 

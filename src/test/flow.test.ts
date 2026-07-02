@@ -1,5 +1,5 @@
 import * as assert from "assert";
-import {flattenInputs} from "../shared/flow";
+import {flattenInputs, formatDuration} from "../shared/flow";
 
 describe("flattenInputs", () => {
     it("passes plain inputs through unchanged", () => {
@@ -26,5 +26,18 @@ describe("flattenInputs", () => {
     });
     it("returns an empty list for missing inputs", () => {
         assert.deepStrictEqual(flattenInputs(undefined), []);
+    });
+});
+
+describe("formatDuration", () => {
+    it("keeps sub-minute durations in seconds with decimals", () => {
+        assert.strictEqual(formatDuration(4.321), "4.32s");
+    });
+    it("shows the two largest units", () => {
+        assert.strictEqual(formatDuration(94), "1m 34s");
+        assert.strictEqual(formatDuration(3720), "1h 2m");
+    });
+    it("omits zero units", () => {
+        assert.strictEqual(formatDuration(3600), "1h");
     });
 });

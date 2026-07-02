@@ -44,7 +44,7 @@
         "category": "Kestra"
       },
       {
-        "command": "kestra.flow.execute",
+        "command": "kestra.flow.run",
         "title": "Run flow on Kestra",
         "category": "Kestra",
         "icon": "$(play)"
@@ -58,13 +58,13 @@
         },
         {
           "when": "resourceLangId == yaml",
-          "command": "kestra.flow.execute"
+          "command": "kestra.flow.run"
         }
       ],
       "editor/title": [
         {
           "when": "resourceLangId == yaml",
-          "command": "kestra.flow.execute",
+          "command": "kestra.flow.run",
           "group": "navigation"
         },
         {
@@ -77,7 +77,7 @@
     },
     "keybindings": [
       {
-        "command": "kestra.flow.execute",
+        "command": "kestra.flow.run",
         "key": "ctrl+alt+r",
         "mac": "cmd+alt+r",
         "when": "editorLangId == yaml"
