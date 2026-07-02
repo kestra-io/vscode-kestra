@@ -75,19 +75,19 @@ function toElements(graph: FlowGraph, icons: Record<string, string>): cytoscape.
     }
 
     for (const node of graph.nodes) {
-        // Only cluster entry/exit nodes are invisible waypoints; tasks and triggers render as cards.
-        const isBoundary = node.type.endsWith('GraphClusterRoot') || node.type.endsWith('GraphClusterEnd');
+        // Nodes without a declared id (cluster entries and exits) are invisible waypoints;
+        // tasks and triggers render as cards.
         const id = node.task?.id ?? node.triggerDeclaration?.id ?? '';
         const pluginType = node.task?.type ?? node.triggerDeclaration?.type;
         elements.push({
             data: {
                 id: node.uid,
-                label: isBoundary ? '' : id,
+                label: id,
                 parent: parentOf[node.uid],
                 taskId: id,
                 icon: (pluginType ? icons[pluginType] : undefined) ?? 'none'
             },
-            classes: isBoundary ? 'boundary' : 'task'
+            classes: id ? 'task' : 'boundary'
         });
     }
     for (const edge of graph.edges ?? []) {
