@@ -18,13 +18,14 @@ export interface RunOutput {
 }
 
 // A plain channel; a {log:true} channel cannot be cleared between runs.
+// The "log" language id makes VS Code colorize timestamps and severity words.
 export class RunLog implements RunOutput {
     private static _channel: vscode.OutputChannel | undefined;
     private readonly channel: vscode.OutputChannel;
 
     public static get(): RunLog {
         if (!RunLog._channel) {
-            RunLog._channel = vscode.window.createOutputChannel("Kestra Execution");
+            RunLog._channel = vscode.window.createOutputChannel("Kestra Execution", "log");
         }
         return new RunLog(RunLog._channel);
     }
