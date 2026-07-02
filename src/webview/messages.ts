@@ -19,8 +19,8 @@ export type WebviewMessage =
     | {type: 'pickFile'; inputId: string};
 
 export type TopologyHostMessage =
-    | {type: 'graph'; graph: FlowGraph | undefined; icons: Record<string, string>}
-    | {type: 'message'; text: string}
+    | {type: 'graph'; graph: FlowGraph; icons: Record<string, string>}
+    | {type: 'notice'; text: string}
     | {type: 'taskState'; taskId: string; state: string}
     | {type: 'resetStates'};
 

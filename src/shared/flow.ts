@@ -71,13 +71,13 @@ export interface GraphNode {
     triggerDeclaration?: {id?: string; type?: string};
 }
 
+// The response is unvalidated JSON, so the collections are optional and read defensively.
 export interface FlowGraph {
     nodes: GraphNode[];
-    edges: Array<{source: string; target: string}>;
-    clusters?: Array<{cluster: {uid: string; taskNode?: GraphNode}; nodes: string[]}>;
+    edges?: Array<{source: string; target: string}>;
+    clusters?: Array<{cluster: {uid: string; taskNode?: GraphNode}; nodes?: string[]}>;
 }
 
-// A graph node's declared id and plugin type, whether it is a task or a trigger.
 export function graphNodeId(node: GraphNode): string {
     return node.task?.id ?? node.triggerDeclaration?.id ?? '';
 }

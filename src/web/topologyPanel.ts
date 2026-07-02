@@ -29,24 +29,30 @@ export function registerTopologyRefresh(context: vscode.ExtensionContext) {
 }
 
 export default class TopologyPanel {
-    public static current: TopologyPanel | undefined;
+    private static _current: TopologyPanel | undefined;
+
+    public static get current(): TopologyPanel | undefined {
+        return TopologyPanel._current;
+    }
 
     private readonly _panel: vscode.WebviewPanel;
     private readonly _apiClient: ApiClient;
     private _disposables: vscode.Disposable[] = [];
     private _ready = false;
+    private _queue: TopologyHostMessage[] = [];
     private _refreshPending = false;
     private _updateSeq = 0;
     private _lastDocument: vscode.TextDocument | undefined;
+    private _lastSourceKey: string | undefined;
     private _lastGraphJson: string | undefined;
     private _icons: Promise<Record<string, {icon?: string}> | null> | undefined;
     private _postedIconTypes = new Set<string>();
 
-    public static createOrShow(apiClient: ApiClient, extensionUri: vscode.Uri): TopologyPanel {
+    public static createOrShow(extensionUri: vscode.Uri, apiClient: ApiClient): TopologyPanel {
         const column = vscode.ViewColumn.Beside;
-        if (TopologyPanel.current) {
-            TopologyPanel.current._panel.reveal(column, true);
-            return TopologyPanel.current;
+        if (TopologyPanel._current) {
+            TopologyPanel._current._panel.reveal(column, true);
+            return TopologyPanel._current;
         }
         const panel = vscode.window.createWebviewPanel(
             'kestra.topology',
@@ -54,6 +60,7 @@ export default class TopologyPanel {
             {viewColumn: column, preserveFocus: true},
             {
                 enableScripts: true,
+                // Cytoscape's pan/zoom and the live run colors exist only in the webview.
                 retainContextWhenHidden: true,
                 localResourceRoots: [
                     vscode.Uri.joinPath(extensionUri, 'dist', 'webview'),
@@ -61,8 +68,8 @@ export default class TopologyPanel {
                 ]
             }
         );
-        TopologyPanel.current = new TopologyPanel(panel, apiClient, extensionUri);
-        return TopologyPanel.current;
+        TopologyPanel._current = new TopologyPanel(panel, apiClient, extensionUri);
+        return TopologyPanel._current;
     }
 
     private constructor(panel: vscode.WebviewPanel, apiClient: ApiClient, extensionUri: vscode.Uri) {
@@ -83,6 +90,8 @@ export default class TopologyPanel {
         switch (message.type) {
             case 'ready':
                 this._ready = true;
+                this._queue.forEach(m => this._panel.webview.postMessage(m));
+                this._queue = [];
                 await this.update(this._lastDocument);
                 break;
             case 'reveal':
@@ -102,7 +111,12 @@ export default class TopologyPanel {
             return;
         }
         if (!document || !isFlowDocument(document)) {
-            this.showMessage('Open a flow to preview its topology.');
+            this.showNotice('Open a flow to preview its topology.');
+            return;
+        }
+        // Tab switches re-trigger updates without a text change; skip the fetch entirely.
+        const sourceKey = `${document.uri.toString()}:${document.version}`;
+        if (sourceKey === this._lastSourceKey && this._lastGraphJson) {
             return;
         }
 
@@ -112,9 +126,13 @@ export default class TopologyPanel {
             return;
         }
         if (!graph) {
-            this.showMessage('Could not generate the graph (check the connection and that the flow is valid).');
+            // Keep the last good graph through invalid intermediate edits; only report when nothing is shown yet.
+            if (!this._lastGraphJson) {
+                this.showNotice('Could not generate the graph (check the connection and that the flow is valid).');
+            }
             return;
         }
+        this._lastSourceKey = sourceKey;
 
         // Most edits do not change the topology; skip the webview rebuild when the graph is identical.
         const json = JSON.stringify(graph);
@@ -136,9 +154,10 @@ export default class TopologyPanel {
         }
     }
 
-    private showMessage(text: string) {
+    private showNotice(text: string) {
+        this._lastSourceKey = undefined;
         this._lastGraphJson = undefined;
-        this.post({type: 'message', text});
+        this.post({type: 'notice', text});
     }
 
     // Overlays a task's live execution state onto its node (called while a run streams).
@@ -185,12 +204,17 @@ export default class TopologyPanel {
         editor.revealRange(range, vscode.TextEditorRevealType.InCenter);
     }
 
+    // Buffers messages until the webview signals it is ready, so early run states are never dropped.
     private post(message: TopologyHostMessage) {
-        this._panel.webview.postMessage(message);
+        if (this._ready) {
+            this._panel.webview.postMessage(message);
+        } else {
+            this._queue.push(message);
+        }
     }
 
     public dispose() {
-        TopologyPanel.current = undefined;
+        TopologyPanel._current = undefined;
         this._panel.dispose();
         while (this._disposables.length) {
             this._disposables.pop()?.dispose();

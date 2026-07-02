@@ -43,7 +43,7 @@ function runFlowCommand(apiClient: ApiClient, extensionUri: vscode.Uri) {
 
 function topologyCommand(apiClient: ApiClient, extensionUri: vscode.Uri) {
     return vscode.commands.registerCommand('kestra.flow.topology', () =>
-        TopologyPanel.createOrShow(apiClient, extensionUri).update(vscode.window.activeTextEditor?.document)
+        TopologyPanel.createOrShow(extensionUri, apiClient).update(vscode.window.activeTextEditor?.document)
     );
 }
 

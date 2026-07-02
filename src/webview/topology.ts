@@ -181,8 +181,8 @@ function graphStyle(): cytoscape.StylesheetJson {
     ];
 }
 
-function render(graph: FlowGraph | undefined, icons: Record<string, string>) {
-    if (!graph?.nodes) {
+function render(graph: FlowGraph, icons: Record<string, string>) {
+    if (!graph.nodes) {
         showMessage('No graph returned.');
         return;
     }
@@ -193,11 +193,12 @@ function render(graph: FlowGraph | undefined, icons: Record<string, string>) {
 
     const elements = toElements(graph);
     if (cy) {
-        cy.batch(() => {
-            cy!.elements().remove();
-            cy!.add(elements);
+        const core = cy;
+        core.batch(() => {
+            core.elements().remove();
+            core.add(elements);
         });
-        cy.layout(LAYOUT).run();
+        core.layout(LAYOUT).run();
         return;
     }
 
@@ -229,7 +230,7 @@ window.addEventListener('message', event => {
         case 'graph':
             render(m.graph, m.icons);
             break;
-        case 'message':
+        case 'notice':
             showMessage(m.text);
             break;
         case 'taskState':
