@@ -64,7 +64,9 @@ function buildLayout() {
     const label = el('label', 'filter-label', 'Min level');
     label.htmlFor = levelFilter.id;
     filters.append(label, levelFilter);
-    document.body.append(header, phase, form, filters, errors, tasks);
+    const toolbar = el('div', 'toolbar');
+    toolbar.append(phase, filters);
+    document.body.append(header, toolbar, form, errors, tasks);
 }
 
 function setBadge(state: string) {

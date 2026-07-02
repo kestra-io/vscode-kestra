@@ -154,8 +154,9 @@ body { font-family: var(--vscode-font-family); color: var(--vscode-foreground); 
 }
 .flow { font-weight: var(--ks-font-weight-semibold); }
 .spacer { margin-left: auto; }
-.phase { color: var(--vscode-descriptionForeground); font-size: var(--ks-font-size-sm); margin: var(--ks-spacing-2) 0; }
-.filters { display: flex; align-items: center; gap: var(--ks-spacing-2); margin: var(--ks-spacing-2) 0; }
+.toolbar { display: flex; align-items: center; justify-content: space-between; gap: var(--ks-spacing-2); margin: var(--ks-spacing-2) 0; }
+.phase { color: var(--vscode-descriptionForeground); font-size: var(--ks-font-size-sm); }
+.filters { display: flex; align-items: center; gap: var(--ks-spacing-2); margin-left: auto; }
 .filter-label { color: var(--vscode-descriptionForeground); font-size: var(--ks-font-size-sm); }
 .errors:not(:empty) {
     border-left: 3px solid var(--vscode-charts-red);
