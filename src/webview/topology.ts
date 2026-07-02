@@ -75,14 +75,8 @@ function toElements(graph: FlowGraph, icons: Record<string, string>): cytoscape.
             classes: isTask ? 'task' : 'boundary'
         });
     }
-    // Edges touching a boundary dot drop their end decorations so the dot sits alone on the dashes.
-    const boundaryUids = new Set(graph.nodes.filter(node => !node.type.endsWith('GraphTask')).map(node => node.uid));
     for (const edge of graph.edges ?? []) {
-        const classes = [
-            boundaryUids.has(edge.target) ? 'to-boundary' : '',
-            boundaryUids.has(edge.source) ? 'from-boundary' : ''
-        ].filter(Boolean).join(' ');
-        elements.push({data: {id: `${edge.source}->${edge.target}`, source: edge.source, target: edge.target}, classes});
+        elements.push({data: {id: `${edge.source}->${edge.target}`, source: edge.source, target: edge.target}});
     }
     return elements;
 }
@@ -121,8 +115,7 @@ function graphStyle(): cytoscape.StylesheetJson {
                 'text-max-width': '130'
             }
         },
-        // Cluster entry/exit nodes render as small dots on the edge path.
-        {selector: 'node.boundary', style: {'shape': 'ellipse', 'width': 7, 'height': 7, 'background-color': edgeColor, 'background-opacity': 0.8, 'border-width': 0}},
+        {selector: 'node.boundary', style: {'width': 1, 'height': 1, 'opacity': 0}},
         {selector: 'node.task.run-success', style: {'border-color': cssVar('--ks-status-success', '#43f6b6'), 'border-opacity': 1, 'border-width': 2}},
         {selector: 'node.task.run-running', style: {'border-color': accent, 'border-opacity': 1, 'border-width': 2}},
         {selector: 'node.task.run-warning', style: {'border-color': cssVar('--ks-status-warning', '#ff8b61'), 'border-opacity': 1, 'border-width': 2}},
@@ -166,8 +159,6 @@ function graphStyle(): cytoscape.StylesheetJson {
                 'curve-style': 'bezier'
             }
         },
-        {selector: 'edge.to-boundary', style: {'target-arrow-shape': 'none', 'target-distance-from-node': 0}},
-        {selector: 'edge.from-boundary', style: {'source-arrow-shape': 'none', 'source-distance-from-node': 0}},
         {selector: 'edge.hl', style: {'line-color': accent, 'target-arrow-color': accent, 'line-opacity': 1, 'width': 2}}
     ];
 }
