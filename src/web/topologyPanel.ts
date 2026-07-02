@@ -24,7 +24,12 @@ export function registerTopologyRefresh(context: vscode.ExtensionContext) {
                 refresh(event.document);
             }
         }),
-        vscode.window.onDidChangeActiveTextEditor(editor => refresh(editor?.document))
+        // Focusing the panel itself reports no active editor; keep the graph instead of blanking it.
+        vscode.window.onDidChangeActiveTextEditor(editor => {
+            if (editor) {
+                refresh(editor.document);
+            }
+        })
     );
 }
 
