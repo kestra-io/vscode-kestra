@@ -1,6 +1,6 @@
 import {stateBucket, logLevelRank, LOG_LEVELS} from '../shared/executionState';
 import {HostMessage, WebviewMessage} from './messages';
-import {FlowInput, LogEntry, formatLogTime, formatLogLine, inputFallback} from '../shared/flow';
+import {FlowInput, LogEntry, formatDuration, formatLogTime, formatLogLine, inputFallback} from '../shared/flow';
 
 interface VsCodeApi {
     postMessage(message: WebviewMessage): void;
@@ -152,7 +152,18 @@ function createFileField(input: FlowInput): HTMLDivElement {
 }
 
 function createControl(type: string, input: FlowInput, fallback: unknown): HTMLElement {
-    if (type === 'BOOLEAN' || type === 'BOOL') {
+    // BOOLEAN is tri-state: unset submits nothing so the flow's own default applies.
+    if (type === 'BOOLEAN') {
+        const select = el('select', 'ks-select');
+        [['', 'undefined'], ['true', 'true'], ['false', 'false']].forEach(([value, label]) => {
+            const option = el('option', '', label);
+            option.value = value;
+            option.selected = String(fallback ?? '') === value;
+            select.appendChild(option);
+        });
+        return select;
+    }
+    if (type === 'BOOL') {
         const checkbox = el('input');
         checkbox.type = 'checkbox';
         checkbox.checked = fallback === true || fallback === 'true';
@@ -214,12 +225,14 @@ function renderForm(inputs: FlowInput[]) {
 
     inputs.forEach(input => {
         const type = (input.type || 'STRING').toUpperCase();
-        const inline = type === 'BOOLEAN' || type === 'BOOL';
+        const inline = type === 'BOOL';
         const field = el('div', 'ks-field' + (inline ? ' inline' : ''));
 
-        const label = el('label', 'ks-label');
-        label.innerHTML = input.id + (input.required ? '<span class="req">*</span>' : '') +
-            '<span class="type">' + type + '</span>';
+        const label = el('label', 'ks-label', input.id);
+        if (input.required) {
+            label.appendChild(el('span', 'req', '*'));
+        }
+        label.appendChild(el('span', 'type', type));
 
         if (type === 'FILE') {
             field.append(label, createFileField(input));
@@ -240,8 +253,8 @@ function renderForm(inputs: FlowInput[]) {
 // Values pass through as-is; the server parses each type. Checkbox -> "true"/"false", multi -> JSON array.
 // DATETIME/TIME are the exceptions: native pickers emit local shapes the server rejects, so normalize.
 function controlValue(control: HTMLElement): string {
-    if ((control as HTMLInputElement).type === 'checkbox') {
-        return (control as HTMLInputElement).checked ? 'true' : 'false';
+    if (control instanceof HTMLInputElement && control.type === 'checkbox') {
+        return control.checked ? 'true' : 'false';
     }
     if (control.dataset.multi) {
         return JSON.stringify((control as TagSelectElement).getSelected());
@@ -264,7 +277,8 @@ function submitForm() {
     let missing = false;
     form.querySelectorAll<HTMLElement>('[data-id]').forEach(control => {
         const value = controlValue(control);
-        const required = Boolean(control.dataset.required) && (control as HTMLInputElement).type !== 'checkbox';
+        const isCheckbox = control instanceof HTMLInputElement && control.type === 'checkbox';
+        const required = Boolean(control.dataset.required) && !isCheckbox;
         const empty = !value.trim();
         control.classList.toggle('invalid', required && empty);
         missing ||= required && empty;
@@ -313,6 +327,9 @@ function resetView(flowId: string, level: string) {
     form.textContent = '';
     open.hidden = true;
     sections = {};
+    logRows = [];
+    truncationNotice?.remove();
+    truncationNotice = undefined;
     levelFilter.value = level;
     setBadge('RUNNING');
 }
@@ -326,7 +343,7 @@ function updateTaskRow(taskId: string, state: string, duration?: number) {
         section.badge.hidden = false;
     }
     if (typeof duration === 'number') {
-        section.duration.textContent = `${duration.toFixed(2)}s`;
+        section.duration.textContent = formatDuration(duration);
     }
 }
 
@@ -344,10 +361,26 @@ function logRow(log: LogEntry): HTMLDivElement {
     return row;
 }
 
+// Oldest rows are dropped past this cap so a chatty run cannot grow the DOM without bound.
+const MAX_LOG_ROWS = 5000;
+let logRows: HTMLElement[] = [];
+let truncationNotice: HTMLElement | undefined;
+
 // One scroll check and one scroll per batch, not per line.
 function appendLogRows(entries: LogEntry[]) {
     const atBottom = window.innerHeight + window.scrollY >= document.body.scrollHeight - 40;
-    entries.forEach(entry => getSection(entry.taskId || '').body.appendChild(logRow(entry)));
+    entries.forEach(entry => {
+        const row = logRow(entry);
+        getSection(entry.taskId || '').body.appendChild(row);
+        logRows.push(row);
+    });
+    if (logRows.length > MAX_LOG_ROWS) {
+        logRows.splice(0, logRows.length - MAX_LOG_ROWS).forEach(row => row.remove());
+        if (!truncationNotice) {
+            truncationNotice = el('div', 'phase', 'Older log lines were dropped to keep the view responsive.');
+            tasks.before(truncationNotice);
+        }
+    }
     if (atBottom) {
         window.scrollTo(0, document.body.scrollHeight);
     }
@@ -363,7 +396,7 @@ window.addEventListener('message', event => {
             phase.textContent = m.text;
             break;
         case 'inputs':
-            renderForm(m.inputs || []);
+            renderForm(m.inputs);
             break;
         case 'fileChosen': {
             const span = form.querySelector(`[data-file-for="${m.inputId}"]`);
@@ -383,7 +416,7 @@ window.addEventListener('message', event => {
         case 'status':
             setBadge(m.state);
             break;
-        case 'task':
+        case 'taskState':
             updateTaskRow(m.taskId, m.state, m.duration);
             break;
         case 'logs':

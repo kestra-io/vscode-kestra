@@ -32,7 +32,7 @@ export async function runFlowFromEditor(apiClient: ApiClient, extensionUri: vsco
         {location: vscode.ProgressLocation.Notification, title: `Running ${flowUid} on Kestra`, cancellable: false},
         async () => {
             try {
-                if (!(await validate(apiClient, source, output)) || !(await deploy(apiClient, namespace, id, source, output))) {
+                if (!(await passesValidation(apiClient, source, output)) || !(await deploy(apiClient, namespace, id, source, output))) {
                     return;
                 }
 
@@ -53,7 +53,7 @@ export async function runFlowFromEditor(apiClient: ApiClient, extensionUri: vsco
                 output.setExecution(executionId, await ApiClient.executionUiUrl(namespace, id, executionId));
                 output.setStatus(await followExecution(apiClient, executionId, output, fetchLevel));
             } catch (error) {
-                output.error(`Error: ${error instanceof Error ? error.message : String(error)}`);
+                output.error(`Run failed: ${error instanceof Error ? error.message : String(error)}`);
                 output.setStatus("FAILED");
             }
         }
@@ -75,8 +75,9 @@ function activeFlow(): (Flow & {source: string}) | undefined {
     return flow ? {...flow, source} : undefined;
 }
 
-async function validate(apiClient: ApiClient, source: string, output: RunOutput): Promise<boolean> {
+async function passesValidation(apiClient: ApiClient, source: string, output: RunOutput): Promise<boolean> {
     const response = await apiClient.validateFlow(source);
+    // A failed validation call is not a verdict; proceed and let deploy surface the real error.
     if (!response.ok) {
         return true;
     }
@@ -90,11 +91,16 @@ async function validate(apiClient: ApiClient, source: string, output: RunOutput)
     return true;
 }
 
+// The server's error body carries the actual reason; statusText is empty on HTTP/2.
+async function responseMessage(response: Response): Promise<string> {
+    const body = (await response.json().catch(() => ({}))) as {message?: string};
+    return body.message ?? response.statusText;
+}
+
 async function deploy(apiClient: ApiClient, namespace: string, id: string, source: string, output: RunOutput): Promise<boolean> {
     const response = await apiClient.upsertFlow(namespace, id, source);
     if (!response.ok) {
-        const message = ((await response.json().catch(() => ({}))) as {message?: string}).message;
-        output.error(`Failed to deploy flow (HTTP ${response.status}): ${message ?? response.statusText}`);
+        output.error(`Failed to deploy flow (HTTP ${response.status}): ${await responseMessage(response)}`);
         output.setStatus("FAILED");
         return false;
     }
@@ -104,7 +110,7 @@ async function deploy(apiClient: ApiClient, namespace: string, id: string, sourc
 async function startExecution(apiClient: ApiClient, namespace: string, id: string, body: FormData | undefined, output: RunOutput): Promise<string | undefined> {
     const response = await apiClient.executionsApi(`/${namespace}/${id}`, {method: "POST", body});
     if (!response.ok) {
-        output.error(`Failed to start execution (HTTP ${response.status}): ${response.statusText}`);
+        output.error(`Failed to start execution (HTTP ${response.status}): ${await responseMessage(response)}`);
         output.setStatus("FAILED");
         return undefined;
     }
@@ -116,7 +122,7 @@ async function followExecution(apiClient: ApiClient, executionId: string, output
     const logsResponse = await apiClient.logsApi(`/${executionId}/follow?minLevel=${fetchLevel}`);
     const logsReader = logsResponse.ok && logsResponse.body ? logsResponse.body.getReader() : undefined;
     if (!logsReader) {
-        output.error("Could not stream logs from the instance.");
+        output.error("Failed to stream logs from the instance.");
     }
     const logsStream = logsReader
         ? readSseStream(logsReader, frame => onLogFrame(frame.name, frame.data, output)).catch(() => undefined)
@@ -177,7 +183,7 @@ function onExecutionFrame(data: string | undefined, output: RunOutput, sentTaskS
             const snapshot = `${state}|${duration ?? ""}`;
             if (sentTaskStates.get(taskRun.taskId) !== snapshot) {
                 sentTaskStates.set(taskRun.taskId, snapshot);
-                output.updateTask(taskRun.taskId, state, duration);
+                output.setTaskState(taskRun.taskId, state, duration);
             }
         });
         return execution.state?.current;
