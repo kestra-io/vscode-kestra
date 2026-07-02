@@ -135,6 +135,10 @@ function graphStyle(): cytoscape.StylesheetJson {
                 'color': cssVar('--ks-status-info', '#718bfe'),
                 'font-size': 11,
                 'font-weight': 600,
+                'text-background-color': cssVar('--ks-bg-badge', '#20232d'),
+                'text-background-opacity': 1,
+                'text-background-shape': 'round-rectangle',
+                'text-background-padding': '5',
                 // valign top puts the label above the box; the margin pulls it back inside the padding band.
                 'text-valign': 'top',
                 'text-halign': 'center',
