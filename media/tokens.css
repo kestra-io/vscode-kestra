@@ -1,4 +1,6 @@
-/* Design tokens from core */
+/* Snapshot of core's design tokens: @kestra-io/design-system 0.3.0 (--kel-*, --ks-* values) plus
+   shiki github themes for code colors. The package exports no tokens stylesheet yet, so the values
+   are pinned here. On a design-system bump, re-check the values against the package. */
 :root {
     --ks-bg-badge: #20232d;
     --ks-status-success: #43f6b6;
