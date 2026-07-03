@@ -61,7 +61,7 @@ function showCrumbs(crumbs: DocCrumb[]) {
     crumbBar.hidden = crumbs.length === 0;
     crumbs.forEach((crumb, index) => {
         if (index > 0) {
-            crumbBar.append(el('span', 'crumb-sep', '/'));
+            crumbBar.append(el('span', 'crumb-sep', '›'));
         }
         if (crumb.nav) {
             const link = el('button', 'crumb', crumb.label);

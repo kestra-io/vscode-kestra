@@ -91,7 +91,7 @@ body {
     cursor: default;
 }
 .crumb-sep {
-    color: var(--ks-primary);
+    color: var(--vscode-foreground);
 }
 
 .doc-title {
