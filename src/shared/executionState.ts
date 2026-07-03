@@ -10,21 +10,12 @@ const STATES: Readonly<Record<string, StateBucket>> = Object.freeze({
     KILLING: 'pending'
 });
 
-const BUCKET_SYMBOL: Readonly<Record<StateBucket, string>> = Object.freeze({
-    success: '✓', failed: '✗', warning: '⚠', running: '▶', info: '•', neutral: '•', pending: '•'
-});
-
 export function stateBucket(state: string | undefined): StateBucket | '' {
     const s = (state || '').toUpperCase();
     if (!s) {
         return '';
     }
     return STATES[s] ?? 'neutral';
-}
-
-export function stateSymbol(state: string | undefined): string {
-    const bucket = stateBucket(state);
-    return bucket ? BUCKET_SYMBOL[bucket] : '•';
 }
 
 export const LOG_LEVELS = ['ERROR', 'WARN', 'INFO', 'DEBUG', 'TRACE'] as const;
