@@ -283,7 +283,7 @@ export default class ApiClient {
         }
     }
 
-    // Update first (the common case for re-runs); a 404 means the flow does not exist yet, so create it.
+    // Update first (the common case for re-runs). A 404 means the flow does not exist yet, so create it.
     public async upsertFlow(namespace: string, id: string, source: string): Promise<Response> {
         const base = await ApiClient.getKestraApiUrl();
         const headers = {
