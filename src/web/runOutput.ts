@@ -1,6 +1,5 @@
 import * as vscode from 'vscode';
 import {sanitizeFileName} from './libs/runHelpers';
-import {stateSymbol} from '../shared/executionState';
 import {FlowInput, LogEntry, formatLogLine, inputFallback, isInputRequired} from '../shared/flow';
 import RunPanel from './runPanel';
 import TopologyPanel from './topologyPanel';
@@ -125,7 +124,7 @@ class RunLog implements RunOutput {
     }
 
     public setStatus(state: string) {
-        this._channel.appendLine(`${stateSymbol(state)} Execution ${state}`);
+        this._channel.appendLine(`Execution ${state}`);
     }
 
     public setTaskState() {
