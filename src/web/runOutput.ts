@@ -90,7 +90,7 @@ class RunLog implements RunOutput {
     }
 
     public setStatus(state: string) {
-        this._channel.appendLine(`${stateSymbol(state)} Execution finished: ${state}`);
+        this._channel.appendLine(`${stateSymbol(state)} Execution ${state}`);
     }
 
     public setTaskState() {

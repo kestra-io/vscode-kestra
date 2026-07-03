@@ -51,7 +51,7 @@ export async function runFlowFromEditor(apiClient: ApiClient, extensionUri: vsco
                     return;
                 }
                 output.setExecution(executionId, await ApiClient.executionUiUrl(namespace, id, executionId));
-                output.setStatus(await followExecution(apiClient, executionId, output, fetchLevel));
+                await followExecution(apiClient, executionId, output, fetchLevel);
             } catch (error) {
                 output.error(`Run failed: ${error instanceof Error ? error.message : String(error)}`);
                 output.setStatus("FAILED");
@@ -118,7 +118,8 @@ async function startExecution(apiClient: ApiClient, namespace: string, id: strin
 }
 
 // Always cancel both streams; an open follow leaks memory on the server.
-async function followExecution(apiClient: ApiClient, executionId: string, output: RunOutput, fetchLevel: string): Promise<string> {
+// The overall state streams to the output as it changes, so the badge mirrors the server live.
+async function followExecution(apiClient: ApiClient, executionId: string, output: RunOutput, fetchLevel: string): Promise<void> {
     const logsResponse = await apiClient.logsApi(`/${executionId}/follow?minLevel=${fetchLevel}`);
     const logsReader = logsResponse.ok && logsResponse.body ? logsResponse.body.getReader() : undefined;
     if (!logsReader) {
@@ -128,7 +129,7 @@ async function followExecution(apiClient: ApiClient, executionId: string, output
         ? readSseStream(logsReader, frame => onLogFrame(frame.name, frame.data, output)).catch(() => undefined)
         : Promise.resolve();
 
-    let finalState = "UNKNOWN";
+    let lastState = "";
     let execReader: ReadableStreamDefaultReader<Uint8Array> | undefined;
     try {
         const execResponse = await apiClient.executionsApi(`/${executionId}/follow`);
@@ -136,7 +137,11 @@ async function followExecution(apiClient: ApiClient, executionId: string, output
             execReader = execResponse.body.getReader();
             const sentTaskStates = new Map<string, string>();
             await readSseStream(execReader, frame => {
-                finalState = onExecutionFrame(frame.data, output, sentTaskStates) ?? finalState;
+                const state = onExecutionFrame(frame.data, output, sentTaskStates);
+                if (state && state !== lastState) {
+                    lastState = state;
+                    output.setStatus(state);
+                }
             });
         }
     } finally {
@@ -146,13 +151,14 @@ async function followExecution(apiClient: ApiClient, executionId: string, output
         await logsStream;
     }
 
-    if (finalState === "UNKNOWN") {
+    // The stream can close without a terminal frame, so confirm the final state once.
+    if (!lastState) {
         const finalResponse = await apiClient.executionsApi(`/${executionId}`);
         if (finalResponse.ok) {
-            finalState = ((await finalResponse.json()) as {state?: {current?: string}}).state?.current ?? "UNKNOWN";
+            const state = ((await finalResponse.json()) as {state?: {current?: string}}).state?.current;
+            output.setStatus(state ?? "UNKNOWN");
         }
     }
-    return finalState;
 }
 
 function onLogFrame(name: string | undefined, data: string | undefined, output: RunOutput) {
