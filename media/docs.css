@@ -69,6 +69,31 @@ body {
     color: var(--vscode-descriptionForeground);
 }
 
+.crumbs {
+    display: flex;
+    align-items: center;
+    gap: var(--ks-spacing-2);
+    margin: var(--ks-spacing-2) 0;
+}
+.crumb {
+    padding: 0;
+    font-size: var(--ks-font-size-base);
+    color: var(--vscode-foreground);
+    background: none;
+    border: none;
+    cursor: pointer;
+}
+.crumb:hover:not(.current) {
+    color: var(--vscode-textLink-foreground);
+}
+.crumb.current {
+    font-weight: var(--ks-font-weight-semibold);
+    cursor: default;
+}
+.crumb-sep {
+    color: var(--ks-primary);
+}
+
 .doc-title {
     margin: var(--ks-spacing-2) 0 var(--ks-spacing-3);
     font-size: 1.5em;
@@ -117,8 +142,8 @@ body {
     position: absolute;
     top: var(--ks-spacing-2);
     right: var(--ks-spacing-2);
-    padding: 2px var(--ks-spacing-2);
-    font-size: var(--ks-font-size-xs);
+    display: flex;
+    padding: var(--ks-spacing-1);
     color: var(--vscode-foreground);
     background: var(--vscode-editorWidget-background);
     border: 1px solid var(--vscode-widget-border);
@@ -229,6 +254,42 @@ summary {
     font-size: var(--ks-font-size-xs);
     font-weight: var(--ks-font-weight-semibold);
     text-transform: uppercase;
+    color: var(--vscode-descriptionForeground);
+}
+
+.nav-row {
+    display: flex;
+    align-items: center;
+    gap: var(--ks-spacing-3);
+    width: 100%;
+    margin: var(--ks-spacing-2) 0;
+    padding: var(--ks-spacing-3);
+    text-align: left;
+    color: var(--vscode-foreground);
+    background: var(--ks-bg-badge);
+    border: 1px solid var(--vscode-widget-border);
+    border-radius: var(--ks-radius-base);
+    cursor: pointer;
+}
+.nav-row:hover {
+    background: var(--vscode-list-hoverBackground);
+}
+.row-icon {
+    width: 26px;
+    height: 26px;
+    flex: none;
+}
+.row-label {
+    font-size: var(--ks-font-size-base);
+    font-weight: var(--ks-font-weight-semibold);
+}
+.row-sub {
+    display: block;
+    font-weight: normal;
+    color: var(--vscode-descriptionForeground);
+}
+.chev {
+    margin-left: auto;
     color: var(--vscode-descriptionForeground);
 }
 

@@ -2,7 +2,7 @@
 import * as vscode from 'vscode';
 import { kestraBaseUrl, secretStorageKey, yamlContentType, PebbleFunctionDef } from "./constants";
 import { FlowGraph } from "../shared/flow";
-import type { PluginDefinition } from "./documentation/pluginDoc";
+import type { PluginDefinition, PluginEntry } from "./documentation/pluginDoc";
 
 export default class ApiClient {
     private readonly _secretStorage: vscode.SecretStorage;
@@ -255,6 +255,18 @@ export default class ApiClient {
         const response = await this.silentFetch(`/plugins/${type}`, {}, false)
             ?? await ApiClient.fetchWithTimeout(`${kestraBaseUrl}/plugins/definitions/${type}`, {}).catch(() => null);
         return response?.ok ? (await response.json().catch(() => null)) as PluginDefinition | null : null;
+    }
+
+    // One entry per plugin plus one per subgroup, powering the docs plugin browser.
+    public async pluginSubgroups(): Promise<PluginEntry[] | null> {
+        const response = await this.silentFetch("/plugins/groups/subgroups", {}, false);
+        return response?.ok ? (await response.json().catch(() => null)) as PluginEntry[] | null : null;
+    }
+
+    // Base64 SVG icons for plugin groups and subgroups, keyed by package id.
+    public async pluginGroupIcons(): Promise<Record<string, {icon?: string}> | null> {
+        const response = await this.silentFetch("/plugins/icons/groups", {}, false);
+        return response?.ok ? (await response.json().catch(() => null)) as Record<string, {icon?: string}> | null : null;
     }
 
     // Base64 SVG icons per plugin type. The icons endpoint is not tenant-scoped.

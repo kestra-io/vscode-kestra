@@ -1,5 +1,5 @@
 import {acquireApi, el} from './dom';
-import {DocsHostMessage, DocsWebviewMessage} from './messages';
+import {DocCrumb, DocsHostMessage, DocsWebviewMessage} from './messages';
 
 const vscode = acquireApi<DocsWebviewMessage>();
 
@@ -16,9 +16,11 @@ const toolbar = el('div', 'toolbar');
 toolbar.append(back, search);
 const results = el('div', 'results');
 results.hidden = true;
+const crumbBar = el('nav', 'crumbs');
+crumbBar.hidden = true;
 const heading = el('h1', 'doc-title');
 const content = el('article', 'content');
-document.body.append(toolbar, results, heading, content);
+document.body.append(toolbar, results, crumbBar, heading, content);
 
 let searchTimer: ReturnType<typeof setTimeout> | undefined;
 search.addEventListener('input', () => {
@@ -40,6 +42,11 @@ back.addEventListener('click', () => vscode.postMessage({type: 'back'}));
 
 // The host resolves every link: relative ones navigate in the panel, the rest open in the browser.
 content.addEventListener('click', event => {
+    const row = (event.target as HTMLElement).closest('[data-nav]');
+    if (row instanceof HTMLElement && row.dataset.nav) {
+        vscode.postMessage({type: 'nav', target: row.dataset.nav});
+        return;
+    }
     const anchor = (event.target as HTMLElement).closest('a');
     if (!anchor) {
         return;
@@ -50,6 +57,24 @@ content.addEventListener('click', event => {
         vscode.postMessage({type: 'open', href});
     }
 });
+
+function showCrumbs(crumbs: DocCrumb[]) {
+    crumbBar.replaceChildren();
+    crumbBar.hidden = crumbs.length === 0;
+    crumbs.forEach((crumb, index) => {
+        if (index > 0) {
+            crumbBar.append(el('span', 'crumb-sep', '/'));
+        }
+        if (crumb.nav) {
+            const link = el('button', 'crumb', crumb.label);
+            const target = crumb.nav;
+            link.addEventListener('click', () => vscode.postMessage({type: 'nav', target}));
+            crumbBar.append(link);
+        } else {
+            crumbBar.append(el('span', 'crumb current', crumb.label));
+        }
+    });
+}
 
 // Tables become a grid of expandable cards (first cell is the header), as the core UI's docs tab renders them.
 function transformTables() {
@@ -84,14 +109,18 @@ function transformTables() {
 }
 
 const COPY_RESET_MS = 1500;
+const COPY_ICON = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
+const COPIED_ICON = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>';
 
 function addCopyButtons() {
     for (const pre of Array.from(content.querySelectorAll('pre'))) {
-        const button = el('button', 'copy', 'Copy');
+        const button = el('button', 'copy');
+        button.title = 'Copy';
+        button.innerHTML = COPY_ICON;
         button.addEventListener('click', () => {
             vscode.postMessage({type: 'copy', text: pre.querySelector('code')?.textContent ?? ''});
-            button.textContent = 'Copied';
-            setTimeout(() => (button.textContent = 'Copy'), COPY_RESET_MS);
+            button.innerHTML = COPIED_ICON;
+            setTimeout(() => (button.innerHTML = COPY_ICON), COPY_RESET_MS);
         });
         pre.append(button);
     }
@@ -123,6 +152,7 @@ window.addEventListener('message', event => {
             content.innerHTML = m.html;
             transformTables();
             addCopyButtons();
+            showCrumbs(m.crumbs);
             back.disabled = !m.canBack;
             results.hidden = true;
             window.scrollTo(0, 0);
@@ -132,6 +162,7 @@ window.addEventListener('message', event => {
             break;
         case 'notice':
             heading.textContent = '';
+            crumbBar.hidden = true;
             content.textContent = m.text;
             break;
     }

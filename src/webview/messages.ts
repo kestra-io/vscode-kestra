@@ -28,8 +28,10 @@ export type TopologyWebviewMessage =
     | {type: 'ready'}
     | {type: 'reveal'; taskId: string};
 
+export type DocCrumb = {label: string; nav?: string};
+
 export type DocsHostMessage =
-    | {type: 'doc'; html: string; title: string; canBack: boolean}
+    | {type: 'doc'; html: string; title: string; canBack: boolean; crumbs: DocCrumb[]}
     | {type: 'results'; items: Array<{title: string; path: string}>}
     | {type: 'notice'; text: string};
 
@@ -37,6 +39,7 @@ export type DocsWebviewMessage =
     | {type: 'ready'}
     | {type: 'open'; href: string}
     | {type: 'openPath'; path: string}
+    | {type: 'nav'; target: string}
     | {type: 'search'; q: string}
     | {type: 'copy'; text: string}
     | {type: 'back'};

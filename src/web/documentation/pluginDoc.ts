@@ -34,6 +34,59 @@ export type PluginSchema = {
 
 export type PluginDefinition = {markdown?: string; schema?: PluginSchema};
 
+// One row from GET /plugins/groups/subgroups: a plugin (subGroup null) or one of its subgroups.
+export type PluginElement = {cls: string; title?: string; deprecated?: boolean};
+export type PluginEntry = {
+    name?: string;
+    title?: string;
+    group?: string;
+    subGroup?: string | null;
+    tasks?: PluginElement[];
+    triggers?: PluginElement[];
+    conditions?: PluginElement[];
+};
+
+export type IconResolver = (key: string) => string | undefined;
+
+export function pluginElements(entry: PluginEntry): PluginElement[] {
+    return [...(entry.tasks ?? []), ...(entry.triggers ?? []), ...(entry.conditions ?? [])].filter(element => !element.deprecated);
+}
+
+export function renderPluginList(entries: PluginEntry[], icon: IconResolver): string {
+    const roots = entries.filter(entry => !entry.subGroup).sort(byTitle);
+    return roots.map(entry => navRow(`group:${entry.name}`, icon(entry.group ?? ''), entry.title ?? entry.name ?? '')).join('');
+}
+
+export function renderGroupPage(root: PluginEntry, subs: PluginEntry[], icon: IconResolver): string {
+    const header = pageHeader(icon(root.group ?? ''), root.title ?? root.name ?? '');
+    const rows = subs.sort(byTitle).map(sub => navRow(`sub:${sub.subGroup}`, icon(sub.subGroup ?? ''), sub.title ?? '')).join('');
+    return header + rows;
+}
+
+export function renderSubPage(sub: PluginEntry, icon: IconResolver): string {
+    const header = pageHeader(icon(sub.subGroup ?? ''), sub.title ?? '');
+    const rows = pluginElements(sub)
+        .sort((a, b) => a.cls.localeCompare(b.cls))
+        .map(element => navRow(`type:${element.cls}`, icon(element.cls), element.cls.split('.').pop() ?? element.cls, element.title))
+        .join('');
+    return header + rows;
+}
+
+function byTitle(a: PluginEntry, b: PluginEntry): number {
+    return (a.title ?? '').localeCompare(b.title ?? '');
+}
+
+function pageHeader(icon: string | undefined, title: string): string {
+    return `<div class="plugin-header">${icon ? `<img class="plugin-icon" src="${icon}" alt="">` : ''}<span class="plugin-name">${esc(title)}</span></div>`;
+}
+
+function navRow(nav: string, icon: string | undefined, label: string, subtitle?: string): string {
+    return `<button class="nav-row" data-nav="${esc(nav)}">`
+        + (icon ? `<img class="row-icon" src="${icon}" alt="">` : '<span class="row-icon"></span>')
+        + `<span class="row-label">${esc(label)}${subtitle ? `<span class="row-sub">${esc(subtitle)}</span>` : ''}</span>`
+        + '<span class="chev">›</span></button>';
+}
+
 const BETA_NOTICE = 'This plugin is currently in beta. While it is considered safe for use, please be aware that its API could change in ways that are not compatible with earlier versions in future releases, or it might become unsupported.';
 
 export function renderPluginDoc(type: string, schema: PluginSchema, icon?: string): string {

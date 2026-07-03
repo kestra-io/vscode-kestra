@@ -3,16 +3,24 @@ import ApiClient from '../apiClient';
 import YamlUtils from '../libs/yamlUtils';
 import {webviewHtml} from '../webviewHelpers';
 import {renderDocMarkdown} from './docsMarkdown';
-import {renderPluginDoc} from './pluginDoc';
+import {IconResolver, PluginEntry, pluginElements, renderGroupPage, renderPluginDoc, renderPluginList, renderSubPage} from './pluginDoc';
 import {docByPath, resolveDocLink, searchDocs} from './docsApi';
-import {DocsHostMessage, DocsWebviewMessage} from '../../webview/messages';
+import {DocCrumb, DocsHostMessage, DocsWebviewMessage} from '../../webview/messages';
 // The landing content the core UI bundles for its editor docs tab (ui/src/assets/docs/basic.md).
 const basic = require('./basic.md') as string;
 
 // Docs content is versioned; this recent one still resolves when the instance version is unreachable.
 const FALLBACK_DOCS_VERSION = '1.3.0';
 
-type HistoryEntry = {kind: 'home'} | {kind: 'doc'; path: string} | {kind: 'plugin'; type: string};
+type HistoryEntry =
+    | {kind: 'home'}
+    | {kind: 'doc'; path: string}
+    | {kind: 'plugin'; type: string}
+    | {kind: 'plugins'}
+    | {kind: 'pluginGroup'; name: string}
+    | {kind: 'pluginSub'; sub: string};
+
+type View = {html: string; title: string; crumbs?: DocCrumb[]};
 
 export default class DocumentationPanel {
     private static _current: DocumentationPanel | undefined;
@@ -27,6 +35,8 @@ export default class DocumentationPanel {
     private _history: HistoryEntry[] = [];
     private _pluginType: string | null = null;
     private _icons: Promise<Record<string, {icon?: string}> | null> | undefined;
+    private _groupIcons: Promise<Record<string, {icon?: string}> | null> | undefined;
+    private _plugins: Promise<PluginEntry[] | null> | undefined;
 
     public static createOrShow(extensionUri: vscode.Uri, apiClient: ApiClient) {
         const column = vscode.ViewColumn.Beside;
@@ -81,6 +91,9 @@ export default class DocumentationPanel {
             case 'openPath':
                 await this.show({kind: 'doc', path: message.path});
                 break;
+            case 'nav':
+                await this.navigate(message.target);
+                break;
             case 'search':
                 this.post({type: 'results', items: await searchDocs(await this.version(), message.q)});
                 break;
@@ -122,11 +135,24 @@ export default class DocumentationPanel {
         if (push) {
             this._history.push(entry);
         }
-        this.post({type: 'doc', html: view.html, title: view.title, canBack: this._history.length > 1});
+        this.post({type: 'doc', html: view.html, title: view.title, canBack: this._history.length > 1, crumbs: view.crumbs ?? []});
         return true;
     }
 
-    private async render(entry: HistoryEntry): Promise<{html: string; title: string} | null> {
+    // Breadcrumb and list-row targets posted back by the webview.
+    private async navigate(target: string) {
+        if (target === 'plugins') {
+            await this.show({kind: 'plugins'});
+        } else if (target.startsWith('group:')) {
+            await this.show({kind: 'pluginGroup', name: target.slice('group:'.length)});
+        } else if (target.startsWith('sub:')) {
+            await this.show({kind: 'pluginSub', sub: target.slice('sub:'.length)});
+        } else if (target.startsWith('type:')) {
+            await this.show({kind: 'plugin', type: target.slice('type:'.length)});
+        }
+    }
+
+    private async render(entry: HistoryEntry): Promise<View | null> {
         if (entry.kind === 'home') {
             this._page = {path: ''};
             return {html: renderDocMarkdown(basic), title: ''};
@@ -139,22 +165,99 @@ export default class DocumentationPanel {
             this._page = page;
             return {html: renderDocMarkdown(page.markdown), title: page.title};
         }
-        const definition = await this._apiClient.pluginDefinition(entry.type);
-        if (!definition) {
+        if (entry.kind === 'plugin') {
+            const definition = await this._apiClient.pluginDefinition(entry.type);
+            if (!definition) {
+                return null;
+            }
+            this._page = {path: ''};
+            const crumbs = await this.pluginCrumbs(entry.type);
+            // The schema drives the view, as in the core UI; older payloads may only carry markdown.
+            if (definition.schema?.properties) {
+                return {html: renderPluginDoc(entry.type, definition.schema, (await this.typeIconResolver())(entry.type)), title: '', crumbs};
+            }
+            return definition.markdown ? {html: renderDocMarkdown(definition.markdown), title: entry.type.split('.').pop() ?? entry.type, crumbs} : null;
+        }
+        return this.renderBrowser(entry);
+    }
+
+    private async renderBrowser(entry: {kind: 'plugins'} | {kind: 'pluginGroup'; name: string} | {kind: 'pluginSub'; sub: string}): Promise<View | null> {
+        const entries = await this.plugins();
+        if (!entries) {
             return null;
         }
         this._page = {path: ''};
-        // The schema drives the view, as in the core UI; older payloads may only carry markdown.
-        if (definition.schema?.properties) {
-            return {html: renderPluginDoc(entry.type, definition.schema, await this.icon(entry.type)), title: ''};
+        const groupIcon = await this.groupIconResolver();
+        if (entry.kind === 'plugins') {
+            return {html: renderPluginList(entries, groupIcon), title: '', crumbs: [{label: 'Plugins'}]};
         }
-        return definition.markdown ? {html: renderDocMarkdown(definition.markdown), title: entry.type.split('.').pop() ?? entry.type} : null;
+        if (entry.kind === 'pluginGroup') {
+            const root = entries.find(candidate => candidate.name === entry.name && !candidate.subGroup);
+            if (!root) {
+                return null;
+            }
+            const subs = entries.filter(candidate => candidate.name === entry.name && candidate.subGroup);
+            return {
+                html: renderGroupPage(root, subs, groupIcon),
+                title: '',
+                crumbs: [{label: 'Plugins', nav: 'plugins'}, {label: root.title ?? entry.name}]
+            };
+        }
+        const sub = entries.find(candidate => candidate.subGroup === entry.sub);
+        if (!sub) {
+            return null;
+        }
+        const typeIcon = await this.typeIconResolver();
+        const root = entries.find(candidate => candidate.name === sub.name && !candidate.subGroup);
+        return {
+            html: renderSubPage(sub, (key: string) => typeIcon(key) ?? groupIcon(sub.subGroup ?? '')),
+            title: '',
+            crumbs: [
+                {label: 'Plugins', nav: 'plugins'},
+                {label: root?.title ?? sub.name ?? '', nav: `group:${sub.name}`},
+                {label: sub.title ?? ''}
+            ]
+        };
     }
 
-    private async icon(type: string): Promise<string | undefined> {
+    // Plugins / <plugin> / <subgroup> / <ClassName>, each level navigable, as in the core UI.
+    private async pluginCrumbs(type: string): Promise<DocCrumb[]> {
+        const name = type.split('.').pop() ?? type;
+        const entries = await this.plugins();
+        const sub = entries?.find(candidate => candidate.subGroup && pluginElements(candidate).some(element => element.cls === type));
+        if (!entries || !sub) {
+            return [{label: 'Plugins', nav: 'plugins'}, {label: name}];
+        }
+        const root = entries.find(candidate => candidate.name === sub.name && !candidate.subGroup);
+        return [
+            {label: 'Plugins', nav: 'plugins'},
+            {label: root?.title ?? sub.name ?? '', nav: `group:${sub.name}`},
+            {label: sub.title ?? '', nav: `sub:${sub.subGroup}`},
+            {label: name}
+        ];
+    }
+
+    private plugins(): Promise<PluginEntry[] | null> {
+        this._plugins ??= this._apiClient.pluginSubgroups();
+        return this._plugins;
+    }
+
+    private async groupIconResolver(): Promise<IconResolver> {
+        this._groupIcons ??= this._apiClient.pluginGroupIcons();
+        const icons = await this._groupIcons;
+        return key => {
+            const base64 = icons?.[key]?.icon;
+            return base64 ? `data:image/svg+xml;base64,${base64}` : undefined;
+        };
+    }
+
+    private async typeIconResolver(): Promise<IconResolver> {
         this._icons ??= this._apiClient.pluginIcons();
-        const base64 = (await this._icons)?.[type]?.icon;
-        return base64 ? `data:image/svg+xml;base64,${base64}` : undefined;
+        const icons = await this._icons;
+        return key => {
+            const base64 = icons?.[key]?.icon;
+            return base64 ? `data:image/svg+xml;base64,${base64}` : undefined;
+        };
     }
 
     private version(): Promise<string> {
