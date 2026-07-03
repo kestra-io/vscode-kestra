@@ -27,3 +27,15 @@ export type TopologyHostMessage =
 export type TopologyWebviewMessage =
     | {type: 'ready'}
     | {type: 'reveal'; taskId: string};
+
+export type DocsHostMessage =
+    | {type: 'doc'; html: string; title: string; canBack: boolean}
+    | {type: 'results'; items: Array<{title: string; path: string}>}
+    | {type: 'notice'; text: string};
+
+export type DocsWebviewMessage =
+    | {type: 'ready'}
+    | {type: 'open'; href: string}
+    | {type: 'openPath'; path: string}
+    | {type: 'search'; q: string}
+    | {type: 'back'};

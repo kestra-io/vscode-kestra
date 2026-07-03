@@ -67,7 +67,7 @@ The schema attaches to any open YAML detected as a flow (it declares `id`, `name
 
 On a flow file, run `Kestra: Save and run flow` from the command palette, the play button in the editor title bar, or `Ctrl+Alt+R` (`Cmd+Alt+R` on macOS). The extension validates the flow, deploys the current editor content to the instance, prompts for any declared inputs, starts an execution, and streams its logs with a link to the execution page.
 
-To deploy the buffer without executing it, use `Kestra: Save flow to Kestra` (the cloud button in the editor title bar).
+To deploy the buffer without executing it, use `Kestra: Save flow to Kestra` (the save button in the editor title bar).
 
 By default the run opens in a panel with a status badge, a log-level filter, and collapsible per-task logs. Set `kestra.run.output` to `logs` to use a native output channel instead.
 
@@ -77,7 +77,7 @@ On a flow file, run `Kestra: Preview flow topology` (or the graph button in the 
 
 ### Documentation
 
-On a flow file, the `Open Kestra Documentation` action opens a panel with the flow and task documentation. Clicking a task in your code shows that task's documentation.
+The `Open Kestra documentation` action opens the Kestra docs beside the editor, matching the docs tab in the Kestra UI: search, in-panel navigation, and content versioned to the connected instance. Placing the cursor on a task shows that plugin's documentation.
 
 ## Configuration
 

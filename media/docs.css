@@ -1,0 +1,176 @@
+body {
+    padding: 0 var(--ks-spacing-4) var(--ks-spacing-4);
+    font-size: var(--ks-font-size-base);
+}
+
+.toolbar {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    display: flex;
+    gap: var(--ks-spacing-2);
+    padding: var(--ks-spacing-3) 0;
+    background: var(--vscode-editor-background);
+}
+
+.back {
+    width: 28px;
+    font-size: 18px;
+    line-height: 1;
+    color: var(--vscode-foreground);
+    background: none;
+    border: 1px solid var(--vscode-widget-border);
+    border-radius: var(--ks-radius-base);
+    cursor: pointer;
+}
+.back:disabled {
+    opacity: 0.4;
+    cursor: default;
+}
+
+.search {
+    flex: 1;
+    padding: var(--ks-spacing-2) var(--ks-spacing-3);
+    color: var(--vscode-input-foreground);
+    background: var(--vscode-input-background);
+    border: 1px solid var(--vscode-input-border, transparent);
+    border-radius: var(--ks-radius-base);
+    outline: none;
+}
+.search:focus {
+    border-color: var(--vscode-focusBorder);
+}
+
+.results {
+    position: sticky;
+    top: 52px;
+    z-index: 2;
+    max-height: 50vh;
+    overflow-y: auto;
+    background: var(--vscode-editorWidget-background);
+    border: 1px solid var(--vscode-widget-border);
+    border-radius: var(--ks-radius-base);
+}
+.result {
+    display: block;
+    width: 100%;
+    padding: var(--ks-spacing-2) var(--ks-spacing-3);
+    text-align: left;
+    color: var(--vscode-foreground);
+    background: none;
+    border: none;
+    cursor: pointer;
+}
+.result:hover {
+    background: var(--vscode-list-hoverBackground);
+}
+.no-results {
+    padding: var(--ks-spacing-2) var(--ks-spacing-3);
+    color: var(--vscode-descriptionForeground);
+}
+
+.doc-title {
+    margin: var(--ks-spacing-2) 0 var(--ks-spacing-3);
+    font-size: 1.5em;
+}
+
+.content {
+    max-width: 860px;
+    line-height: 1.6;
+}
+.content h2 {
+    margin-top: 1.6em;
+    padding-bottom: 0.3em;
+    border-bottom: 1px solid var(--vscode-widget-border);
+}
+.content a {
+    color: var(--vscode-textLink-foreground);
+    text-decoration: none;
+}
+.content a:hover {
+    text-decoration: underline;
+}
+.content code {
+    padding: 1px 5px;
+    font-family: var(--vscode-editor-font-family);
+    font-size: 0.95em;
+    color: var(--ks-content-code);
+    background: var(--vscode-textCodeBlock-background);
+    border-radius: var(--ks-radius-sm);
+}
+.content pre {
+    padding: var(--ks-spacing-3);
+    background: var(--vscode-textCodeBlock-background);
+    border-radius: var(--ks-radius-base);
+    overflow-x: auto;
+}
+.content pre code {
+    padding: 0;
+    color: var(--vscode-foreground);
+    background: none;
+}
+.content img {
+    max-width: 100%;
+    border-radius: var(--ks-radius-base);
+}
+.content blockquote {
+    margin: 0;
+    padding-left: var(--ks-spacing-3);
+    color: var(--vscode-descriptionForeground);
+    border-left: 3px solid var(--vscode-widget-border);
+}
+.content table {
+    border-collapse: collapse;
+}
+.content th,
+.content td {
+    padding: var(--ks-spacing-2) var(--ks-spacing-3);
+    border: 1px solid var(--vscode-widget-border);
+}
+
+.alert {
+    margin: var(--ks-spacing-3) 0;
+    padding: var(--ks-spacing-3);
+    border: 1px solid;
+    border-radius: var(--ks-radius-base);
+}
+.alert.info {
+    border-color: var(--ks-status-info);
+    background: color-mix(in srgb, var(--ks-status-info) 8%, transparent);
+}
+.alert.warning {
+    border-color: var(--ks-status-warning);
+    background: color-mix(in srgb, var(--ks-status-warning) 8%, transparent);
+}
+.alert.danger {
+    border-color: var(--ks-status-error);
+    background: color-mix(in srgb, var(--ks-status-error) 8%, transparent);
+}
+.alert.success {
+    border-color: var(--ks-status-success);
+    background: color-mix(in srgb, var(--ks-status-success) 8%, transparent);
+}
+
+details {
+    margin: var(--ks-spacing-2) 0;
+    background: var(--ks-bg-badge);
+    border: 1px solid var(--vscode-widget-border);
+    border-radius: var(--ks-radius-base);
+}
+summary {
+    padding: var(--ks-spacing-3) var(--ks-spacing-4);
+    font-family: var(--vscode-editor-font-family);
+    font-weight: var(--ks-font-weight-semibold);
+    color: var(--ks-content-code);
+    cursor: pointer;
+}
+.collapse-body {
+    padding: 0 var(--ks-spacing-4) var(--ks-spacing-3);
+}
+
+.video-link {
+    display: inline-block;
+    padding: var(--ks-spacing-2) var(--ks-spacing-3);
+    border: 1px solid var(--vscode-widget-border);
+    border-radius: var(--ks-radius-base);
+}

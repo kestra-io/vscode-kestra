@@ -1,181 +1,164 @@
 import * as vscode from 'vscode';
-import {YamlUtils} from '../libs/yamlUtils';
-import Markdown from '../libs/markdown';
 import ApiClient from '../apiClient';
-import taskHome from './task_home.md';
-import basic from './basic.md';
-import {kestraBaseUrl} from '../constants';
+import YamlUtils from '../libs/yamlUtils';
+import {webviewHtml} from '../webviewHelpers';
+import {renderDocMarkdown} from './docsMarkdown';
+import {DocPage, docById, docByPath, resolveDocLink, searchDocs} from './docsApi';
+import {DocsHostMessage, DocsWebviewMessage} from '../../webview/messages';
+
+// The landing page the core UI shows in its editor docs tab.
+const HOME_DOC_ID = 'flowEditor';
+// Docs content is versioned; this recent one still resolves when the instance version is unreachable.
+const FALLBACK_DOCS_VERSION = '1.3.0';
+
+type HistoryEntry = {kind: 'home'} | {kind: 'doc'; path: string} | {kind: 'plugin'; type: string};
 
 export default class DocumentationPanel {
-
-    public static current: DocumentationPanel | undefined;
-
-    private view = "tasks";
-    private latestType: string | null = null;
+    private static _current: DocumentationPanel | undefined;
 
     private readonly _panel: vscode.WebviewPanel;
-    private readonly _extensionUri: vscode.Uri;
     private readonly _apiClient: ApiClient;
-
     private _disposables: vscode.Disposable[] = [];
+    private _ready = false;
+    private _queue: DocsHostMessage[] = [];
+    private _version: Promise<string> | undefined;
+    private _page: DocPage | undefined;
+    private _history: HistoryEntry[] = [];
+    private _pluginType: string | null = null;
 
     public static createOrShow(extensionUri: vscode.Uri, apiClient: ApiClient) {
-        const column = vscode.ViewColumn.Two;
-
-        // Panel already exist
-        if (DocumentationPanel.current) {
-            DocumentationPanel.current._panel.reveal(column);
+        const column = vscode.ViewColumn.Beside;
+        if (DocumentationPanel._current) {
+            DocumentationPanel._current._panel.reveal(column, true);
             return;
         }
-
-        // Create new panel
         const panel = vscode.window.createWebviewPanel(
             'kestra.documentation',
             'Kestra Documentation',
-            column,
+            {viewColumn: column, preserveFocus: true},
             {
                 enableScripts: true,
-                enableCommandUris: true,
-                localResourceRoots: [vscode.Uri.joinPath(extensionUri, 'media')]
+                // Keeps the page, history, and scroll position when the tab is hidden.
+                retainContextWhenHidden: true,
+                localResourceRoots: [
+                    vscode.Uri.joinPath(extensionUri, 'dist', 'webview'),
+                    vscode.Uri.joinPath(extensionUri, 'media')
+                ]
             }
         );
-
-        DocumentationPanel.current = new DocumentationPanel(panel, extensionUri, apiClient);
-    }
-
-    public static revive(panel: vscode.WebviewPanel, extensionUri: vscode.Uri, apiClient: ApiClient) {
-        DocumentationPanel.current = new DocumentationPanel(panel, extensionUri, apiClient);
+        DocumentationPanel._current = new DocumentationPanel(panel, extensionUri, apiClient);
     }
 
     private constructor(panel: vscode.WebviewPanel, extensionUri: vscode.Uri, apiClient: ApiClient) {
         this._panel = panel;
-        this._extensionUri = extensionUri;
         this._apiClient = apiClient;
-
-        this._panel.onDidDispose(() => this.dispose(), null, this._disposables);
-
-        // By default, show tasks documentation
-        this._panel.webview.html = this.getWebviewDocumentationContent(Markdown.render(taskHome));
-
-
-        vscode.window.onDidChangeTextEditorSelection(async (editor) => {
-            if (editor && this._panel.visible) {
-                const content = vscode.window.activeTextEditor?.document.getText();
-                const position = editor.textEditor.selection.active;
-                if (content && position) {
-                    const type = YamlUtils.getTaskType(content, {
-                        lineNumber: position.line,
-                        column: position.character
-                    });
-                    if (JSON.stringify(type) !== JSON.stringify(this.latestType) && type !== null) {
-                        const kestraUrl = await ApiClient.getKestraApiUrl();
-                        const path = kestraBaseUrl === kestraUrl ? `/plugins/definitions/${type}` : `/plugins/${type}`;
-                        const url = kestraUrl + path;
-
-                        let response = await this._apiClient.apiCall(url, "Error while loading Kestra's task definition:", [404]);
-                        if (response?.status === 200 && this.view === "tasks") {
-                            this.latestType = type;
-                            const markdown = (await response.json() as {markdown: string}).markdown;
-
-                            this._panel.webview.html = this.getWebviewDocumentationContent(Markdown.render(markdown));
-                        }
-                    }
-                }
-            }
+        this._panel.webview.html = webviewHtml(this._panel.webview, extensionUri, {
+            title: 'Kestra Documentation',
+            style: 'docs.css',
+            script: 'docs.js',
+            allowImages: true,
+            remoteImages: true
         });
-
-
-        this._panel.webview.onDidReceiveMessage(
-            message => {
-                switch (message.view) {
-                    case "basics":
-                        this.view = message.view;
-                        this._panel.webview.html = this.getWebviewDocumentationContent(Markdown.render(basic));
-                        break;
-                    case "tasks":
-                        this.view = message.view;
-                        this.latestType = null;
-                        this._panel.webview.html = this.getWebviewDocumentationContent(Markdown.render(taskHome));
-                        break;
-                }
-                if (message.command === 'openExternal') {
-                    vscode.env.openExternal(vscode.Uri.parse(message.text));
-                }
-            },
-            undefined,
-            this._disposables
-        );
+        this._panel.onDidDispose(() => this.dispose(), null, this._disposables);
+        this._panel.webview.onDidReceiveMessage(message => this.handleMessage(message), undefined, this._disposables);
+        // Placing the cursor on a task shows that plugin's documentation.
+        vscode.window.onDidChangeTextEditorSelection(event => this.followCursor(event), undefined, this._disposables);
     }
 
-
-    public dispose() {
-        DocumentationPanel.current = undefined;
-
-        this._panel.dispose();
-
-        while (this._disposables.length) {
-            const x = this._disposables.pop();
-            if (x) {
-                x.dispose();
+    private async handleMessage(message: DocsWebviewMessage) {
+        switch (message.type) {
+            case 'ready':
+                this._ready = true;
+                this._queue.forEach(m => this._panel.webview.postMessage(m));
+                this._queue = [];
+                await this.show({kind: 'home'});
+                break;
+            case 'open':
+                await this.openLink(message.href);
+                break;
+            case 'openPath':
+                await this.show({kind: 'doc', path: message.path});
+                break;
+            case 'search':
+                this.post({type: 'results', items: await searchDocs(await this.version(), message.q)});
+                break;
+            case 'back': {
+                this._history.pop();
+                const previous = this._history[this._history.length - 1];
+                if (previous) {
+                    await this.show(previous, false);
+                }
+                break;
             }
         }
     }
 
+    private async openLink(href: string) {
+        if (!this._page) {
+            return;
+        }
+        const link = resolveDocLink(href, this._page);
+        if ('external' in link) {
+            vscode.env.openExternal(vscode.Uri.parse(link.external));
+            return;
+        }
+        await this.show({kind: 'doc', path: link.docPath});
+    }
 
-    private getWebviewDocumentationContent(webViewContent: string) {
+    private async show(entry: HistoryEntry, push = true) {
+        const page = await this.fetch(entry);
+        if (!page) {
+            this.post({type: 'notice', text: 'Could not load this documentation page.'});
+            return;
+        }
+        if (push) {
+            this._history.push(entry);
+        }
+        this._page = page;
+        this.post({type: 'doc', html: renderDocMarkdown(page.markdown), title: page.title, canBack: this._history.length > 1});
+    }
 
-        const stylesPathMarkdownPath = vscode.Uri.joinPath(this._extensionUri, 'media', 'markdown.css');
-        const stylesMarkdownUri = this._panel.webview.asWebviewUri(stylesPathMarkdownPath);
+    private async fetch(entry: HistoryEntry): Promise<DocPage | null> {
+        if (entry.kind === 'plugin') {
+            const markdown = await this._apiClient.pluginDoc(entry.type);
+            return markdown ? {markdown, title: entry.type.split('.').pop() ?? entry.type, path: ''} : null;
+        }
+        const version = await this.version();
+        return entry.kind === 'home' ? docById(version, HOME_DOC_ID) : docByPath(version, entry.path);
+    }
 
-        return `<!DOCTYPE html>
-      <html lang="en">
-      <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Kestra Documentation</title>
-				<link href="${stylesMarkdownUri}" rel="stylesheet">
-        <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-okaidia.css" rel="stylesheet" />
-        <script>
-          window.onload = function() {
-            const vscode = acquireVsCodeApi();
-            document.getElementById('basics').addEventListener('click', () => {
-              vscode.postMessage({
-                view: 'basics'
-              })
-            });
-          document.getElementById('tasks').addEventListener('click', () => {
-              vscode.postMessage({
-                  view: 'tasks'
-              })
-            });
-            document.body.addEventListener('click', event => {
-              if (event.target.tagName === 'A') {
-                  const href = event.target.getAttribute('href');
-                  if (href) {
-                      event.preventDefault();
-                      vscode.postMessage({
-                          command: 'openExternal',
-                          text: href
-                      });
-                  }
-              }
-          });
-          }
-          </script>
-        <style>
-        </style>
-      </head>
-      <body>
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-core.min.js"></script>
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/autoloader/prism-autoloader.min.js"></script>
-        <div class="container">
-          <h1 class="title">Kestra Documentation</h1>
-          <button id="basics">Basics</button>
-          <button id="tasks">Tasks</button>
-          <br/>
-          ${webViewContent}
-        </div>
-      </body>
-      </html>`;
+    private version(): Promise<string> {
+        this._version ??= this._apiClient.instanceVersion().then(version => version ?? FALLBACK_DOCS_VERSION);
+        return this._version;
+    }
+
+    private async followCursor(event: vscode.TextEditorSelectionChangeEvent) {
+        const document = event.textEditor.document;
+        const position = event.selections[0]?.active;
+        if (!this._panel.visible || !position || document.languageId !== 'yaml') {
+            return;
+        }
+        const type = YamlUtils.getTaskType(document.getText(), {lineNumber: position.line, column: position.character});
+        if (!type || type === this._pluginType) {
+            return;
+        }
+        this._pluginType = type;
+        await this.show({kind: 'plugin', type});
+    }
+
+    private post(message: DocsHostMessage) {
+        if (this._ready) {
+            this._panel.webview.postMessage(message);
+        } else {
+            this._queue.push(message);
+        }
+    }
+
+    public dispose() {
+        DocumentationPanel._current = undefined;
+        this._panel.dispose();
+        while (this._disposables.length) {
+            this._disposables.pop()?.dispose();
+        }
     }
 }

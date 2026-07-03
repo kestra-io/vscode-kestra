@@ -243,6 +243,19 @@ export default class ApiClient {
         return response?.ok ? (await response.json().catch(() => null)) as FlowGraph | null : null;
     }
 
+    // The instance version selects the matching docs content, as the core UI does with config.version.
+    public async instanceVersion(): Promise<string | null> {
+        const response = await this.silentFetch("/configs", {}, false);
+        return response?.ok ? ((await response.json().catch(() => null)) as {version?: string} | null)?.version ?? null : null;
+    }
+
+    // Task documentation from the connected instance; the public registry covers the no-instance case.
+    public async pluginDoc(type: string): Promise<string | null> {
+        const response = await this.silentFetch(`/plugins/${type}`, {}, false)
+            ?? await ApiClient.fetchWithTimeout(`${kestraBaseUrl}/plugins/definitions/${type}`, {}).catch(() => null);
+        return response?.ok ? ((await response.json().catch(() => null)) as {markdown?: string} | null)?.markdown ?? null : null;
+    }
+
     // Base64 SVG icons per plugin type. The icons endpoint is not tenant-scoped.
     public async pluginIcons(): Promise<Record<string, {icon?: string}> | null> {
         const response = await this.silentFetch("/plugins/icons", {}, false);

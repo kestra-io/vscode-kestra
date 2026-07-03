@@ -10,6 +10,7 @@
     --ks-status-pending: #fce070;
     --ks-primary: #631bf3;
     --ks-primary-hover: #5212d6;
+    --ks-content-code: #bbbbff;
     --ks-topology-bg: #23252e;
     --ks-topology-dot: #3a3d49;
     --ks-topology-border-flowable-task: #1761fd;
@@ -37,4 +38,5 @@ body.vscode-light {
     --ks-status-neutral: #5f5f7c;
     --ks-status-pending: #cb6e17;
     --ks-primary-hover: #440ab8;
+    --ks-content-code: #7400df;
 }

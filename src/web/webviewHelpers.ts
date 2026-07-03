@@ -10,12 +10,12 @@ function makeNonce(): string {
 }
 
 // The HTML shell every webview shares: CSP, shared tokens, one stylesheet, one bundled script.
-export function webviewHtml(webview: vscode.Webview, extensionUri: vscode.Uri, options: {title: string; style: string; script: string; allowImages?: boolean}): string {
+export function webviewHtml(webview: vscode.Webview, extensionUri: vscode.Uri, options: {title: string; style: string; script: string; allowImages?: boolean; remoteImages?: boolean}): string {
     const nonce = makeNonce();
     const scriptUri = webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, 'dist', 'webview', options.script));
     const tokensUri = webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, 'media', 'tokens.css'));
     const styleUri = webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, 'media', options.style));
-    const imgSrc = options.allowImages ? ` img-src ${webview.cspSource} data:;` : '';
+    const imgSrc = options.allowImages ? ` img-src ${webview.cspSource}${options.remoteImages ? ' https:' : ''} data:;` : '';
     return `<!DOCTYPE html>
 <html lang="en">
 <head>

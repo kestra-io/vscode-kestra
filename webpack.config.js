@@ -47,10 +47,6 @@ const webExtensionConfig = {
 			use: [{
 				loader: 'ts-loader'
 			}]
-		},
-		{
-			test: /\.md$/,
-			use: ['raw-loader'],
 		}
 		// Below config to work with Vue (especially with kestra UI lib)
 		// {
@@ -101,7 +97,8 @@ const webviewConfig = {
 	target: 'web', // webviews run in a browser (DOM) context, not a webworker
 	entry: {
 		'runPanel': './src/webview/runPanel.ts',
-		'topology': './src/webview/topology.ts'
+		'topology': './src/webview/topology.ts',
+		'docs': './src/webview/docs.ts'
 	},
 	output: {
 		filename: '[name].js',
