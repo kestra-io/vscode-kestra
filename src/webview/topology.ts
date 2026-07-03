@@ -11,7 +11,8 @@ const vscode = acquireApi<TopologyWebviewMessage>();
 
 const message = el('div', 'message', 'Loading topology...');
 const graphEl = el('div', 'graph');
-const rotate = el('button', 'rotate', 'Rotate');
+const rotate = el('button', 'rotate', '⟳');
+rotate.title = 'Rotate layout';
 document.body.append(message, graphEl, rotate);
 
 // Reused across updates so live edits swap elements instead of recreating the view each time.

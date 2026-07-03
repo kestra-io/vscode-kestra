@@ -53,7 +53,7 @@
         "command": "kestra.flow.save",
         "title": "Save flow to Kestra",
         "category": "Kestra",
-        "icon": "$(save)"
+        "icon": "$(rocket)"
       },
       {
         "command": "kestra.flow.topology",
