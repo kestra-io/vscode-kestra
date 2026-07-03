@@ -7,7 +7,7 @@ import {renderPluginDoc} from './pluginDoc';
 import {docByPath, resolveDocLink, searchDocs} from './docsApi';
 import {DocsHostMessage, DocsWebviewMessage} from '../../webview/messages';
 // The landing content the core UI bundles for its editor docs tab (ui/src/assets/docs/basic.md).
-import basic from './basic.md';
+const basic = require('./basic.md') as string;
 
 // Docs content is versioned; this recent one still resolves when the instance version is unreachable.
 const FALLBACK_DOCS_VERSION = '1.3.0';
@@ -108,7 +108,7 @@ export default class DocumentationPanel {
     }
 
     private async show(entry: HistoryEntry, push = true) {
-        const view = await this.render(entry);
+        const view = await this.render(entry).catch(() => null);
         if (!view) {
             this.post({type: 'notice', text: 'Could not load this documentation page.'});
             return;
