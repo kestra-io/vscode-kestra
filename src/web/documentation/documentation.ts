@@ -110,7 +110,10 @@ export default class DocumentationPanel {
     private async show(entry: HistoryEntry, push = true) {
         const view = await this.render(entry).catch(() => null);
         if (!view) {
-            this.post({type: 'notice', text: 'Could not load this documentation page.'});
+            // A task type with no loadable doc keeps the current page instead of replacing it.
+            if (entry.kind !== 'plugin') {
+                this.post({type: 'notice', text: 'Could not load this documentation page.'});
+            }
             return;
         }
         if (push) {
