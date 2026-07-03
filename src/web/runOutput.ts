@@ -80,7 +80,7 @@ class RunLog implements RunOutput {
     }
 
     public error(text: string) {
-        this._channel.appendLine(`✗ ${text}`);
+        this._channel.appendLine(`Error: ${text}`);
     }
 
     public setStatus(state: string) {
