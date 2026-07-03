@@ -19,6 +19,6 @@ body {
     border-radius: var(--ks-radius-base);
     padding: var(--ks-spacing-1) var(--ks-spacing-2);
     cursor: pointer;
-    font-size: 16px;
+    font-size: 19px;
     line-height: 1;
 }
