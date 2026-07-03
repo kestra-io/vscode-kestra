@@ -31,7 +31,7 @@ function titleCase(state: string): string {
     return state.charAt(0) + state.slice(1).toLowerCase();
 }
 
-// Only http(s) URLs may land in the link's href; anything else (javascript:, data:) is dropped.
+// Only http(s) URLs may land in the link's href. Anything else (javascript:, data:) is dropped.
 function safeHttpUrl(value: string): string | undefined {
     try {
         const url = new URL(value);

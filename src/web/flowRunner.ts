@@ -77,7 +77,7 @@ function activeFlow(): (Flow & {source: string}) | undefined {
 
 async function passesValidation(apiClient: ApiClient, source: string, output: RunOutput): Promise<boolean> {
     const response = await apiClient.validateFlow(source);
-    // A failed validation call is not a verdict; proceed and let deploy surface the real error.
+    // A failed validation call is not a verdict, so proceed and let deploy surface the real error.
     if (!response.ok) {
         return true;
     }
