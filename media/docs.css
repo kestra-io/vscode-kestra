@@ -363,10 +363,6 @@ summary {
     padding: var(--ks-spacing-3) var(--ks-spacing-4);
     background: color-mix(in srgb, var(--vscode-editor-background) 45%, transparent);
 }
-.deprecated {
-    color: var(--ks-status-warning);
-    font-weight: var(--ks-font-weight-semibold);
-}
 .muted {
     color: var(--vscode-descriptionForeground);
 }

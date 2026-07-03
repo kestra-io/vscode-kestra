@@ -252,8 +252,8 @@ export default class ApiClient {
 
     // Schema and markdown from the instance, the public registry covers the no-instance case.
     public async pluginDefinition(type: string): Promise<PluginDefinition | null> {
-        const response = await this.silentFetch(`/plugins/${type}`, {}, false)
-            ?? await ApiClient.fetchWithTimeout(`${kestraBaseUrl}/plugins/definitions/${type}`, {}).catch(() => null);
+        const response = await this.silentFetch(`/plugins/${encodeURIComponent(type)}`, {}, false)
+            ?? await ApiClient.fetchWithTimeout(`${kestraBaseUrl}/plugins/definitions/${encodeURIComponent(type)}`, {}).catch(() => null);
         return response?.ok ? (await response.json().catch(() => null)) as PluginDefinition | null : null;
     }
 

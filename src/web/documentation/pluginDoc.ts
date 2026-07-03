@@ -14,6 +14,7 @@ export type PluginProperty = {
     items?: PluginProperty;
     anyOf?: PluginProperty[];
     oneOf?: PluginProperty[];
+    allOf?: PluginProperty[];
 };
 
 type PluginExample = {title?: string; code?: string; lang?: string; full?: boolean};
@@ -76,12 +77,12 @@ function byTitle(a: PluginEntry, b: PluginEntry): number {
 }
 
 function pageHeader(icon: string | undefined, title: string): string {
-    return `<div class="plugin-header">${icon ? `<img class="plugin-icon" src="${icon}" alt="">` : ''}<span class="plugin-name">${esc(title)}</span></div>`;
+    return `<div class="plugin-header">${icon ? `<img class="plugin-icon" src="${esc(icon)}" alt="">` : ''}<span class="plugin-name">${esc(title)}</span></div>`;
 }
 
 function navRow(nav: string, icon: string | undefined, label: string, subtitle?: string): string {
     return `<button class="nav-row" data-nav="${esc(nav)}">`
-        + (icon ? `<img class="row-icon" src="${icon}" alt="">` : '<span class="row-icon"></span>')
+        + (icon ? `<img class="row-icon" src="${esc(icon)}" alt="">` : '<span class="row-icon"></span>')
         + `<span class="row-label">${esc(label)}${subtitle ? `<span class="row-sub">${esc(subtitle)}</span>` : ''}</span>`
         + '<span class="chev">›</span></button>';
 }
@@ -94,9 +95,9 @@ export function renderPluginDoc(type: string, schema: PluginSchema, icon?: strin
     const release = releaseNotesUrl(type);
     const parts = [
         '<div class="plugin-header">'
-            + (icon ? `<img class="plugin-icon" src="${icon}" alt="">` : '')
+            + (icon ? `<img class="plugin-icon" src="${esc(icon)}" alt="">` : '')
             + `<span class="plugin-name">${esc(name)}</span>`
-            + (release ? `<a class="release-notes" href="${release}">Release notes</a>` : '')
+            + (release ? `<a class="release-notes" href="${esc(release)}">Release notes</a>` : '')
             + '</div>'
     ];
     if (meta.$beta) {
@@ -148,19 +149,28 @@ function renderExample(type: string, example: PluginExample): string {
 }
 
 function propertyList(properties: Record<string, PluginProperty> | undefined): string {
-    const entries = Object.entries(properties ?? {}).filter(([key]) => !key.startsWith('$'));
+    const entries = Object.entries(properties ?? {})
+        .filter(([key]) => !key.startsWith('$'))
+        .map(([key, property]): [string, PluginProperty] => [key, aggregateAllOf(property)])
+        .filter(([, property]) => !property.$deprecated);
     const byKey = ([a]: [string, PluginProperty], [b]: [string, PluginProperty]) => a.localeCompare(b);
     const required = entries.filter(([, property]) => property.$required).sort(byKey);
     const optional = entries.filter(([, property]) => !property.$required).sort(byKey);
     return [...required, ...optional].map(propertyRow).join('');
 }
 
+// Schemas express many properties as allOf members, flatten them so type, required, and description surface.
+function aggregateAllOf(property: PluginProperty): PluginProperty {
+    if (!property.allOf) {
+        return property;
+    }
+    const {allOf, ...rest} = property;
+    return Object.assign({}, ...allOf, rest);
+}
+
 function propertyRow([key, property]: [string, PluginProperty]): string {
     const badges = typeNames(property).map(name => `<span class="type-box">${esc(name)}</span>`).join('');
     const body: string[] = [];
-    if (property.$deprecated) {
-        body.push('<p class="deprecated">Deprecated</p>');
-    }
     if (property.title) {
         body.push(renderDocMarkdown(`**${property.title}**`));
     }
@@ -195,7 +205,7 @@ function typeNames(property: PluginProperty): string[] {
     if (property.$ref) {
         return [property.$ref.split('/').pop()?.split('_')[0].split('.').pop() ?? 'object'];
     }
-    const variants = property.anyOf ?? property.oneOf;
+    const variants = property.anyOf ?? property.oneOf ?? property.allOf;
     if (variants) {
         return [...new Set(variants.flatMap(typeNames))];
     }

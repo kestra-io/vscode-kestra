@@ -156,7 +156,10 @@ window.addEventListener('message', event => {
             window.scrollTo(0, 0);
             break;
         case 'results':
-            showResults(m.items);
+            // A late response must not reopen the dropdown after the query was cleared.
+            if (search.value.trim().length >= MIN_QUERY_LENGTH) {
+                showResults(m.items);
+            }
             break;
         case 'notice':
             heading.textContent = '';

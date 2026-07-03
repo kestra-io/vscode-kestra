@@ -175,7 +175,12 @@ export default class TopologyPanel {
 
     // Fetches the icon map once, then sends only the icons this graph needs and the webview lacks.
     private async newIconsFor(graph: FlowGraph): Promise<Record<string, string>> {
-        this._icons ??= this._apiClient.pluginIcons();
+        this._icons ??= this._apiClient.pluginIcons().then(icons => {
+            if (!icons) {
+                this._icons = undefined;
+            }
+            return icons;
+        });
         const all = await this._icons;
         const icons: Record<string, string> = {};
         for (const node of graph.nodes) {

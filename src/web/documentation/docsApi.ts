@@ -7,12 +7,18 @@ export type DocSearchResult = {title: string; path: string};
 
 type DocMetadata = {title?: string; parsedUrl?: string; isIndex?: boolean};
 
+const FETCH_TIMEOUT_MS = 15000;
+
+function fetchWithTimeout(url: string): Promise<Response> {
+    return fetch(url, {signal: AbortSignal.timeout(FETCH_TIMEOUT_MS)});
+}
+
 export function docByPath(version: string, path: string): Promise<DocPage | null> {
     return fetchPage(`${kestraBaseUrl}/docs/${path}/versions/${version}`, path);
 }
 
 export async function searchDocs(version: string, q: string): Promise<DocSearchResult[]> {
-    const response = await fetch(`${kestraBaseUrl}/search/versions/${version}?q=${encodeURIComponent(q)}&type=DOCS`).catch(() => null);
+    const response = await fetchWithTimeout(`${kestraBaseUrl}/search/versions/${version}?q=${encodeURIComponent(q)}&type=DOCS`).catch(() => null);
     if (!response?.ok) {
         return [];
     }
@@ -50,7 +56,7 @@ function normalizeDocsPath(input: string): string {
 
 // Page metadata (title, canonical path) travels in a response header next to the raw markdown.
 async function fetchPage(url: string, fallbackPath = ''): Promise<DocPage | null> {
-    const response = await fetch(url).catch(() => null);
+    const response = await fetchWithTimeout(url).catch(() => null);
     if (!response?.ok) {
         return null;
     }

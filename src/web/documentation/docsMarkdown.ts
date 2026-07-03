@@ -65,14 +65,20 @@ function stripFrontmatter(markdown: string): string {
 function normalizeMdc(markdown: string): string {
     const out: string[] = [];
     const stack: boolean[] = [];
-    let inCode = false;
+    let codeFence = '';
     for (const line of markdown.split('\n')) {
-        if (/^\s*(```|~~~)/.test(line)) {
-            inCode = !inCode;
+        const fence = /^\s*(`{3,}|~{3,})/.exec(line)?.[1];
+        if (fence) {
+            // A fence only closes on the same marker at the same length or longer.
+            if (!codeFence) {
+                codeFence = fence;
+            } else if (fence[0] === codeFence[0] && fence.length >= codeFence.length) {
+                codeFence = '';
+            }
             out.push(line);
             continue;
         }
-        if (inCode) {
+        if (codeFence) {
             out.push(line);
             continue;
         }

@@ -3,7 +3,7 @@ import ApiClient from '../apiClient';
 import YamlUtils from '../libs/yamlUtils';
 import {webviewHtml} from '../webviewHelpers';
 import {renderDocMarkdown} from './docsMarkdown';
-import {IconResolver, PluginEntry, pluginElements, renderGroupPage, renderPluginDoc, renderPluginList, renderSubPage} from './pluginDoc';
+import {IconResolver, PluginDefinition, PluginEntry, pluginElements, renderGroupPage, renderPluginDoc, renderPluginList, renderSubPage} from './pluginDoc';
 import {docByPath, resolveDocLink, searchDocs} from './docsApi';
 import {DocCrumb, DocsHostMessage, DocsWebviewMessage} from '../../webview/messages';
 // Copy of core's editor docs landing page (ui/src/assets/docs/basic.md).
@@ -11,6 +11,7 @@ const basic = require('./basic.md') as string;
 
 // Docs content is versioned, this recent one still resolves when the instance version is unreachable.
 const FALLBACK_DOCS_VERSION = '1.3.0';
+const CURSOR_DEBOUNCE_MS = 200;
 
 type HistoryEntry =
     | {kind: 'home'}
@@ -37,6 +38,10 @@ export default class DocumentationPanel {
     private _icons: Promise<Record<string, {icon?: string}> | null> | undefined;
     private _groupIcons: Promise<Record<string, {icon?: string}> | null> | undefined;
     private _plugins: Promise<PluginEntry[] | null> | undefined;
+    private _definitions = new Map<string, Promise<PluginDefinition | null>>();
+    private _showSeq = 0;
+    private _searchSeq = 0;
+    private _cursorTimer: ReturnType<typeof setTimeout> | undefined;
 
     public static createOrShow(extensionUri: vscode.Uri, apiClient: ApiClient) {
         const column = vscode.ViewColumn.Beside;
@@ -94,17 +99,22 @@ export default class DocumentationPanel {
             case 'nav':
                 await this.navigate(message.target);
                 break;
-            case 'search':
-                this.post({type: 'results', items: await searchDocs(await this.version(), message.q)});
+            case 'search': {
+                const seq = ++this._searchSeq;
+                const items = await searchDocs(await this.version(), message.q);
+                // Only the latest query may render, slower earlier responses are dropped.
+                if (seq === this._searchSeq) {
+                    this.post({type: 'results', items});
+                }
                 break;
+            }
             case 'copy':
                 await vscode.env.clipboard.writeText(message.text);
                 break;
             case 'back': {
-                this._history.pop();
-                const previous = this._history[this._history.length - 1];
-                if (previous) {
-                    await this.show(previous, false);
+                const previous = this._history[this._history.length - 2];
+                if (previous && await this.show(previous, false)) {
+                    this._history.pop();
                 }
                 break;
             }
@@ -124,7 +134,12 @@ export default class DocumentationPanel {
     }
 
     private async show(entry: HistoryEntry, push = true): Promise<boolean> {
+        const seq = ++this._showSeq;
         const view = await this.render(entry).catch(() => null);
+        // A slower earlier render must not overwrite the page shown by a newer action.
+        if (seq !== this._showSeq) {
+            return false;
+        }
         if (!view) {
             // A task type with no loadable doc keeps the current page instead of replacing it.
             if (entry.kind !== 'plugin') {
@@ -166,7 +181,7 @@ export default class DocumentationPanel {
             return {html: renderDocMarkdown(page.markdown), title: page.title};
         }
         if (entry.kind === 'plugin') {
-            const definition = await this._apiClient.pluginDefinition(entry.type);
+            const definition = await this.definition(entry.type);
             if (!definition) {
                 return null;
             }
@@ -237,13 +252,34 @@ export default class DocumentationPanel {
         ];
     }
 
+    // Cached per type for the panel's lifetime, failures included, so cursor movement cannot storm the API.
+    private definition(type: string): Promise<PluginDefinition | null> {
+        let cached = this._definitions.get(type);
+        if (!cached) {
+            cached = this._apiClient.pluginDefinition(type);
+            this._definitions.set(type, cached);
+        }
+        return cached;
+    }
+
+    // A failed fetch is not memoized, the next interaction retries.
     private plugins(): Promise<PluginEntry[] | null> {
-        this._plugins ??= this._apiClient.pluginSubgroups();
+        this._plugins ??= this._apiClient.pluginSubgroups().then(entries => {
+            if (!entries) {
+                this._plugins = undefined;
+            }
+            return entries;
+        });
         return this._plugins;
     }
 
     private async groupIconResolver(): Promise<IconResolver> {
-        this._groupIcons ??= this._apiClient.pluginGroupIcons();
+        this._groupIcons ??= this._apiClient.pluginGroupIcons().then(icons => {
+            if (!icons) {
+                this._groupIcons = undefined;
+            }
+            return icons;
+        });
         const icons = await this._groupIcons;
         return key => {
             const base64 = icons?.[key]?.icon;
@@ -252,7 +288,12 @@ export default class DocumentationPanel {
     }
 
     private async typeIconResolver(): Promise<IconResolver> {
-        this._icons ??= this._apiClient.pluginIcons();
+        this._icons ??= this._apiClient.pluginIcons().then(icons => {
+            if (!icons) {
+                this._icons = undefined;
+            }
+            return icons;
+        });
         const icons = await this._icons;
         return key => {
             const base64 = icons?.[key]?.icon;
@@ -261,11 +302,23 @@ export default class DocumentationPanel {
     }
 
     private version(): Promise<string> {
-        this._version ??= this._apiClient.instanceVersion().then(version => version ?? FALLBACK_DOCS_VERSION);
+        this._version ??= this._apiClient.instanceVersion().then(version => {
+            if (!version) {
+                this._version = undefined;
+                return FALLBACK_DOCS_VERSION;
+            }
+            return version;
+        });
         return this._version;
     }
 
-    private async followCursor(event: vscode.TextEditorSelectionChangeEvent) {
+    // Selection events fire at keystroke rate and getTaskType parses the document, so debounce.
+    private followCursor(event: vscode.TextEditorSelectionChangeEvent) {
+        clearTimeout(this._cursorTimer);
+        this._cursorTimer = setTimeout(() => this.showCursorType(event), CURSOR_DEBOUNCE_MS);
+    }
+
+    private async showCursorType(event: vscode.TextEditorSelectionChangeEvent) {
         const document = event.textEditor.document;
         const position = event.selections[0]?.active;
         if (!this._panel.visible || !position || document.languageId !== 'yaml') {
@@ -290,6 +343,7 @@ export default class DocumentationPanel {
     }
 
     public dispose() {
+        clearTimeout(this._cursorTimer);
         DocumentationPanel._current = undefined;
         this._panel.dispose();
         while (this._disposables.length) {
