@@ -32,6 +32,11 @@ export function inputFallback(input: FlowInput): unknown {
     return input.prefill ?? input.defaults ?? '';
 }
 
+// Kestra inputs are required unless explicitly marked optional.
+export function isInputRequired(input: FlowInput): boolean {
+    return input.required !== false;
+}
+
 // Humanized duration showing the two largest units, as the Kestra UI displays durations.
 export function formatDuration(seconds: number): string {
     if (seconds < 60) {
