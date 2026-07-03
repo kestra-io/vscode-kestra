@@ -60,6 +60,21 @@ export async function runFlowFromEditor(apiClient: ApiClient, extensionUri: vsco
     );
 }
 
+// Deploys the buffer to the instance as a new revision, without executing it.
+export async function saveFlowFromEditor(apiClient: ApiClient) {
+    const flow = activeFlow();
+    if (!flow) {
+        return;
+    }
+    const response = await apiClient.upsertFlow(flow.namespace, flow.id, flow.source);
+    if (!response.ok) {
+        vscode.window.showErrorMessage(`Failed to save flow (HTTP ${response.status}): ${await responseMessage(response)}`);
+        return;
+    }
+    const revision = ((await response.json().catch(() => ({}))) as {revision?: number}).revision;
+    vscode.window.showInformationMessage(`Saved ${flow.namespace}.${flow.id} to Kestra${revision ? ` (revision ${revision})` : ''}.`);
+}
+
 function activeFlow(): (Flow & {source: string}) | undefined {
     const editor = vscode.window.activeTextEditor;
     if (!editor) {
