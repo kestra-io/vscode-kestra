@@ -143,6 +143,7 @@ function buildTagSelect(values: string[], fallback: unknown): TagSelectElement {
 
 function createFileField(input: FlowInput): HTMLDivElement {
     const wrap = el('div', 'ks-field-file');
+    wrap.dataset.required = isInputRequired(input) ? '1' : '';
     const pick = el('button', 'ks-button secondary', 'Choose file');
     pick.type = 'button';
     pick.addEventListener('click', () => vscode.postMessage({type: 'pickFile', inputId: input.id}));
@@ -279,12 +280,18 @@ function submitForm() {
         const value = controlValue(control);
         const isCheckbox = control instanceof HTMLInputElement && control.type === 'checkbox';
         const required = Boolean(control.dataset.required) && !isCheckbox;
-        const empty = !value.trim();
+        const empty = !value.trim() || value === '[]';
         control.classList.toggle('invalid', required && empty);
         missing ||= required && empty;
         if (value !== '' && control.dataset.id) {
             values[control.dataset.id] = value;
         }
+    });
+    form.querySelectorAll<HTMLElement>('.ks-field-file').forEach(wrap => {
+        const chosen = Boolean(wrap.querySelector<HTMLElement>('[data-file-for]')?.dataset.chosen);
+        const bad = Boolean(wrap.dataset.required) && !chosen;
+        wrap.classList.toggle('invalid', bad);
+        missing ||= bad;
     });
     if (missing) {
         return;
@@ -399,9 +406,10 @@ window.addEventListener('message', event => {
             renderForm(m.inputs);
             break;
         case 'fileChosen': {
-            const span = form.querySelector(`[data-file-for="${m.inputId}"]`);
+            const span = form.querySelector<HTMLElement>(`[data-file-for="${m.inputId}"]`);
             if (span) {
                 span.textContent = m.name;
+                span.dataset.chosen = '1';
             }
             break;
         }

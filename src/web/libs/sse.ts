@@ -34,6 +34,10 @@ export async function readSseStream(reader: ReadableStreamDefaultReader<Uint8Arr
         }
 
         buffer += decoder.decode(value, {stream: true});
+        // The SSE spec permits CRLF framing.
+        if (buffer.includes("\r")) {
+            buffer = buffer.replace(/\r\n/g, "\n");
+        }
         // Frames end at a blank line, the trailing partial stays in the buffer.
         const frames = buffer.split("\n\n");
         buffer = frames.pop() ?? "";

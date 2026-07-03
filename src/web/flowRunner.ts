@@ -65,7 +65,13 @@ export async function saveFlowFromEditor(apiClient: ApiClient) {
     if (!flow) {
         return;
     }
-    const response = await apiClient.upsertFlow(flow.namespace, flow.id, flow.source);
+    let response: Response;
+    try {
+        response = await apiClient.upsertFlow(flow.namespace, flow.id, flow.source);
+    } catch {
+        // apiCall already surfaced the connection error
+        return;
+    }
     if (!response.ok) {
         vscode.window.showErrorMessage(`Failed to save flow (HTTP ${response.status}): ${await responseMessage(response)}`);
         return;
@@ -139,7 +145,7 @@ async function followExecution(apiClient: ApiClient, executionId: string, output
         output.error("Failed to stream logs from the instance.");
     }
     const logsStream = logsReader
-        ? readSseStream(logsReader, frame => onLogFrame(frame.name, frame.data, output)).catch(() => undefined)
+        ? readSseStream(logsReader, frame => onLogFrame(frame.name, frame.data, output)).catch(() => output.setPhase("Log stream disconnected."))
         : Promise.resolve();
 
     let lastState = "";
@@ -157,6 +163,9 @@ async function followExecution(apiClient: ApiClient, executionId: string, output
                 }
             });
         }
+    } catch {
+        // A dropped follow stream is not a run verdict, the final-state fetch below decides.
+        lastState = "";
     } finally {
         await execReader?.cancel().catch(() => undefined);
         await new Promise(resolve => setTimeout(resolve, LOG_FLUSH_GRACE_MS));
