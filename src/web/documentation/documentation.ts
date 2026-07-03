@@ -3,11 +3,12 @@ import ApiClient from '../apiClient';
 import YamlUtils from '../libs/yamlUtils';
 import {webviewHtml} from '../webviewHelpers';
 import {renderDocMarkdown} from './docsMarkdown';
-import {DocPage, docById, docByPath, resolveDocLink, searchDocs} from './docsApi';
+import {renderPluginDoc} from './pluginDoc';
+import {docByPath, resolveDocLink, searchDocs} from './docsApi';
 import {DocsHostMessage, DocsWebviewMessage} from '../../webview/messages';
+// The landing content the core UI bundles for its editor docs tab (ui/src/assets/docs/basic.md).
+import basic from './basic.md';
 
-// The landing page the core UI shows in its editor docs tab.
-const HOME_DOC_ID = 'flowEditor';
 // Docs content is versioned; this recent one still resolves when the instance version is unreachable.
 const FALLBACK_DOCS_VERSION = '1.3.0';
 
@@ -22,9 +23,10 @@ export default class DocumentationPanel {
     private _ready = false;
     private _queue: DocsHostMessage[] = [];
     private _version: Promise<string> | undefined;
-    private _page: DocPage | undefined;
+    private _page: {path: string; isIndex?: boolean} | undefined;
     private _history: HistoryEntry[] = [];
     private _pluginType: string | null = null;
+    private _icons: Promise<Record<string, {icon?: string}> | null> | undefined;
 
     public static createOrShow(extensionUri: vscode.Uri, apiClient: ApiClient) {
         const column = vscode.ViewColumn.Beside;
@@ -106,25 +108,46 @@ export default class DocumentationPanel {
     }
 
     private async show(entry: HistoryEntry, push = true) {
-        const page = await this.fetch(entry);
-        if (!page) {
+        const view = await this.render(entry);
+        if (!view) {
             this.post({type: 'notice', text: 'Could not load this documentation page.'});
             return;
         }
         if (push) {
             this._history.push(entry);
         }
-        this._page = page;
-        this.post({type: 'doc', html: renderDocMarkdown(page.markdown), title: page.title, canBack: this._history.length > 1});
+        this.post({type: 'doc', html: view.html, title: view.title, canBack: this._history.length > 1});
     }
 
-    private async fetch(entry: HistoryEntry): Promise<DocPage | null> {
-        if (entry.kind === 'plugin') {
-            const markdown = await this._apiClient.pluginDoc(entry.type);
-            return markdown ? {markdown, title: entry.type.split('.').pop() ?? entry.type, path: ''} : null;
+    private async render(entry: HistoryEntry): Promise<{html: string; title: string} | null> {
+        if (entry.kind === 'home') {
+            this._page = {path: ''};
+            return {html: renderDocMarkdown(basic), title: ''};
         }
-        const version = await this.version();
-        return entry.kind === 'home' ? docById(version, HOME_DOC_ID) : docByPath(version, entry.path);
+        if (entry.kind === 'doc') {
+            const page = await docByPath(await this.version(), entry.path);
+            if (!page) {
+                return null;
+            }
+            this._page = page;
+            return {html: renderDocMarkdown(page.markdown), title: page.title};
+        }
+        const definition = await this._apiClient.pluginDefinition(entry.type);
+        if (!definition) {
+            return null;
+        }
+        this._page = {path: ''};
+        // The schema drives the view, as in the core UI; older payloads may only carry markdown.
+        if (definition.schema?.properties) {
+            return {html: renderPluginDoc(entry.type, definition.schema, await this.icon(entry.type)), title: ''};
+        }
+        return definition.markdown ? {html: renderDocMarkdown(definition.markdown), title: entry.type.split('.').pop() ?? entry.type} : null;
+    }
+
+    private async icon(type: string): Promise<string | undefined> {
+        this._icons ??= this._apiClient.pluginIcons();
+        const base64 = (await this._icons)?.[type]?.icon;
+        return base64 ? `data:image/svg+xml;base64,${base64}` : undefined;
     }
 
     private version(): Promise<string> {

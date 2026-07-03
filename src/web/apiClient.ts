@@ -2,6 +2,7 @@
 import * as vscode from 'vscode';
 import { kestraBaseUrl, secretStorageKey, yamlContentType, PebbleFunctionDef } from "./constants";
 import { FlowGraph } from "../shared/flow";
+import type { PluginDefinition } from "./documentation/pluginDoc";
 
 export default class ApiClient {
     private readonly _secretStorage: vscode.SecretStorage;
@@ -249,11 +250,11 @@ export default class ApiClient {
         return response?.ok ? ((await response.json().catch(() => null)) as {version?: string} | null)?.version ?? null : null;
     }
 
-    // Task documentation from the connected instance; the public registry covers the no-instance case.
-    public async pluginDoc(type: string): Promise<string | null> {
+    // Plugin definition (schema + markdown) from the connected instance; the public registry covers the no-instance case.
+    public async pluginDefinition(type: string): Promise<PluginDefinition | null> {
         const response = await this.silentFetch(`/plugins/${type}`, {}, false)
             ?? await ApiClient.fetchWithTimeout(`${kestraBaseUrl}/plugins/definitions/${type}`, {}).catch(() => null);
-        return response?.ok ? ((await response.json().catch(() => null)) as {markdown?: string} | null)?.markdown ?? null : null;
+        return response?.ok ? (await response.json().catch(() => null)) as PluginDefinition | null : null;
     }
 
     // Base64 SVG icons per plugin type. The icons endpoint is not tenant-scoped.

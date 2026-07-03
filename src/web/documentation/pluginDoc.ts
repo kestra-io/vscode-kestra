@@ -1,0 +1,158 @@
+import {renderDocMarkdown} from './docsMarkdown';
+
+// Renders a plugin definition the way the core UI's SchemaToHtml does:
+// header, intro, type line, then Examples, Properties, Outputs, and Definitions collapsibles.
+
+export type PluginProperty = {
+    type?: string;
+    title?: string;
+    description?: string;
+    $ref?: string;
+    $required?: boolean;
+    $deprecated?: boolean;
+    default?: unknown;
+    enum?: unknown[];
+    items?: PluginProperty;
+    anyOf?: PluginProperty[];
+    oneOf?: PluginProperty[];
+};
+
+type PluginExample = {title?: string; code?: string; lang?: string; full?: boolean};
+type PluginDefinitionEntry = {title?: string; description?: string; properties?: Record<string, PluginProperty>};
+
+export type PluginSchema = {
+    properties?: {
+        title?: string;
+        description?: string;
+        $beta?: boolean;
+        $examples?: PluginExample[];
+        properties?: Record<string, PluginProperty>;
+    };
+    outputs?: {properties?: Record<string, PluginProperty>};
+    definitions?: Record<string, PluginDefinitionEntry>;
+};
+
+export type PluginDefinition = {markdown?: string; schema?: PluginSchema};
+
+const BETA_NOTICE = 'This plugin is currently in beta. While it is considered safe for use, please be aware that its API could change in ways that are not compatible with earlier versions in future releases, or it might become unsupported.';
+
+export function renderPluginDoc(type: string, schema: PluginSchema, icon?: string): string {
+    const meta = schema.properties ?? {};
+    const name = type.split('.').pop() ?? type;
+    const release = releaseNotesUrl(type);
+    const parts = [
+        '<div class="plugin-header">'
+            + (icon ? `<img class="plugin-icon" src="${icon}" alt="">` : '')
+            + `<span class="plugin-name">${esc(name)}</span>`
+            + (release ? `<a class="release-notes" href="${release}">Release notes</a>` : '')
+            + '</div>'
+    ];
+    if (meta.$beta) {
+        parts.push(`<div class="alert warning"><p>${BETA_NOTICE}</p></div>`);
+    }
+    if (meta.title) {
+        parts.push(`<div class="plugin-intro">${renderDocMarkdown(meta.title)}</div>`);
+    }
+    if (meta.description) {
+        parts.push(`<div class="plugin-intro">${renderDocMarkdown(meta.description)}</div>`);
+    }
+    parts.push(`<pre class="type-line"><code>type: ${esc(type)}</code></pre>`);
+
+    if (meta.$examples?.length) {
+        parts.push(section('Examples', meta.$examples.map(example => renderExample(type, example)).join('<hr>')));
+    }
+    parts.push(
+        section('Properties', propertyList(meta.properties)),
+        section('Outputs', propertyList(schema.outputs?.properties)),
+        section('Definitions', definitionList(schema.definitions))
+    );
+    return parts.filter(Boolean).join('\n');
+}
+
+// The core UI derives the release notes repository from the plugin class (pluginUtils.getPluginReleaseUrl).
+function releaseNotesUrl(type: string): string | null {
+    const [, , groupId, pluginType] = type.split('.');
+    if (!pluginType || pluginType === 'ee' || pluginType === 'secret') {
+        return null;
+    }
+    if (pluginType === 'core') {
+        return 'https://github.com/kestra-io/kestra/releases';
+    }
+    return `https://github.com/kestra-io/${groupId === 'storage' ? 'storage' : 'plugin'}-${pluginType}/releases`;
+}
+
+function section(title: string, inner: string): string {
+    return inner ? `<details class="section"><summary>${title}</summary><div class="section-body">${inner}</div></details>` : '';
+}
+
+// Partial examples get the id/type preamble, as the core UI's generateExampleCode does.
+function renderExample(type: string, example: PluginExample): string {
+    if (!example.code) {
+        return '';
+    }
+    const code = example.full ? example.code : `id: ${(type.split('.').pop() ?? '').toLowerCase()}\ntype: ${type}\n${example.code}`;
+    const title = example.title ? renderDocMarkdown(example.title) : '';
+    return `${title}<pre><code>${esc(code)}</code></pre>`;
+}
+
+function propertyList(properties: Record<string, PluginProperty> | undefined): string {
+    const entries = Object.entries(properties ?? {}).filter(([key]) => !key.startsWith('$'));
+    const byKey = ([a]: [string, PluginProperty], [b]: [string, PluginProperty]) => a.localeCompare(b);
+    const required = entries.filter(([, property]) => property.$required).sort(byKey);
+    const optional = entries.filter(([, property]) => !property.$required).sort(byKey);
+    return [...required, ...optional].map(propertyRow).join('');
+}
+
+function propertyRow([key, property]: [string, PluginProperty]): string {
+    const badges = typeNames(property).map(name => `<span class="type-box">${esc(name)}</span>`).join('');
+    const body: string[] = [];
+    if (property.$deprecated) {
+        body.push('<p class="deprecated">Deprecated</p>');
+    }
+    if (property.title) {
+        body.push(renderDocMarkdown(`**${property.title}**`));
+    }
+    if (property.description) {
+        body.push(renderDocMarkdown(property.description));
+    }
+    if (property.default !== undefined) {
+        body.push(`<p>Default: <code>${esc(plain(property.default))}</code></p>`);
+    }
+    if (property.enum) {
+        body.push(`<p>Possible values: ${property.enum.map(value => `<code>${esc(plain(value))}</code>`).join(' ')}</p>`);
+    }
+    return `<details class="prop"><summary><code>${esc(key)}</code>${property.$required ? '<span class="req">*</span>' : ''}`
+        + `<span class="spacer"></span>${badges}</summary>`
+        + `<div class="prop-body">${body.join('') || '<p class="muted">No description.</p>'}</div></details>`;
+}
+
+function definitionList(definitions: Record<string, PluginDefinitionEntry> | undefined): string {
+    return Object.entries(definitions ?? {}).map(([key, definition]) => {
+        const name = definition.title ?? key.split('_')[0].split('.').pop() ?? key;
+        const description = definition.description ? renderDocMarkdown(definition.description) : '';
+        return `<details class="prop"><summary><code>${esc(name)}</code></summary>`
+            + `<div class="prop-body">${description}${propertyList(definition.properties)}</div></details>`;
+    }).join('');
+}
+
+function typeNames(property: PluginProperty): string[] {
+    if (property.$ref) {
+        return [property.$ref.split('/').pop()?.split('_')[0].split('.').pop() ?? 'object'];
+    }
+    const variants = property.anyOf ?? property.oneOf;
+    if (variants) {
+        return [...new Set(variants.flatMap(typeNames))];
+    }
+    if (property.type === 'array') {
+        return [`array of ${typeNames(property.items ?? {}).join(' | ') || 'object'}`];
+    }
+    return property.type ? [property.type] : ['object'];
+}
+
+function plain(value: unknown): string {
+    return typeof value === 'string' ? value : JSON.stringify(value);
+}
+
+function esc(text: string): string {
+    return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}

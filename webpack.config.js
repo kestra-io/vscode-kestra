@@ -47,6 +47,10 @@ const webExtensionConfig = {
 			use: [{
 				loader: 'ts-loader'
 			}]
+		},
+		{
+			test: /\.md$/,
+			type: 'asset/source'
 		}
 		// Below config to work with Vue (especially with kestra UI lib)
 		// {

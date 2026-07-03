@@ -12,10 +12,6 @@ export function docByPath(version: string, path: string): Promise<DocPage | null
     return fetchPage(`${kestraBaseUrl}/docs/${path}/versions/${version}`, path);
 }
 
-export function docById(version: string, docId: string): Promise<DocPage | null> {
-    return fetchPage(`${kestraBaseUrl}/docs/versions/${version}/doc/${docId}`);
-}
-
 export async function searchDocs(version: string, q: string): Promise<DocSearchResult[]> {
     const response = await fetch(`${kestraBaseUrl}/search/versions/${version}?q=${encodeURIComponent(q)}&type=DOCS`).catch(() => null);
     if (!response?.ok) {
