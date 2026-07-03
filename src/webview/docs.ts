@@ -40,22 +40,20 @@ search.addEventListener('keydown', event => {
 
 back.addEventListener('click', () => vscode.postMessage({type: 'back'}));
 
-// The host resolves every link: relative ones navigate in the panel, the rest open in the browser.
+// Doc-relative links go to the host for resolution. Full URLs are left alone:
+// VS Code's webview host already opens those externally, handling them here opens two tabs.
 content.addEventListener('click', event => {
     const row = (event.target as HTMLElement).closest('[data-nav]');
     if (row instanceof HTMLElement && row.dataset.nav) {
         vscode.postMessage({type: 'nav', target: row.dataset.nav});
         return;
     }
-    const anchor = (event.target as HTMLElement).closest('a');
-    if (!anchor) {
+    const href = (event.target as HTMLElement).closest('a')?.getAttribute('href');
+    if (!href || href.startsWith('#') || /^https?:\/\//.test(href)) {
         return;
     }
     event.preventDefault();
-    const href = anchor.getAttribute('href');
-    if (href && !href.startsWith('#')) {
-        vscode.postMessage({type: 'open', href});
-    }
+    vscode.postMessage({type: 'open', href});
 });
 
 function showCrumbs(crumbs: DocCrumb[]) {
