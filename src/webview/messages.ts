@@ -38,4 +38,5 @@ export type DocsWebviewMessage =
     | {type: 'open'; href: string}
     | {type: 'openPath'; path: string}
     | {type: 'search'; q: string}
+    | {type: 'copy'; text: string}
     | {type: 'back'};

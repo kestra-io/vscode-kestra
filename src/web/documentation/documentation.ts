@@ -84,6 +84,9 @@ export default class DocumentationPanel {
             case 'search':
                 this.post({type: 'results', items: await searchDocs(await this.version(), message.q)});
                 break;
+            case 'copy':
+                await vscode.env.clipboard.writeText(message.text);
+                break;
             case 'back': {
                 this._history.pop();
                 const previous = this._history[this._history.length - 1];
@@ -107,19 +110,20 @@ export default class DocumentationPanel {
         await this.show({kind: 'doc', path: link.docPath});
     }
 
-    private async show(entry: HistoryEntry, push = true) {
+    private async show(entry: HistoryEntry, push = true): Promise<boolean> {
         const view = await this.render(entry).catch(() => null);
         if (!view) {
             // A task type with no loadable doc keeps the current page instead of replacing it.
             if (entry.kind !== 'plugin') {
                 this.post({type: 'notice', text: 'Could not load this documentation page.'});
             }
-            return;
+            return false;
         }
         if (push) {
             this._history.push(entry);
         }
         this.post({type: 'doc', html: view.html, title: view.title, canBack: this._history.length > 1});
+        return true;
     }
 
     private async render(entry: HistoryEntry): Promise<{html: string; title: string} | null> {
@@ -164,12 +168,14 @@ export default class DocumentationPanel {
         if (!this._panel.visible || !position || document.languageId !== 'yaml') {
             return;
         }
-        const type = YamlUtils.getTaskType(document.getText(), {lineNumber: position.line, column: position.character});
+        // getTaskType expects 1-based lines; editor positions are 0-based.
+        const type = YamlUtils.getTaskType(document.getText(), {lineNumber: position.line + 1, column: position.character});
         if (!type || type === this._pluginType) {
             return;
         }
-        this._pluginType = type;
-        await this.show({kind: 'plugin', type});
+        if (await this.show({kind: 'plugin', type})) {
+            this._pluginType = type;
+        }
     }
 
     private post(message: DocsHostMessage) {

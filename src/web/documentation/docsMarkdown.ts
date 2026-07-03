@@ -8,7 +8,27 @@ const KNOWN_COMPONENTS = new Set(['alert', 'collapse']);
 const FENCE_OPEN = /^(:{2,})([A-Za-z][\w-]*)(\{[^}]*\})?\s*$/;
 const FENCE_CLOSE = /^(:{2,})\s*$/;
 
-const md = new markdownIt({html: true, linkify: true, langPrefix: 'language-'})
+// Fenced YAML blocks get lightweight key/comment coloring; other languages stay escaped plain text.
+function highlightYaml(code: string): string {
+    return code.split('\n').map(line => {
+        if (/^\s*#/.test(line)) {
+            return `<span class="hl-comment">${md.utils.escapeHtml(line)}</span>`;
+        }
+        const match = /^(\s*(?:-\s+)?)([\w."'[\]{}-]+):(\s.*|$)/.exec(line);
+        if (!match) {
+            return md.utils.escapeHtml(line);
+        }
+        const [, indent, key, rest] = match;
+        return `${indent}<span class="hl-key">${md.utils.escapeHtml(key)}</span>:<span class="hl-value">${md.utils.escapeHtml(rest)}</span>`;
+    }).join('\n');
+}
+
+const md = new markdownIt({
+    html: true,
+    linkify: true,
+    langPrefix: 'language-',
+    highlight: (code, lang) => (lang === 'yaml' || lang === 'yml' ? highlightYaml(code) : '')
+})
     .use(container, 'alert', {
         validate: (params: string) => /^alert(\{|\s|$)/.test(params.trim()),
         render: (tokens: Array<{nesting: number; info: string}>, idx: number) => {

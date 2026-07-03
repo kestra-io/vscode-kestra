@@ -83,6 +83,20 @@ function transformTables() {
     }
 }
 
+const COPY_RESET_MS = 1500;
+
+function addCopyButtons() {
+    for (const pre of Array.from(content.querySelectorAll('pre'))) {
+        const button = el('button', 'copy', 'Copy');
+        button.addEventListener('click', () => {
+            vscode.postMessage({type: 'copy', text: pre.querySelector('code')?.textContent ?? ''});
+            button.textContent = 'Copied';
+            setTimeout(() => (button.textContent = 'Copy'), COPY_RESET_MS);
+        });
+        pre.append(button);
+    }
+}
+
 function showResults(items: Array<{title: string; path: string}>) {
     results.replaceChildren();
     for (const item of items) {
@@ -108,6 +122,7 @@ window.addEventListener('message', event => {
             // Rendered by the host from the docs markdown; the CSP blocks any script in it.
             content.innerHTML = m.html;
             transformTables();
+            addCopyButtons();
             back.disabled = !m.canBack;
             results.hidden = true;
             window.scrollTo(0, 0);

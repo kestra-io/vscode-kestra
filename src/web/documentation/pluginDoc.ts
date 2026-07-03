@@ -56,7 +56,7 @@ export function renderPluginDoc(type: string, schema: PluginSchema, icon?: strin
     if (meta.description) {
         parts.push(`<div class="plugin-intro">${renderDocMarkdown(meta.description)}</div>`);
     }
-    parts.push(`<pre class="type-line"><code>type: ${esc(type)}</code></pre>`);
+    parts.push(renderDocMarkdown('```yaml\ntype: ' + type + '\n```'));
 
     if (meta.$examples?.length) {
         parts.push(section('Examples', meta.$examples.map(example => renderExample(type, example)).join('<hr>')));
@@ -92,7 +92,7 @@ function renderExample(type: string, example: PluginExample): string {
     }
     const code = example.full ? example.code : `id: ${(type.split('.').pop() ?? '').toLowerCase()}\ntype: ${type}\n${example.code}`;
     const title = example.title ? renderDocMarkdown(example.title) : '';
-    return `${title}<pre><code>${esc(code)}</code></pre>`;
+    return `${title}${renderDocMarkdown('```' + (example.lang ?? 'yaml') + '\n' + code + '\n```')}`;
 }
 
 function propertyList(properties: Record<string, PluginProperty> | undefined): string {

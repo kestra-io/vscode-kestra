@@ -107,10 +107,37 @@ body {
     border-radius: var(--ks-radius-sm);
 }
 .content pre {
+    position: relative;
     padding: var(--ks-spacing-3);
     background: var(--vscode-textCodeBlock-background);
     border-radius: var(--ks-radius-base);
     overflow-x: auto;
+}
+.content pre .copy {
+    position: absolute;
+    top: var(--ks-spacing-2);
+    right: var(--ks-spacing-2);
+    padding: 2px var(--ks-spacing-2);
+    font-size: var(--ks-font-size-xs);
+    color: var(--vscode-foreground);
+    background: var(--vscode-editorWidget-background);
+    border: 1px solid var(--vscode-widget-border);
+    border-radius: var(--ks-radius-sm);
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.15s;
+}
+.content pre:hover .copy {
+    opacity: 1;
+}
+.hl-key {
+    color: var(--ks-status-success);
+}
+.hl-value {
+    color: var(--ks-status-info);
+}
+.hl-comment {
+    color: var(--vscode-descriptionForeground);
 }
 .content pre code {
     padding: 0;
@@ -225,17 +252,6 @@ summary {
     border: 1px solid var(--ks-status-info);
     border-radius: var(--ks-radius-base);
 }
-.type-line {
-    padding: var(--ks-spacing-3);
-    background: var(--vscode-textCodeBlock-background);
-    border-radius: var(--ks-radius-base);
-    overflow-x: auto;
-}
-.type-line code {
-    font-family: var(--vscode-editor-font-family);
-    color: var(--ks-content-code);
-}
-
 .section {
     background: none;
     border: none;

@@ -10,8 +10,8 @@ export class YamlUtils {
       visit(yamlDoc, (_, node) => {
         if (isMap(node)) {
           for (const item of node.items as any[]) {
-            if (item.key?.value === "type") {
-              types.push({type: (item.value as string), range: (node.range as Range)});
+            if (item.key?.value === "type" && isScalar(item.value)) {
+              types.push({type: String(item.value.value), range: (node.range as Range)});
             }
           }
         }
