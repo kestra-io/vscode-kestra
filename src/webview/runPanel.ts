@@ -31,7 +31,7 @@ function safeHttpUrl(value: string): string | undefined {
 }
 
 const flow = el('span', 'flow');
-const badge = el('span', 'ks-badge', 'pending');
+const badge = el('span', 'ks-badge');
 const copy = el('button', 'ks-button secondary', 'Copy logs');
 const open = el('a', 'ks-button', 'Open in Kestra');
 const phase = el('div', 'phase');
@@ -47,6 +47,7 @@ function buildLayout() {
     open.target = '_blank';
     open.rel = 'noopener';
     open.hidden = true;
+    badge.hidden = true;
     form.hidden = true;
 
     levelFilter.id = 'levelFilter';
@@ -67,8 +68,10 @@ function buildLayout() {
     document.body.append(header, toolbar, form, errors, tasks);
 }
 
+// The badge only ever shows a state the server reported, so it stays hidden until one arrives.
 function setBadge(state: string) {
     const bucket = stateBucket(state);
+    badge.hidden = !state;
     badge.textContent = state ? titleCase(state) : '';
     badge.className = bucket ? `ks-badge ks-badge--${bucket}` : 'ks-badge';
 }
@@ -330,7 +333,7 @@ function resetView(flowId: string, level: string) {
     truncationNotice?.remove();
     truncationNotice = undefined;
     levelFilter.value = level;
-    setBadge('RUNNING');
+    setBadge('');
 }
 
 function updateTaskRow(taskId: string, state: string, duration?: number) {
