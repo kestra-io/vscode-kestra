@@ -11,8 +11,7 @@ const vscode = acquireApi<TopologyWebviewMessage>();
 
 const message = el('div', 'message', 'Loading topology...');
 const graphEl = el('div', 'graph');
-const fit = el('button', 'fit', 'Fit');
-document.body.append(message, graphEl, fit);
+document.body.append(message, graphEl);
 
 // Reused across updates so live edits swap elements instead of recreating the view each time.
 let cy: cytoscape.Core | undefined;
@@ -29,7 +28,6 @@ function cssVar(name: string, fallback: string): string {
 
 function showMessage(text: string) {
     graphEl.style.display = 'none';
-    fit.style.display = 'none';
     message.style.display = 'block';
     message.textContent = text;
 }
@@ -189,7 +187,6 @@ function render(graph: FlowGraph, icons: Record<string, string>) {
     Object.assign(iconMap, icons);
     message.style.display = 'none';
     graphEl.style.display = 'block';
-    fit.style.display = 'block';
 
     const elements = toElements(graph);
     if (cy) {
@@ -221,8 +218,6 @@ function setTaskState(taskId: string, state: string) {
         }
     });
 }
-
-fit.addEventListener('click', () => cy?.fit(undefined, 24));
 
 window.addEventListener('message', event => {
     const m = event.data as TopologyHostMessage;
