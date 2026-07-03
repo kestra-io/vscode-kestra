@@ -11,11 +11,16 @@ const vscode = acquireApi<TopologyWebviewMessage>();
 
 const message = el('div', 'message', 'Loading topology...');
 const graphEl = el('div', 'graph');
-document.body.append(message, graphEl);
+const rotate = el('button', 'rotate', 'Rotate');
+document.body.append(message, graphEl, rotate);
 
 // Reused across updates so live edits swap elements instead of recreating the view each time.
 let cy: cytoscape.Core | undefined;
-const LAYOUT = {name: 'dagre', rankDir: 'LR', nodeSep: 25, rankSep: 50, padding: 24, fit: true} as cytoscape.LayoutOptions;
+let rankDir: 'LR' | 'TB' = 'LR';
+
+function layoutOptions(): cytoscape.LayoutOptions {
+    return {name: 'dagre', rankDir, nodeSep: 25, rankSep: 50, padding: 24, fit: true} as cytoscape.LayoutOptions;
+}
 
 // Icons arrive as deltas with each graph, so keep the accumulated map for re-renders.
 const iconMap: Record<string, string> = {};
@@ -28,6 +33,7 @@ function cssVar(name: string, fallback: string): string {
 
 function showMessage(text: string) {
     graphEl.style.display = 'none';
+    rotate.style.display = 'none';
     message.style.display = 'block';
     message.textContent = text;
 }
@@ -170,7 +176,7 @@ function graphStyle(): cytoscape.StylesheetJson {
                 'arrow-scale': 0.4,
                 // Orthogonal elbow routing, like the Kestra UI's edges.
                 'curve-style': 'taxi',
-                'taxi-direction': 'rightward',
+                'taxi-direction': 'auto',
                 'taxi-turn': 24,
                 'taxi-turn-min-distance': 12
             }
@@ -187,6 +193,7 @@ function render(graph: FlowGraph, icons: Record<string, string>) {
     Object.assign(iconMap, icons);
     message.style.display = 'none';
     graphEl.style.display = 'block';
+    rotate.style.display = 'block';
 
     const elements = toElements(graph);
     if (cy) {
@@ -195,11 +202,11 @@ function render(graph: FlowGraph, icons: Record<string, string>) {
             core.elements().remove();
             core.add(elements);
         });
-        core.layout(LAYOUT).run();
+        core.layout(layoutOptions()).run();
         return;
     }
 
-    cy = cytoscape({container: graphEl, elements, style: graphStyle(), layout: LAYOUT});
+    cy = cytoscape({container: graphEl, elements, style: graphStyle(), layout: layoutOptions()});
     // Wire interactions once (cy is reused across updates, selector-delegated handlers persist).
     cy.on('tap', 'node.task', event => vscode.postMessage({type: 'reveal', taskId: event.target.data('taskId')}));
     cy.on('mouseover', 'node.task', event => event.target.connectedEdges().addClass('hl'));
@@ -218,6 +225,11 @@ function setTaskState(taskId: string, state: string) {
         }
     });
 }
+
+rotate.addEventListener('click', () => {
+    rankDir = rankDir === 'LR' ? 'TB' : 'LR';
+    cy?.layout(layoutOptions()).run();
+});
 
 window.addEventListener('message', event => {
     const m = event.data as TopologyHostMessage;
