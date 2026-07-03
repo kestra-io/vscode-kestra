@@ -1,13 +1,11 @@
 import * as markdownIt from 'markdown-it';
 const container = require('markdown-it-container');
 
-// The docs are MDC-flavored markdown: alerts and collapses map to HTML, unknown components keep their content.
 
 const KNOWN_COMPONENTS = new Set(['alert', 'collapse']);
 const FENCE_OPEN = /^(:{2,})([A-Za-z][\w-]*)(\{[^}]*\})?\s*$/;
 const FENCE_CLOSE = /^(:{2,})\s*$/;
 
-// Lightweight YAML coloring, other languages stay escaped plain text.
 function highlightYaml(code: string): string {
     return code.split('\n').map(line => {
         if (/^\s*#/.test(line)) {

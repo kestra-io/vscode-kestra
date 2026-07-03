@@ -26,12 +26,10 @@ export function resolveDocLink(href: string, page: {path: string; isIndex?: bool
     if (/^https?:\/\//.test(href)) {
         return {external: href};
     }
-    // Site-absolute links target the kestra.io website.
     if (href.startsWith('/')) {
         return {external: `https://kestra.io${href}`};
     }
     let relative = normalizeDocsPath(href);
-    // A non-index page lives beside its siblings, so its relative links resolve from the parent.
     if (page.isIndex === false) {
         relative = `../${relative}`;
     }
@@ -46,7 +44,6 @@ export function resolveDocLink(href: string, page: {path: string; isIndex?: bool
     return {docPath: segments.join('/')};
 }
 
-// Canonical doc paths have no ordering prefixes ("03.flow") or file suffixes, page links do.
 function normalizeDocsPath(input: string): string {
     return input.replace(/(\/|^)\d+?\.(?!\d)/g, '$1').replace(/(?:\/index)?\.mdx?(#.+|$)/, '');
 }
@@ -62,7 +59,7 @@ async function fetchPage(url: string, fallbackPath = ''): Promise<DocPage | null
     try {
         metadata = JSON.parse(response.headers.get('x-kestra-metadata') ?? '{}') as DocMetadata;
     } catch {
-        // Missing or malformed metadata only degrades the title and link resolution.
+        metadata = {};
     }
     return {
         markdown,
