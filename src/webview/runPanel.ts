@@ -1,6 +1,6 @@
 import {stateBucket, logLevelRank, LOG_LEVELS} from '../shared/executionState';
 import {HostMessage, WebviewMessage} from './messages';
-import {FlowInput, LogEntry, formatDuration, formatLogTime, formatLogLine, inputFallback} from '../shared/flow';
+import {FlowInput, LogEntry, formatDuration, formatLogTime, formatLogLine, inputFallback, isInputRequired} from '../shared/flow';
 import {acquireApi, el} from './dom';
 
 interface TagSelectElement extends HTMLDivElement {
@@ -228,7 +228,7 @@ function renderForm(inputs: FlowInput[]) {
         const field = el('div', 'ks-field' + (inline ? ' inline' : ''));
 
         const label = el('label', 'ks-label', input.id);
-        if (input.required) {
+        if (isInputRequired(input)) {
             label.appendChild(el('span', 'req', '*'));
         }
         label.appendChild(el('span', 'type', type));
@@ -239,7 +239,7 @@ function renderForm(inputs: FlowInput[]) {
             const control = createControl(type, input, inputFallback(input));
             control.dataset.id = input.id;
             control.dataset.type = type;
-            control.dataset.required = input.required ? '1' : '';
+            control.dataset.required = isInputRequired(input) ? '1' : '';
             field.append(...(inline ? [control, label] : [label, control]));
         }
         form.appendChild(field);

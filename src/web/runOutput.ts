@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import {sanitizeFileName} from './libs/runHelpers';
 import {stateSymbol} from '../shared/executionState';
-import {FlowInput, LogEntry, formatLogLine, inputFallback} from '../shared/flow';
+import {FlowInput, LogEntry, formatLogLine, inputFallback, isInputRequired} from '../shared/flow';
 import RunPanel from './runPanel';
 import TopologyPanel from './topologyPanel';
 
@@ -142,10 +142,11 @@ class RunLog implements RunOutput {
         const form = new FormData();
         for (const input of inputs) {
             const type = (input.type ?? "STRING").toUpperCase();
+            const required = isInputRequired(input);
             if (type === "FILE") {
                 const file = await pickInputFile(input.id);
                 if (!file) {
-                    if (input.required) {
+                    if (required) {
                         return undefined;
                     }
                     continue;
@@ -154,11 +155,14 @@ class RunLog implements RunOutput {
                 continue;
             }
             const fallback = inputFallback(input);
+            // Empty is only acceptable when the input is optional or the server has a default to apply.
+            const blocksEmpty = required && fallback === '';
             const value = await vscode.window.showInputBox({
-                prompt: `Input "${input.id}"${input.type ? ` (${input.type})` : ""}${input.required ? " [required]" : ""}`,
+                prompt: `Input "${input.id}"${input.type ? ` (${input.type})` : ""}${required ? " [required]" : ""}`,
                 value: String(fallback),
                 ignoreFocusOut: true,
-                password: type === "SECRET"
+                password: type === "SECRET",
+                validateInput: text => blocksEmpty && !text.trim() ? "This input is required." : undefined
             });
             if (value === undefined) {
                 return undefined;
