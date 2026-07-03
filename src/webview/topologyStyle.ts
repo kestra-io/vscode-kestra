@@ -1,8 +1,7 @@
 import cytoscape from 'cytoscape';
 import {STATE_BUCKETS} from '../shared/executionState';
 
-// Cytoscape draws to a canvas, so its stylesheet is data passed to the constructor, not CSS.
-// Colors are read from tokens.css at render time, keeping media/ the single owner of colors.
+// Cytoscape draws to a canvas, so its stylesheet is data, not CSS. Colors still come from tokens.css at render time.
 
 function cssVar(name: string, fallback: string): string {
     return getComputedStyle(document.body).getPropertyValue(name).trim() || fallback;
@@ -45,7 +44,7 @@ export function graphStyle(): cytoscape.StylesheetJson {
             }
         },
         {selector: 'node.boundary', style: {'width': 1, 'height': 1, 'opacity': 0}},
-        // One live-state border per bucket, colored by the same status tokens as the run panel badges.
+        // One live-state border per bucket, colored by the status tokens.
         ...STATE_BUCKETS.map(bucket => ({
             selector: `node.task.run-${bucket}`,
             style: {'border-color': cssVar(`--ks-status-${bucket === 'failed' ? 'error' : bucket}`, '#9797a6'), 'border-opacity': 1, 'border-width': 2}
@@ -98,7 +97,7 @@ export function graphStyle(): cytoscape.StylesheetJson {
                 'target-arrow-shape': 'triangle',
                 'target-distance-from-node': 2,
                 'arrow-scale': 0.4,
-                // Orthogonal elbow routing, like the Kestra UI's edges.
+                // Orthogonal elbow routing.
                 'curve-style': 'taxi',
                 'taxi-direction': 'auto',
                 'taxi-turn': 24,

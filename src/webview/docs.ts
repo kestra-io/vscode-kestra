@@ -76,7 +76,7 @@ function showCrumbs(crumbs: DocCrumb[]) {
     });
 }
 
-// Tables become a grid of expandable cards (first cell is the header), as the core UI's docs tab renders them.
+// Tables become a grid of expandable cards, the first cell is the header.
 function transformTables() {
     const skipLabels = new Set(['description', 'details']);
     for (const table of Array.from(content.querySelectorAll('table'))) {
@@ -148,7 +148,7 @@ window.addEventListener('message', event => {
     switch (m.type) {
         case 'doc':
             heading.textContent = m.title;
-            // Rendered by the host from the docs markdown; the CSP blocks any script in it.
+            // Rendered by the host from the docs markdown, the CSP blocks any script in it.
             content.innerHTML = m.html;
             transformTables();
             addCopyButtons();

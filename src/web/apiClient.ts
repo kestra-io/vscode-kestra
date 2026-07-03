@@ -244,20 +244,20 @@ export default class ApiClient {
         return response?.ok ? (await response.json().catch(() => null)) as FlowGraph | null : null;
     }
 
-    // The instance version selects the matching docs content, as the core UI does with config.version.
+    // The instance version selects the matching docs content.
     public async instanceVersion(): Promise<string | null> {
         const response = await this.silentFetch("/configs", {}, false);
         return response?.ok ? ((await response.json().catch(() => null)) as {version?: string} | null)?.version ?? null : null;
     }
 
-    // Plugin definition (schema + markdown) from the connected instance; the public registry covers the no-instance case.
+    // Schema and markdown from the instance, the public registry covers the no-instance case.
     public async pluginDefinition(type: string): Promise<PluginDefinition | null> {
         const response = await this.silentFetch(`/plugins/${type}`, {}, false)
             ?? await ApiClient.fetchWithTimeout(`${kestraBaseUrl}/plugins/definitions/${type}`, {}).catch(() => null);
         return response?.ok ? (await response.json().catch(() => null)) as PluginDefinition | null : null;
     }
 
-    // One entry per plugin plus one per subgroup, powering the docs plugin browser.
+    // One entry per plugin plus one per subgroup.
     public async pluginSubgroups(): Promise<PluginEntry[] | null> {
         const response = await this.silentFetch("/plugins/groups/subgroups", {}, false);
         return response?.ok ? (await response.json().catch(() => null)) as PluginEntry[] | null : null;

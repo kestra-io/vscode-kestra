@@ -6,10 +6,10 @@ import {renderDocMarkdown} from './docsMarkdown';
 import {IconResolver, PluginEntry, pluginElements, renderGroupPage, renderPluginDoc, renderPluginList, renderSubPage} from './pluginDoc';
 import {docByPath, resolveDocLink, searchDocs} from './docsApi';
 import {DocCrumb, DocsHostMessage, DocsWebviewMessage} from '../../webview/messages';
-// The landing content the core UI bundles for its editor docs tab (ui/src/assets/docs/basic.md).
+// Copy of core's editor docs landing page (ui/src/assets/docs/basic.md).
 const basic = require('./basic.md') as string;
 
-// Docs content is versioned; this recent one still resolves when the instance version is unreachable.
+// Docs content is versioned, this recent one still resolves when the instance version is unreachable.
 const FALLBACK_DOCS_VERSION = '1.3.0';
 
 type HistoryEntry =
@@ -172,7 +172,7 @@ export default class DocumentationPanel {
             }
             this._page = {path: ''};
             const crumbs = await this.pluginCrumbs(entry.type);
-            // The schema drives the view, as in the core UI; older payloads may only carry markdown.
+            // Older payloads may only carry markdown.
             if (definition.schema?.properties) {
                 return {html: renderPluginDoc(entry.type, definition.schema, (await this.typeIconResolver())(entry.type)), title: '', crumbs};
             }
@@ -220,7 +220,7 @@ export default class DocumentationPanel {
         };
     }
 
-    // Plugins / <plugin> / <subgroup> / <ClassName>, each level navigable, as in the core UI.
+    // Plugins / <plugin> / <subgroup> / <ClassName>, each level navigable.
     private async pluginCrumbs(type: string): Promise<DocCrumb[]> {
         const name = type.split('.').pop() ?? type;
         const entries = await this.plugins();
@@ -271,7 +271,7 @@ export default class DocumentationPanel {
         if (!this._panel.visible || !position || document.languageId !== 'yaml') {
             return;
         }
-        // getTaskType expects 1-based lines; editor positions are 0-based.
+        // getTaskType expects 1-based lines, editor positions are 0-based.
         const type = YamlUtils.getTaskType(document.getText(), {lineNumber: position.line + 1, column: position.character});
         if (!type || type === this._pluginType) {
             return;

@@ -91,8 +91,7 @@ export class YamlUtils {
     return ids;
   }
 
-  // Character range of the task or trigger map whose "id" equals taskId, for click-to-reveal navigation.
-  // Scoped to the task-bearing sections so an input with the same id is never matched.
+  // Scoped to task-bearing sections so an input with the same id is never matched.
   static taskRangeById(source: string, taskId: string): [number, number] | undefined {
     const sections = new Set(["tasks", "triggers", "errors", "finally"]);
     try {

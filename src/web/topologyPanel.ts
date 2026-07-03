@@ -110,7 +110,7 @@ export default class TopologyPanel {
         if (!this._ready) {
             return;
         }
-        // A hidden panel skips fetch and layout; the pending refresh runs when it becomes visible.
+        // A hidden panel skips fetch and layout, the pending refresh runs when it becomes visible.
         if (!this._panel.visible) {
             this._refreshPending = true;
             return;
@@ -119,7 +119,7 @@ export default class TopologyPanel {
             this.showNotice('Open a flow to preview its topology.');
             return;
         }
-        // Tab switches re-trigger updates without a text change; skip the fetch entirely.
+        // Tab switches re-trigger updates without a text change.
         const sourceKey = `${document.uri.toString()}:${document.version}`;
         if (sourceKey === this._lastSourceKey && this._lastGraphJson) {
             return;
@@ -131,7 +131,7 @@ export default class TopologyPanel {
             return;
         }
         if (!graph) {
-            // Keep the last good graph through invalid intermediate edits; only report when nothing is shown yet.
+            // Keep the last good graph through invalid intermediate edits.
             if (!this._lastGraphJson) {
                 this.showNotice('Could not generate the graph (check the connection and that the flow is valid).');
             }
@@ -139,7 +139,7 @@ export default class TopologyPanel {
         }
         this._lastSourceKey = sourceKey;
 
-        // Most edits do not change the topology; skip the webview rebuild when the graph is identical.
+        // Most edits do not change the topology, so identical graphs skip the webview rebuild.
         const json = JSON.stringify(graph);
         if (json === this._lastGraphJson) {
             return;
@@ -165,7 +165,6 @@ export default class TopologyPanel {
         this.post({type: 'notice', text});
     }
 
-    // Overlays a task's live execution state onto its node (called while a run streams).
     public setTaskState(taskId: string, state: string) {
         this.post({type: 'taskState', taskId, state});
     }
@@ -193,7 +192,6 @@ export default class TopologyPanel {
         return icons;
     }
 
-    // Reveals and selects the task with the given id in the source document.
     private async revealTask(taskId: string) {
         const document = this._lastDocument;
         if (!document) {
@@ -209,7 +207,6 @@ export default class TopologyPanel {
         editor.revealRange(range, vscode.TextEditorRevealType.InCenter);
     }
 
-    // Buffers messages until the webview signals it is ready, so early run states are never dropped.
     private post(message: TopologyHostMessage) {
         if (this._ready) {
             this._panel.webview.postMessage(message);

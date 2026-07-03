@@ -1,7 +1,6 @@
 import {renderDocMarkdown} from './docsMarkdown';
 
-// Renders a plugin definition the way the core UI's SchemaToHtml does:
-// header, intro, type line, then Examples, Properties, Outputs, and Definitions collapsibles.
+// Schema-rendered plugin doc: header, intro, type line, then Examples, Properties, Outputs, and Definitions.
 
 export type PluginProperty = {
     type?: string;
@@ -122,7 +121,7 @@ export function renderPluginDoc(type: string, schema: PluginSchema, icon?: strin
     return parts.filter(Boolean).join('\n');
 }
 
-// The core UI derives the release notes repository from the plugin class (pluginUtils.getPluginReleaseUrl).
+// The release notes repository derives from the plugin class.
 function releaseNotesUrl(type: string): string | null {
     const [, , groupId, pluginType] = type.split('.');
     if (!pluginType || pluginType === 'ee' || pluginType === 'secret') {
@@ -138,7 +137,7 @@ function section(title: string, inner: string): string {
     return inner ? `<details class="section"><summary>${title}</summary><div class="section-body">${inner}</div></details>` : '';
 }
 
-// Partial examples get the id/type preamble, as the core UI's generateExampleCode does.
+// Partial examples get the id/type preamble.
 function renderExample(type: string, example: PluginExample): string {
     if (!example.code) {
         return '';

@@ -39,8 +39,7 @@ function showMessage(text: string) {
 function toElements(graph: FlowGraph): cytoscape.ElementDefinition[] {
     const elements: cytoscape.ElementDefinition[] = [];
 
-    // Clusters become compound parent nodes wrapping all their members, including the flowable task
-    // itself and any nested cluster, so branch boxes render inside their parent box.
+    // Clusters become compound parents wrapping all members, including nested clusters, so branch boxes nest.
     const parentOf: Record<string, string> = {};
     for (const cluster of graph.clusters ?? []) {
         for (const child of cluster.nodes ?? []) {
@@ -48,7 +47,7 @@ function toElements(graph: FlowGraph): cytoscape.ElementDefinition[] {
         }
     }
     for (const cluster of graph.clusters ?? []) {
-        // The triggers cluster has no task node; the API identifies it by its fixed uid.
+        // The triggers cluster has no task node, the API identifies it by its fixed uid.
         const isTriggers = cluster.cluster.uid.endsWith('.Triggers');
         elements.push({
             data: {
@@ -61,8 +60,7 @@ function toElements(graph: FlowGraph): cytoscape.ElementDefinition[] {
     }
 
     for (const node of graph.nodes) {
-        // Nodes without a declared id (cluster entries and exits) are invisible waypoints;
-        // tasks and triggers render as cards.
+        // Nodes without a declared id (cluster entries and exits) are invisible waypoints.
         const id = graphNodeId(node);
         const pluginType = graphNodePluginType(node);
         elements.push({

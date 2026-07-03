@@ -1,14 +1,13 @@
 import * as markdownIt from 'markdown-it';
 const container = require('markdown-it-container');
 
-// The docs are MDC-flavored markdown (::alert, ::collapse and other Vue components).
-// Alerts and collapses map to plain HTML; unknown components keep their content, minus the fences.
+// The docs are MDC-flavored markdown: alerts and collapses map to HTML, unknown components keep their content.
 
 const KNOWN_COMPONENTS = new Set(['alert', 'collapse']);
 const FENCE_OPEN = /^(:{2,})([A-Za-z][\w-]*)(\{[^}]*\})?\s*$/;
 const FENCE_CLOSE = /^(:{2,})\s*$/;
 
-// Fenced YAML blocks get lightweight key/comment coloring; other languages stay escaped plain text.
+// Lightweight YAML coloring, other languages stay escaped plain text.
 function highlightYaml(code: string): string {
     return code.split('\n').map(line => {
         if (/^\s*#/.test(line)) {
@@ -79,7 +78,7 @@ function normalizeMdc(markdown: string): string {
             out.push(line);
             continue;
         }
-        // MDX article files can carry component imports; they are meaningless here.
+        // MDX articles can carry component imports, meaningless here.
         if (/^import\s.+\sfrom\s+['"].+['"];?\s*$/.test(line)) {
             continue;
         }

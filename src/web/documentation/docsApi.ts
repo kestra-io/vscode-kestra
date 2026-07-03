@@ -1,7 +1,6 @@
 import {kestraBaseUrl} from '../constants';
 
-// Kestra's central docs service, the same source the core UI's docs tab reads.
-// It is public: content is selected by the connected instance's version.
+// Kestra's central docs service: public, content selected by the connected instance's version.
 
 export type DocPage = {markdown: string; title: string; path: string; isIndex?: boolean};
 export type DocSearchResult = {title: string; path: string};
@@ -23,7 +22,6 @@ export async function searchDocs(version: string, q: string): Promise<DocSearchR
 
 export type DocLink = {external: string} | {docPath: string};
 
-// Resolves an href found inside a page, mirroring the core UI's useDocsLink.
 export function resolveDocLink(href: string, page: {path: string; isIndex?: boolean}): DocLink {
     if (/^https?:\/\//.test(href)) {
         return {external: href};
@@ -48,7 +46,7 @@ export function resolveDocLink(href: string, page: {path: string; isIndex?: bool
     return {docPath: segments.join('/')};
 }
 
-// Repo-relative markdown paths carry ordering prefixes ("03.flow") and file suffixes; canonical doc paths have neither.
+// Canonical doc paths have no ordering prefixes ("03.flow") or file suffixes, page links do.
 function normalizeDocsPath(input: string): string {
     return input.replace(/(\/|^)\d+?\.(?!\d)/g, '$1').replace(/(?:\/index)?\.mdx?(#.+|$)/, '');
 }
