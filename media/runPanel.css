@@ -90,7 +90,8 @@ body.vscode-light {
     font-size: var(--ks-font-size-base);
     font-family: inherit;
 }
-.ks-input.invalid { border-color: var(--ks-status-error); }
+.ks-input.invalid, .ks-select.invalid, .ks-tags.invalid { border-color: var(--ks-status-error); }
+.ks-field-file.invalid .ks-button { border-color: var(--ks-status-error); }
 textarea.ks-input { min-height: 64px; resize: vertical; }
 .ks-tags { position: relative; }
 .ks-tags-box {

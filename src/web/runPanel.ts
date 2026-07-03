@@ -4,6 +4,8 @@ import {FlowInput, LogEntry} from '../shared/flow';
 import {makeNonce} from './webviewHelpers';
 import {HostMessage, WebviewMessage} from '../webview/messages';
 
+const LOG_BATCH_MS = 80;
+
 export default class RunPanel implements RunOutput {
     private static panels = new Map<string, RunPanel>();
 
@@ -15,6 +17,9 @@ export default class RunPanel implements RunOutput {
     private _queue: HostMessage[] = [];
     private _inputsResolver?: (values: FormData | undefined) => void;
     private _pendingFiles: Record<string, {name: string; data: Uint8Array}> = {};
+    private _pendingLogs: LogEntry[] = [];
+    private _logFlushTimer: ReturnType<typeof setTimeout> | undefined;
+    private _disposed = false;
 
     public static createOrShow(extensionUri: vscode.Uri, flowUid: string): RunPanel {
         const column = vscode.ViewColumn.Beside;
@@ -103,6 +108,9 @@ export default class RunPanel implements RunOutput {
     }
 
     private post(message: HostMessage) {
+        if (this._disposed) {
+            return;
+        }
         if (this._ready) {
             this._panel.webview.postMessage(message);
         } else {
@@ -122,8 +130,18 @@ export default class RunPanel implements RunOutput {
         this.post({type: 'execution', id, url});
     }
 
+    // The stream delivers roughly one frame per line, so batch them into one webview message per tick.
     public appendLogs(entries: LogEntry[]) {
-        this.post({type: 'logs', entries});
+        this._pendingLogs.push(...entries);
+        this._logFlushTimer ??= setTimeout(() => this.flushLogs(), LOG_BATCH_MS);
+    }
+
+    private flushLogs() {
+        this._logFlushTimer = undefined;
+        if (this._pendingLogs.length > 0) {
+            this.post({type: 'logs', entries: this._pendingLogs});
+            this._pendingLogs = [];
+        }
     }
 
     public setTaskState(taskId: string, state: string, durationSeconds?: number) {
@@ -131,6 +149,11 @@ export default class RunPanel implements RunOutput {
     }
 
     public requestInputs(inputs: FlowInput[]): Promise<FormData | undefined> {
+        if (this._disposed) {
+            return Promise.resolve(undefined);
+        }
+        // A run restarted while the form is open cancels the previous prompt.
+        this.resolveInputs(undefined);
         return new Promise(resolve => {
             this._inputsResolver = resolve;
             this._pendingFiles = {};
@@ -147,6 +170,8 @@ export default class RunPanel implements RunOutput {
     }
 
     public dispose() {
+        this._disposed = true;
+        clearTimeout(this._logFlushTimer);
         RunPanel.panels.delete(this._flowUid);
         this.resolveInputs(undefined);
         this._panel.dispose();
