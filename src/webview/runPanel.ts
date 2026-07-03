@@ -31,7 +31,7 @@ function titleCase(state: string): string {
     return state.charAt(0) + state.slice(1).toLowerCase();
 }
 
-// Only http(s) URLs may land in the link's href. Anything else (javascript:, data:) is dropped.
+// Only http(s) may land in the link's href, anything else (javascript:, data:) is dropped.
 function safeHttpUrl(value: string): string | undefined {
     try {
         const url = new URL(value);
@@ -79,7 +79,7 @@ function buildLayout() {
     document.body.append(header, toolbar, form, errors, tasks);
 }
 
-// The badge only ever shows a state the server reported, so it stays hidden until one arrives.
+// The badge stays hidden until the server reports a state.
 function setBadge(state: string) {
     const bucket = stateBucket(state);
     badge.hidden = !state;
@@ -95,7 +95,6 @@ function applyFilter() {
 }
 levelFilter.addEventListener('change', applyFilter);
 
-// Chip multi-select, mirrors Kestra's KsSelect multiple.
 function buildTagSelect(values: string[], fallback: unknown): TagSelectElement {
     const wrap = el('div', 'ks-tags') as TagSelectElement;
     wrap.dataset.multi = '1';
@@ -263,8 +262,7 @@ function renderForm(inputs: FlowInput[]) {
     form.hidden = false;
 }
 
-// Values pass through as-is; the server parses each type. Checkbox -> "true"/"false", multi -> JSON array.
-// DATETIME/TIME are the exceptions: native pickers emit local shapes the server rejects, so normalize.
+// The server parses each type, only DATETIME/TIME need normalizing back from the pickers' local shapes.
 function controlValue(control: HTMLElement): string {
     if (control instanceof HTMLInputElement && control.type === 'checkbox') {
         return control.checked ? 'true' : 'false';
@@ -374,7 +372,7 @@ function logRow(log: LogEntry): HTMLDivElement {
     return row;
 }
 
-// Oldest rows are dropped past this cap so a chatty run cannot grow the DOM without bound.
+// Oldest rows drop past this cap so the DOM stays bounded.
 const MAX_LOG_ROWS = 5000;
 let logRows: HTMLElement[] = [];
 let truncationNotice: HTMLElement | undefined;

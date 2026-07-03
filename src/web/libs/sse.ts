@@ -34,7 +34,7 @@ export async function readSseStream(reader: ReadableStreamDefaultReader<Uint8Arr
         }
 
         buffer += decoder.decode(value, {stream: true});
-        // Frames are separated by a blank line. Keep the trailing partial frame in the buffer.
+        // Frames end at a blank line, the trailing partial stays in the buffer.
         const frames = buffer.split("\n\n");
         buffer = frames.pop() ?? "";
 

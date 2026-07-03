@@ -60,7 +60,6 @@ export async function runFlowFromEditor(apiClient: ApiClient, extensionUri: vsco
     );
 }
 
-// Deploys the buffer to the instance as a new revision, without executing it.
 export async function saveFlowFromEditor(apiClient: ApiClient) {
     const flow = activeFlow();
     if (!flow) {
@@ -106,7 +105,7 @@ async function passesValidation(apiClient: ApiClient, source: string, output: Ru
     return true;
 }
 
-// The server's error body carries the actual reason; statusText is empty on HTTP/2.
+// The server's error body carries the actual reason, statusText is empty on HTTP/2.
 async function responseMessage(response: Response): Promise<string> {
     const body = (await response.json().catch(() => ({}))) as {message?: string};
     return body.message ?? response.statusText;
@@ -132,8 +131,7 @@ async function startExecution(apiClient: ApiClient, namespace: string, id: strin
     return ((await response.json()) as {id: string}).id;
 }
 
-// Always cancel both streams; an open follow leaks memory on the server.
-// The overall state streams to the output as it changes, so the badge mirrors the server live.
+// Streams are always cancelled on exit, an open follow leaks memory on the server.
 async function followExecution(apiClient: ApiClient, executionId: string, output: RunOutput, fetchLevel: string): Promise<void> {
     const logsResponse = await apiClient.logsApi(`/${executionId}/follow?minLevel=${fetchLevel}`);
     const logsReader = logsResponse.ok && logsResponse.body ? logsResponse.body.getReader() : undefined;

@@ -5,7 +5,6 @@ import {makeNonce} from './webviewHelpers';
 import {HostMessage, WebviewMessage} from '../webview/messages';
 
 export default class RunPanel implements RunOutput {
-    // One panel per flow, so concurrent runs of different flows never share a view.
     private static panels = new Map<string, RunPanel>();
 
     private readonly _panel: vscode.WebviewPanel;
@@ -103,7 +102,6 @@ export default class RunPanel implements RunOutput {
         this.post({type: 'fileChosen', inputId, name: file.name});
     }
 
-    // Buffers messages until the webview signals it is ready, so the first log lines are never dropped.
     private post(message: HostMessage) {
         if (this._ready) {
             this._panel.webview.postMessage(message);
