@@ -156,13 +156,13 @@ body {
     opacity: 1;
 }
 .hl-key {
-    color: var(--ks-status-success);
+    color: var(--ks-code-key);
 }
 .hl-value {
-    color: var(--ks-status-info);
+    color: var(--ks-code-value);
 }
 .hl-comment {
-    color: var(--vscode-descriptionForeground);
+    color: var(--ks-code-comment);
 }
 .content pre code {
     padding: 0;

@@ -11,6 +11,10 @@
     --ks-primary: #631bf3;
     --ks-primary-hover: #5212d6;
     --ks-content-code: #bbbbff;
+    /* Code block colors from core's shiki github-dark theme */
+    --ks-code-key: #85e89d;
+    --ks-code-value: #9ecbff;
+    --ks-code-comment: #6a737d;
     --ks-topology-bg: #23252e;
     --ks-topology-dot: #3a3d49;
     --ks-topology-border-flowable-task: #1761fd;
@@ -39,4 +43,7 @@ body.vscode-light {
     --ks-status-pending: #cb6e17;
     --ks-primary-hover: #440ab8;
     --ks-content-code: #7400df;
+    /* github-light */
+    --ks-code-key: #22863a;
+    --ks-code-value: #032f62;
 }
