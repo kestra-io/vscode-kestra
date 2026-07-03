@@ -31,6 +31,16 @@ function titleCase(state: string): string {
     return state.charAt(0) + state.slice(1).toLowerCase();
 }
 
+// Only http(s) URLs may land in the link's href; anything else (javascript:, data:) is dropped.
+function safeHttpUrl(value: string): string | undefined {
+    try {
+        const url = new URL(value);
+        return url.protocol === 'http:' || url.protocol === 'https:' ? url.href : undefined;
+    } catch {
+        return undefined;
+    }
+}
+
 const flow = el('span', 'flow');
 const badge = el('span', 'ks-badge', 'pending');
 const copy = el('button', 'ks-button secondary', 'Copy logs');
@@ -405,11 +415,15 @@ window.addEventListener('message', event => {
             }
             break;
         }
-        case 'execution':
-            open.href = m.url;
-            open.hidden = false;
+        case 'execution': {
+            const url = safeHttpUrl(m.url);
+            if (url) {
+                open.href = url;
+                open.hidden = false;
+            }
             phase.textContent = `Execution ${m.id}`;
             break;
+        }
         case 'error':
             errors.appendChild(el('div', '', m.text));
             break;
