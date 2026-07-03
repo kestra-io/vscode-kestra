@@ -9,8 +9,5 @@
         "dist": true // set this to false to include "dist" folder in search results
     },
     // Turn off tsc task auto detection since we have the necessary tasks as npm scripts
-    "typescript.tsc.autoDetect": "off",
-    "yaml.schemas": {
-        "https://www.schemastore.org/kestra-0.19.0.json": "file:///Users/malay/dev/vscode-kestra/test/hello.yaml"
-    }
+    "typescript.tsc.autoDetect": "off"
 }
