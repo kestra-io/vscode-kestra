@@ -16,7 +16,7 @@ document.body.append(message, graphEl, rotate);
 
 // Reused across updates so live edits swap elements instead of recreating the view each time.
 let cy: cytoscape.Core | undefined;
-let rankDir: 'LR' | 'TB' = 'LR';
+let rankDir: 'LR' | 'TB' = 'TB';
 
 function layoutOptions(): cytoscape.LayoutOptions {
     return {name: 'dagre', rankDir, nodeSep: 25, rankSep: 50, padding: 24, fit: true} as cytoscape.LayoutOptions;
