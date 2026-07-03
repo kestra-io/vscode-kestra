@@ -8,8 +8,7 @@ export interface FlowInput {
     inputs?: FlowInput[];
 }
 
-// Expands each FORM group into its children, keyed by dotted id (`environment.region`), the shape
-// the executions API expects. FORMs never nest, so expansion is single-level.
+// FORM groups expand to their children keyed by dotted id, the shape the executions API expects.
 export function flattenInputs(inputs: FlowInput[] | undefined): FlowInput[] {
     if (!inputs) {
         return [];
@@ -37,7 +36,6 @@ export function isInputRequired(input: FlowInput): boolean {
     return input.required !== false;
 }
 
-// Humanized duration showing the two largest units, as the Kestra UI displays durations.
 export function formatDuration(seconds: number): string {
     if (seconds < 60) {
         return `${seconds.toFixed(2)}s`;
@@ -62,7 +60,6 @@ export function formatLogTime(timestamp: string | undefined): string {
     return ((timestamp ?? '').split('T')[1] ?? '').replace('Z', '');
 }
 
-// One canonical text rendering of a log line, used by the log channel and the panel's copy output.
 export function formatLogLine(log: LogEntry): string {
     const time = formatLogTime(log.timestamp).slice(0, 12).padEnd(12);
     const level = `[${(log.level ?? 'INFO').toUpperCase()}]`.padEnd(8);

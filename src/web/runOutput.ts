@@ -13,12 +13,10 @@ export interface RunOutput {
     error(text: string): void;
     setStatus(state: string): void;
     setTaskState(taskId: string, state: string, durationSeconds?: number): void;
-    // Returns undefined when the user cancels.
     requestInputs(inputs: FlowInput[]): Promise<FormData | undefined>;
 }
 
-// The configured output plus the level to fetch: the panel filters client-side so it fetches
-// everything, while the log channel shows all it fetches so it fetches at the configured level.
+// The panel filters levels client-side so it fetches everything, the log channel fetches at the configured level.
 export function createRunOutput(extensionUri: vscode.Uri, flowUid: string): {output: RunOutput; fetchLevel: string; logLevel: string} {
     const config = vscode.workspace.getConfiguration("kestra.run");
     const logLevel = config.get("logLevel", "INFO");
@@ -67,7 +65,6 @@ class TopologyOverlay implements RunOutput {
     }
 }
 
-// Disposes every run log channel; registered in the extension's subscriptions.
 export function disposeRunLogs() {
     RunLog.disposeAll();
 }
@@ -81,9 +78,7 @@ export async function pickInputFile(inputId: string): Promise<{name: string; dat
     return {name: sanitizeFileName(picked[0].path.split("/").pop() ?? inputId), data};
 }
 
-// A plain channel; a {log:true} channel cannot be cleared between runs.
-// The "log" language id makes VS Code colorize timestamps and severity words.
-// One channel per flow, so concurrent runs of different flows never interleave.
+// One plain channel per flow, with the "log" language id: {log: true} channels cannot be cleared between runs.
 class RunLog implements RunOutput {
     private static _channels = new Map<string, RunLog>();
     private readonly _channel: vscode.OutputChannel;
@@ -137,7 +132,7 @@ class RunLog implements RunOutput {
         // Task transitions are already visible as log lines in the channel.
     }
 
-    // The log channel has no form, so collect inputs with sequential prompts (and a file dialog for FILE).
+    // No form in a channel, so inputs are collected with sequential prompts.
     public async requestInputs(inputs: FlowInput[]): Promise<FormData | undefined> {
         const form = new FormData();
         for (const input of inputs) {
@@ -155,7 +150,6 @@ class RunLog implements RunOutput {
                 continue;
             }
             const fallback = inputFallback(input);
-            // Empty is only acceptable when the input is optional or the server has a default to apply.
             const blocksEmpty = required && fallback === '';
             const value = await vscode.window.showInputBox({
                 prompt: `Input "${input.id}"${input.type ? ` (${input.type})` : ""}${required ? " [required]" : ""}`,
