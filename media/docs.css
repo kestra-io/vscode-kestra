@@ -329,10 +329,17 @@ summary {
     border-top: 1px solid var(--vscode-widget-border);
 }
 
+.prop {
+    overflow: hidden;
+}
 .prop > summary {
     display: flex;
     align-items: center;
     gap: var(--ks-spacing-2);
+}
+.prop[open] > summary {
+    background: color-mix(in srgb, var(--vscode-foreground) 5%, transparent);
+    border-bottom: 1px solid var(--vscode-widget-border);
 }
 .prop .spacer {
     flex: 1;
@@ -353,7 +360,8 @@ summary {
     white-space: nowrap;
 }
 .prop-body {
-    padding: 0 var(--ks-spacing-4) var(--ks-spacing-3);
+    padding: var(--ks-spacing-3) var(--ks-spacing-4);
+    background: color-mix(in srgb, var(--vscode-editor-background) 45%, transparent);
 }
 .deprecated {
     color: var(--ks-status-warning);

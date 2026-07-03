@@ -180,10 +180,14 @@ function propertyRow([key, property]: [string, PluginProperty]): string {
 
 function definitionList(definitions: Record<string, PluginDefinitionEntry> | undefined): string {
     return Object.entries(definitions ?? {}).map(([key, definition]) => {
-        const name = definition.title ?? key.split('_')[0].split('.').pop() ?? key;
-        const description = definition.description ? renderDocMarkdown(definition.description) : '';
+        const name = key.split('_')[0].split('.').pop() ?? key;
+        const body = [
+            definition.title ? renderDocMarkdown(`**${definition.title}**`) : '',
+            definition.description ? renderDocMarkdown(definition.description) : '',
+            propertyList(definition.properties)
+        ].join('');
         return `<details class="prop"><summary><code>${esc(name)}</code></summary>`
-            + `<div class="prop-body">${description}${propertyList(definition.properties)}</div></details>`;
+            + `<div class="prop-body">${body || '<p class="muted">No description.</p>'}</div></details>`;
     }).join('');
 }
 
