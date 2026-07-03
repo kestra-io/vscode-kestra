@@ -10,6 +10,8 @@
     --ks-status-pending: #fce070;
     --ks-primary: #631bf3;
     --ks-primary-hover: #5212d6;
+    --ks-topology-bg: #23252e;
+    --ks-topology-dot: #3a3d49;
     --ks-topology-border-flowable-task: #1761fd;
     --ks-topology-border-triggers: #029e73;
     --ks-spacing-1: 4px;
@@ -25,6 +27,8 @@
 }
 body.vscode-light {
     --ks-bg-badge: #ffffff;
+    --ks-topology-bg: #e9e9ee;
+    --ks-topology-dot: #c9c9d4;
     --ks-status-success: #1e875e;
     --ks-status-running: #440ab8;
     --ks-status-warning: #a44500;
