@@ -45,9 +45,15 @@
       },
       {
         "command": "kestra.flow.run",
-        "title": "Run flow on Kestra",
+        "title": "Save and run flow",
         "category": "Kestra",
         "icon": "$(play)"
+      },
+      {
+        "command": "kestra.flow.save",
+        "title": "Save flow to Kestra",
+        "category": "Kestra",
+        "icon": "$(cloud-upload)"
       },
       {
         "command": "kestra.flow.topology",
@@ -68,6 +74,10 @@
         },
         {
           "when": "resourceLangId == yaml",
+          "command": "kestra.flow.save"
+        },
+        {
+          "when": "resourceLangId == yaml",
           "command": "kestra.flow.topology"
         }
       ],
@@ -75,6 +85,11 @@
         {
           "when": "resourceLangId == yaml",
           "command": "kestra.flow.run",
+          "group": "navigation"
+        },
+        {
+          "when": "resourceLangId == yaml",
+          "command": "kestra.flow.save",
           "group": "navigation"
         },
         {
