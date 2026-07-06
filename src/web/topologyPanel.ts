@@ -133,7 +133,7 @@ export default class TopologyPanel {
         if (!graph) {
             // Keep the last good graph through invalid intermediate edits.
             if (!this._lastGraphJson) {
-                this.showNotice('Could not generate the graph (check the connection and that the flow is valid).');
+                this.showNotice('Could not generate the graph (check the connection, that you are signed in, and that the flow is valid).');
             }
             return;
         }
