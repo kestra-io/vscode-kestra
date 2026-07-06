@@ -252,11 +252,16 @@ export default class DocumentationPanel {
         ];
     }
 
-    // Cached per type for the panel's lifetime, failures included, so cursor movement cannot storm the API.
+    // Cached per type. Failures are not memoized, the cursor debounce keeps retries at typing pace.
     private definition(type: string): Promise<PluginDefinition | null> {
         let cached = this._definitions.get(type);
         if (!cached) {
-            cached = this._apiClient.pluginDefinition(type);
+            cached = this._apiClient.pluginDefinition(type).then(definition => {
+                if (!definition) {
+                    this._definitions.delete(type);
+                }
+                return definition;
+            });
             this._definitions.set(type, cached);
         }
         return cached;
