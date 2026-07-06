@@ -3,17 +3,18 @@ import {STATE_BUCKETS} from '../shared/executionState';
 
 // Cytoscape draws to a canvas, so its stylesheet is data, not CSS. Colors still come from tokens.css at render time.
 
-function cssVar(name: string, fallback: string): string {
-    return getComputedStyle(document.body).getPropertyValue(name).trim() || fallback;
+// tokens.css is linked by the same webview shell that loads this script, so the tokens are always present.
+function cssVar(name: string): string {
+    return getComputedStyle(document.body).getPropertyValue(name).trim();
 }
 
 export function graphStyle(): cytoscape.StylesheetJson {
-    const accent = cssVar('--ks-status-running', '#9869f7');
-    const clusterBorder = cssVar('--ks-topology-border-flowable-task', '#1761fd');
-    const triggersBorder = cssVar('--ks-topology-border-triggers', '#029e73');
-    const foreground = cssVar('--vscode-foreground', '#cccccc');
-    const cardBackground = cssVar('--vscode-editorWidget-background', '#252526');
-    const edgeColor = cssVar('--vscode-foreground', '#ffffff');
+    const accent = cssVar('--ks-status-running');
+    const clusterBorder = cssVar('--ks-topology-border-flowable-task');
+    const triggersBorder = cssVar('--ks-topology-border-triggers');
+    const foreground = cssVar('--vscode-foreground');
+    const cardBackground = cssVar('--vscode-editorWidget-background');
+    const edgeColor = cssVar('--vscode-foreground');
 
     return [
         {
@@ -47,7 +48,7 @@ export function graphStyle(): cytoscape.StylesheetJson {
         // One live-state border per bucket, colored by the status tokens.
         ...STATE_BUCKETS.map(bucket => ({
             selector: `node.task.run-${bucket}`,
-            style: {'border-color': cssVar(`--ks-status-${bucket === 'failed' ? 'error' : bucket}`, '#9797a6'), 'border-opacity': 1, 'border-width': 2}
+            style: {'border-color': cssVar(`--ks-status-${bucket === 'failed' ? 'error' : bucket}`), 'border-opacity': 1, 'border-width': 2}
         })),
         {
             selector: 'node.cluster',
@@ -59,10 +60,10 @@ export function graphStyle(): cytoscape.StylesheetJson {
                 'border-width': 1,
                 'border-opacity': 1,
                 'label': 'data(label)',
-                'color': cssVar('--ks-status-info', '#718bfe'),
+                'color': cssVar('--ks-status-info'),
                 'font-size': 11,
                 'font-weight': 600,
-                'text-background-color': cssVar('--ks-bg-badge', '#20232d'),
+                'text-background-color': cssVar('--ks-bg-badge'),
                 'text-background-opacity': 1,
                 'text-background-shape': 'roundrectangle',
                 'text-background-padding': '5',
