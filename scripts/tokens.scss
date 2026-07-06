@@ -1,0 +1,55 @@
+// Source of media/tokens.css, compiled by `npm run tokens`.
+// Colors come from @kestra-io/design-system, bump the dependency to follow design changes.
+// Sizes are VS Code-tuned and the code block colors mirror core's shiki github themes.
+@use "../node_modules/@kestra-io/design-system/dist/assets/styles/color-palette" as palette;
+
+/* Generated from @kestra-io/design-system by `npm run tokens`. Do not edit by hand. */
+:root {
+    --ks-bg-badge: #{palette.$base-gray-cool-800};
+    --ks-status-success: #{palette.$base-green-300};
+    --ks-status-running: #{palette.$base-primary-300};
+    --ks-status-warning: #{palette.$base-orange-300};
+    --ks-status-error: #{palette.$base-red-300};
+    --ks-status-info: #{palette.$base-blue-300};
+    --ks-status-neutral: #{palette.$base-gray-cool-300};
+    --ks-status-pending: #{palette.$base-yellow-300};
+    --ks-primary: #{palette.$base-primary-500};
+    --ks-primary-hover: #{palette.$base-primary-600};
+    --ks-content-code: #bbbbff;
+    /* Code block colors from core's shiki github-dark theme */
+    --ks-code-key: #85e89d;
+    --ks-code-value: #9ecbff;
+    --ks-code-comment: #6a737d;
+    --ks-topology-bg: #{palette.$base-gray-cool-600};
+    --ks-topology-dot: #3a3d49;
+    --ks-topology-border-flowable-task: #{palette.$base-blue-500};
+    --ks-topology-border-triggers: #{palette.$base-green-500};
+    --ks-spacing-1: 4px;
+    --ks-spacing-2: 8px;
+    --ks-spacing-3: 12px;
+    --ks-spacing-4: 16px;
+    --ks-radius-sm: 4px;
+    --ks-radius-base: 6px;
+    --ks-font-size-xs: 11px;
+    --ks-font-size-sm: 12px;
+    --ks-font-size-base: 13px;
+    --ks-font-weight-semibold: 600;
+}
+
+body.vscode-light {
+    --ks-bg-badge: #{palette.$base-gray-cool-white};
+    --ks-topology-bg: #{palette.$base-gray-neutral-100};
+    --ks-topology-dot: #c9c9d4;
+    --ks-status-success: #{palette.$base-green-600};
+    --ks-status-running: #{palette.$base-primary-700};
+    --ks-status-warning: #{palette.$base-orange-700};
+    --ks-status-error: #{palette.$base-red-500};
+    --ks-status-info: #{palette.$base-blue-500};
+    --ks-status-neutral: #{palette.$base-gray-neutral-500};
+    --ks-status-pending: #{palette.$base-yellow-700};
+    --ks-primary-hover: #{palette.$base-primary-700};
+    --ks-content-code: #7400df;
+    /* github-light */
+    --ks-code-key: #22863a;
+    --ks-code-value: #032f62;
+}
