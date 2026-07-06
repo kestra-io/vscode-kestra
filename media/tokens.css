@@ -14,22 +14,22 @@
 /* yellow */
 /* Generated from @kestra-io/design-system by `npm run tokens`. Do not edit by hand. */
 :root {
-  --ks-bg-badge: #20232d;
-  --ks-status-success: #43f6b6;
+  --ks-bg-badge: #23252e;
+  --ks-status-success: #06f0b1;
   --ks-status-running: #9869f7;
   --ks-status-warning: #ff8b61;
   --ks-status-error: #ff6a6c;
   --ks-status-info: #718bfe;
-  --ks-status-neutral: #9797a6;
+  --ks-status-neutral: #adadbf;
   --ks-status-pending: #fce070;
   --ks-primary: #631bf3;
-  --ks-primary-hover: #5212d6;
+  --ks-primary-hover: #7738f5;
   --ks-content-code: #bbbbff;
   /* Code block colors from core's shiki github-dark theme */
   --ks-code-key: #85e89d;
   --ks-code-value: #9ecbff;
   --ks-code-comment: #6a737d;
-  --ks-topology-bg: #2c303f;
+  --ks-topology-bg: #23252e;
   --ks-topology-dot: #3a3d49;
   --ks-topology-border-flowable-task: #1761fd;
   --ks-topology-border-triggers: #15b983;
@@ -56,7 +56,7 @@ body.vscode-light {
   --ks-status-info: #1761fd;
   --ks-status-neutral: #5f5f7c;
   --ks-status-pending: #cb6e17;
-  --ks-primary-hover: #440ab8;
+  --ks-primary-hover: #7738f5;
   --ks-content-code: #7400df;
   /* github-light */
   --ks-code-key: #22863a;
