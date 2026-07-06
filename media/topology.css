@@ -2,8 +2,8 @@ body {
     font-family: var(--vscode-font-family);
     color: var(--vscode-foreground);
     margin: 0;
-    background-color: var(--ks-topology-bg);
-    background-image: radial-gradient(circle, var(--ks-topology-dot) 1px, transparent 1px);
+    background-color: var(--ks-bg-base);
+    background-image: radial-gradient(circle, var(--ks-border-default) 1px, transparent 1px);
     background-size: 24px 24px;
 }
 .message { color: var(--vscode-descriptionForeground); padding: var(--ks-spacing-4); }

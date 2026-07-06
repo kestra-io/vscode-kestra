@@ -13,7 +13,8 @@ export function graphStyle(): cytoscape.StylesheetJson {
     const clusterBorder = cssVar('--ks-topology-border-flowable-task');
     const triggersBorder = cssVar('--ks-topology-border-triggers');
     const foreground = cssVar('--vscode-foreground');
-    const cardBackground = cssVar('--vscode-editorWidget-background');
+    const cardBackground = cssVar('--ks-bg-surface');
+    const cardBorder = cssVar('--ks-border-default');
     const edgeColor = cssVar('--vscode-foreground');
 
     return [
@@ -28,8 +29,8 @@ export function graphStyle(): cytoscape.StylesheetJson {
                 'background-position-x': '12px',
                 'background-position-y': '50%',
                 'background-clip': 'none',
-                'border-color': foreground,
-                'border-opacity': 0.35,
+                'border-color': cardBorder,
+                'border-opacity': 1,
                 'border-width': 1,
                 'width': 200,
                 'height': 48,

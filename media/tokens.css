@@ -29,8 +29,9 @@
   --ks-code-key: #85e89d;
   --ks-code-value: #9ecbff;
   --ks-code-comment: #6a737d;
-  --ks-topology-bg: #23252e;
-  --ks-topology-dot: #3a3d49;
+  --ks-bg-base: #111115;
+  --ks-bg-surface: #1a1c22;
+  --ks-border-default: #2e2e3c;
   --ks-topology-border-flowable-task: #1761fd;
   --ks-topology-border-triggers: #15b983;
   --ks-spacing-1: 4px;
@@ -47,8 +48,9 @@
 
 body.vscode-light {
   --ks-bg-badge: #ffffff;
-  --ks-topology-bg: #e9e9ee;
-  --ks-topology-dot: #c9c9d4;
+  --ks-bg-base: #f7f7f8;
+  --ks-bg-surface: #ffffff;
+  --ks-border-default: #e9e9ee;
   --ks-status-success: #1e875e;
   --ks-status-running: #440ab8;
   --ks-status-warning: #a44500;

@@ -21,8 +21,9 @@
     --ks-code-key: #85e89d;
     --ks-code-value: #9ecbff;
     --ks-code-comment: #6a737d;
-    --ks-topology-bg: #{palette.$base-gray-neutral-800};
-    --ks-topology-dot: #3a3d49;
+    --ks-bg-base: #{palette.$base-gray-neutral-950};
+    --ks-bg-surface: #{palette.$base-gray-neutral-900};
+    --ks-border-default: #{palette.$base-gray-neutral-700};
     --ks-topology-border-flowable-task: #{palette.$base-blue-500};
     --ks-topology-border-triggers: #{palette.$base-green-500};
     --ks-spacing-1: 4px;
@@ -39,8 +40,9 @@
 
 body.vscode-light {
     --ks-bg-badge: #{palette.$base-gray-neutral-white};
-    --ks-topology-bg: #{palette.$base-gray-neutral-100};
-    --ks-topology-dot: #c9c9d4;
+    --ks-bg-base: #{palette.$base-gray-neutral-50};
+    --ks-bg-surface: #{palette.$base-gray-neutral-white};
+    --ks-border-default: #{palette.$base-gray-neutral-100};
     --ks-status-success: #{palette.$base-green-600};
     --ks-status-running: #{palette.$base-primary-700};
     --ks-status-warning: #{palette.$base-orange-700};
