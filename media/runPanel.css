@@ -155,11 +155,11 @@ body { font-family: var(--vscode-font-family); color: var(--vscode-foreground); 
 .row.hidden { display: none; }
 .row + .row { border-top: 1px solid color-mix(in srgb, var(--vscode-panel-border) 40%, transparent); }
 .row:hover { background: var(--vscode-list-hoverBackground); }
-.row.trace { border-left-color: color-mix(in srgb, var(--ks-status-neutral) 60%, transparent); }
-.row.debug { border-left-color: color-mix(in srgb, var(--ks-status-running) 60%, transparent); }
-.row.info  { border-left-color: color-mix(in srgb, var(--ks-status-info) 60%, transparent); }
-.row.warn  { border-left-color: color-mix(in srgb, var(--ks-status-warning) 60%, transparent); background: color-mix(in srgb, var(--ks-status-warning) 8%, transparent); }
-.row.error { border-left-color: color-mix(in srgb, var(--ks-status-error) 60%, transparent); background: color-mix(in srgb, var(--ks-status-error) 8%, transparent); }
+.row.trace { border-left-color: color-mix(in srgb, var(--ks-status-neutral) 40%, transparent); }
+.row.debug { border-left-color: color-mix(in srgb, var(--ks-status-running) 40%, transparent); }
+.row.info  { border-left-color: color-mix(in srgb, var(--ks-status-info) 40%, transparent); }
+.row.warn  { border-left-color: color-mix(in srgb, var(--ks-status-warning) 40%, transparent); background: color-mix(in srgb, var(--ks-status-warning) 8%, transparent); }
+.row.error { border-left-color: color-mix(in srgb, var(--ks-status-error) 40%, transparent); background: color-mix(in srgb, var(--ks-status-error) 8%, transparent); }
 .ts { flex-shrink: 0; color: var(--vscode-descriptionForeground); font-variant-numeric: tabular-nums; }
 .lvl { flex-shrink: 0; width: 44px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; font-size: var(--ks-font-size-xs); }
 .lvl.info { color: var(--ks-status-info); }
