@@ -17,5 +17,8 @@
 	},
 	"include": [
 		"src","src/web/documentation"
+	],
+	"exclude": [
+		"src/webview"
 	]
 }

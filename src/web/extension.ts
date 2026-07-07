@@ -6,6 +6,8 @@ import {schemaStateKey, flowSchemaUri} from './constants';
 import {registerFlowValidation, isFlowDocument} from './flowValidation';
 import {registerPebbleCompletion, resetPebbleCache} from './pebbleCompletion';
 import {registerRequiredFieldsCompletion} from './requiredFieldsCompletion';
+import {runFlowFromEditor, saveFlowFromEditor} from './flowRunner';
+import {disposeRunLogs} from './runOutput';
 
 async function downloadSchema(globalState: vscode.Memento, apiClient: ApiClient, opts: {silent: boolean, forceInput?: boolean}): Promise<boolean> {
     // The plugin schema endpoint is global, not tenant-scoped.
@@ -32,6 +34,14 @@ function downloadSchemaCommand(globalState: vscode.Memento, apiClient: ApiClient
     return vscode.commands.registerCommand('kestra.schema.download', () =>
         downloadSchema(globalState, apiClient, {silent: false, forceInput: true})
     );
+}
+
+function runFlowCommand(apiClient: ApiClient, extensionUri: vscode.Uri) {
+    return vscode.commands.registerCommand('kestra.flow.run', () => runFlowFromEditor(apiClient, extensionUri));
+}
+
+function saveFlowCommand(apiClient: ApiClient) {
+    return vscode.commands.registerCommand('kestra.flow.save', () => saveFlowFromEditor(apiClient));
 }
 
 function showDocumentation(context: vscode.ExtensionContext, apiClient: ApiClient) {
@@ -64,6 +74,9 @@ export async function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(showDocumentation(context, apiClient));
     context.subscriptions.push(signInCommand(apiClient));
     context.subscriptions.push(signOutCommand(apiClient));
+    context.subscriptions.push(runFlowCommand(apiClient, context.extensionUri));
+    context.subscriptions.push(saveFlowCommand(apiClient));
+    context.subscriptions.push({dispose: disposeRunLogs});
 
     registerFlowValidation(context, apiClient);
     registerPebbleCompletion(context, apiClient);

@@ -95,4 +95,39 @@ const webExtensionConfig = {
 	}
 };
 
-module.exports = [ webExtensionConfig ];
+/** @type WebpackConfig */
+const webviewConfig = {
+	mode: 'none',
+	target: 'web', // the run panel webview runs in a browser (DOM) context, not a webworker
+	entry: {
+		'runPanel': './src/webview/runPanel.ts'
+	},
+	output: {
+		filename: '[name].js',
+		path: path.join(__dirname, './dist/webview'),
+		devtoolModuleFilenameTemplate: '../../[resource-path]'
+	},
+	resolve: {
+		extensions: ['.ts', '.js']
+	},
+	module: {
+		rules: [
+			{
+				test: /\.ts$/,
+				exclude: /node_modules/,
+				use: [{
+					loader: 'ts-loader',
+					options: {
+						configFile: path.resolve(__dirname, 'tsconfig.webview.json')
+					}
+				}]
+			}
+		]
+	},
+	performance: {
+		hints: false
+	},
+	devtool: 'nosources-source-map'
+};
+
+module.exports = [ webExtensionConfig, webviewConfig ];

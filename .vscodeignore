@@ -3,11 +3,16 @@
 out/**
 node_modules/**
 src/**
+test/**
+.github/**
+.claude/**
 .gitignore
 .yarnrc
+.mocharc.json
 webpack.config.js
 vsc-extension-quickstart.md
 **/tsconfig.json
+**/tsconfig.*.json
 **/.eslintrc.json
 **/*.map
 **/*.ts

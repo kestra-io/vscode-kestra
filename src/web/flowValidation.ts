@@ -2,12 +2,16 @@ import * as vscode from 'vscode';
 import ApiClient from './apiClient';
 import YamlUtils from './libs/yamlUtils';
 
-type ValidateResult = {
+export type ValidateResult = {
     constraints?: string | null;
     warnings?: string[];
     infos?: string[];
     deprecationPaths?: string[];
 };
+
+export function splitConstraints(constraints: string | null | undefined): string[] {
+    return constraints ? String(constraints).split("\n").map(message => message.trim()).filter(Boolean) : [];
+}
 
 const DEBOUNCE_MS = 500;
 
@@ -82,10 +86,8 @@ function buildDiagnostics(results: ValidateResult[], document: vscode.TextDocume
     const diagnostics: vscode.Diagnostic[] = [];
 
     for (const result of results ?? []) {
-        if (result.constraints) {
-            for (const message of String(result.constraints).split("\n").map(m => m.trim()).filter(Boolean)) {
-                diagnostics.push(diagnostic(rangeForMessage(message, document), message, vscode.DiagnosticSeverity.Error));
-            }
+        for (const message of splitConstraints(result.constraints)) {
+            diagnostics.push(diagnostic(rangeForMessage(message, document), message, vscode.DiagnosticSeverity.Error));
         }
         for (const path of result.deprecationPaths ?? []) {
             const range = rangeForPath(document, parsePath(path)) ?? firstLineRange(document);

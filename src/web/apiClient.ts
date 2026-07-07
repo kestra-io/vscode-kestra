@@ -102,6 +102,12 @@ export default class ApiClient {
         return url.includes("/api/v1") ? url.replace("/api/v1", `/api/v1/${tenant}`) : `${url}/${tenant}`;
     }
 
+    public static async executionUiUrl(namespace: string, flowId: string, executionId: string): Promise<string> {
+        const webUrl = (await this.getKestraApiUrl()).split("/api/v1")[0];
+        const tenant = (vscode.workspace.getConfiguration("kestra.api").get("tenant") as string) || "main";
+        return `${webUrl}/ui/${tenant}/executions/${namespace}/${flowId}/${executionId}`;
+    }
+
     private static formatApiUrl(kestraUrl?: string) {
         if (!kestraUrl) {
             return "";
@@ -188,6 +194,24 @@ export default class ApiClient {
         return fetchResponse;
     }
 
+    public async executionsApi(suffix?: string, options?: RequestInit): Promise<Response> {
+        return this.apiCall(`${await ApiClient.getKestraApiUrl()}/executions${suffix ?? ""}`, "Error while calling Kestra's execution API:", [], options);
+    }
+
+    public async logsApi(suffix?: string, options?: RequestInit): Promise<Response> {
+        return this.apiCall(`${await ApiClient.getKestraApiUrl()}/logs${suffix ?? ""}`, "Error while calling Kestra's logs API:", [], options);
+    }
+
+    public async validateFlow(source: string): Promise<Response> {
+        return this.apiCall(`${await ApiClient.getKestraApiUrl()}/flows/validate`, "Error while validating flow:", [], {
+            method: "POST",
+            body: source,
+            headers: {
+                "Content-Type": yamlContentType
+            }
+        });
+    }
+
     public async validateFlowSilent(source: string, signal?: AbortSignal): Promise<Response | null> {
         const response = await this.silentFetch("/flows/validate", {
             method: "POST",
@@ -251,6 +275,20 @@ export default class ApiClient {
         } finally {
             clearTimeout(timer);
         }
+    }
+
+    // Update first, a 404 means the flow does not exist yet, so create it.
+    public async upsertFlow(namespace: string, id: string, source: string): Promise<Response> {
+        const base = await ApiClient.getKestraApiUrl();
+        const headers = {
+            "Content-Type": yamlContentType
+        };
+
+        const updated = await this.apiCall(`${base}/flows/${namespace}/${id}`, "Error while updating flow:", [404], {method: "PUT", body: source, headers});
+        if (updated.status === 404) {
+            return this.apiCall(`${base}/flows`, "Error while creating flow:", [], {method: "POST", body: source, headers});
+        }
+        return updated;
     }
 
     private async handleFetchError(response: Response, url: string, errorMessage: string, ignoreCodes: number[] = [], options?: RequestInit) {
