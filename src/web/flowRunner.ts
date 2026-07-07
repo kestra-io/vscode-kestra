@@ -5,7 +5,7 @@ import {durationOf} from './libs/runHelpers';
 import {readSseStream} from './libs/sse';
 import {isFlowDocument, splitConstraints, ValidateResult} from './flowValidation';
 import {RunOutput, createRunOutput} from './runOutput';
-import {FlowInput, LogEntry, flattenInputs} from '../shared/flow';
+import {FlowInput, LogEntry, flattenInputs, logKey} from '../shared/flow';
 
 type Flow = {id: string; namespace: string; inputs?: FlowInput[]};
 type TaskState = {current?: string; histories?: Array<{date?: string}>};
@@ -144,8 +144,9 @@ async function followExecution(apiClient: ApiClient, executionId: string, output
     if (!logsReader) {
         output.error("Failed to stream logs from the instance.");
     }
+    const seenLogs = new Set<string>();
     const logsStream = logsReader
-        ? readSseStream(logsReader, frame => onLogFrame(frame.name, frame.data, output)).catch(() => output.setPhase("Log stream disconnected."))
+        ? readSseStream(logsReader, frame => onLogFrame(frame.name, frame.data, output, seenLogs)).catch(() => output.setPhase("Log stream disconnected."))
         : Promise.resolve();
 
     let lastState = "";
@@ -183,13 +184,23 @@ async function followExecution(apiClient: ApiClient, executionId: string, output
     }
 }
 
-function onLogFrame(name: string | undefined, data: string | undefined, output: RunOutput) {
+function onLogFrame(name: string | undefined, data: string | undefined, output: RunOutput, seen: Set<string>) {
     if (name === "start" || name === "end" || !data || data === "{}") {
         return;
     }
     try {
-        const entries = JSON.parse(data) as LogEntry | LogEntry[];
-        output.appendLogs(Array.isArray(entries) ? entries : [entries]);
+        const parsed = JSON.parse(data) as LogEntry | LogEntry[];
+        const fresh = (Array.isArray(parsed) ? parsed : [parsed]).filter(entry => {
+            const key = logKey(entry);
+            if (seen.has(key)) {
+                return false;
+            }
+            seen.add(key);
+            return true;
+        });
+        if (fresh.length > 0) {
+            output.appendLogs(fresh);
+        }
     } catch {
         // Ignore keep-alive comments and non-JSON frames.
     }

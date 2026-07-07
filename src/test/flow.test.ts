@@ -1,5 +1,25 @@
 import * as assert from "assert";
-import {flattenInputs, formatDuration} from "../shared/flow";
+import {flattenInputs, formatDuration, logKey} from "../shared/flow";
+
+describe("logKey", () => {
+    it("keys on the server index when present", () => {
+        const a = logKey({taskRunId: "t", attemptNumber: 0, index: 1, timestamp: "x", message: "m"});
+        const b = logKey({taskRunId: "t", attemptNumber: 0, index: 1, timestamp: "y", message: "n"});
+        assert.strictEqual(a, b);
+    });
+    it("separates different indexes on the same task run", () => {
+        assert.notStrictEqual(
+            logKey({taskRunId: "t", attemptNumber: 0, index: 1}),
+            logKey({taskRunId: "t", attemptNumber: 0, index: 2})
+        );
+    });
+    it("falls back to timestamp and message when no index", () => {
+        const a = logKey({taskRunId: "t", attemptNumber: 0, timestamp: "10:00", message: "hi"});
+        const b = logKey({taskRunId: "t", attemptNumber: 0, timestamp: "10:00", message: "hi"});
+        assert.strictEqual(a, b);
+        assert.notStrictEqual(a, logKey({taskRunId: "t", attemptNumber: 0, timestamp: "10:00", message: "bye"}));
+    });
+});
 
 describe("flattenInputs", () => {
     it("passes plain inputs through unchanged", () => {

@@ -25,6 +25,16 @@ export interface LogEntry {
     level?: string;
     taskId?: string;
     message?: string;
+    taskRunId?: string;
+    attemptNumber?: number;
+    index?: number;
+}
+
+// The follow stream can re-emit a line where its backlog and live tail overlap. Mirrors the core UI's dedup key.
+export function logKey(log: LogEntry): string {
+    return log.index !== undefined
+        ? `${log.taskRunId}-${log.attemptNumber}-${log.index}`
+        : `${log.taskRunId}-${log.attemptNumber}-${log.timestamp}-${log.message}`;
 }
 
 export function inputFallback(input: FlowInput): unknown {
