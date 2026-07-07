@@ -14,7 +14,17 @@
 /* yellow */
 /* Generated from @kestra-io/design-system by `npm run tokens`. Do not edit. */
 :root {
+  --ks-bg-base: #111115;
+  --ks-bg-surface: #1a1c22;
+  --ks-bg-elevated: #1a1c22;
+  --ks-bg-hover: #23252e;
+  --ks-bg-input: #111115;
   --ks-bg-badge: #23252e;
+  --ks-text-primary: #ffffff;
+  --ks-text-muted: #d0d0da;
+  --ks-text-link: #cdb6fb;
+  --ks-border-default: #2e2e3c;
+  --ks-border-focus: #9869f7;
   --ks-status-success: #06f0b1;
   --ks-status-running: #9869f7;
   --ks-status-warning: #ff8b61;
@@ -24,23 +34,13 @@
   --ks-status-pending: #fce070;
   --ks-primary: #631bf3;
   --ks-primary-hover: #7738f5;
+  --ks-topology-border-flowable-task: #1761fd;
+  --ks-topology-border-triggers: #15b983;
   --ks-content-code: #bbbbff;
   /* shiki github-dark */
   --ks-code-key: #85e89d;
   --ks-code-value: #9ecbff;
   --ks-code-comment: #6a737d;
-  --ks-bg-base: #111115;
-  --ks-bg-surface: #1a1c22;
-  --ks-bg-elevated: #1a1c22;
-  --ks-bg-hover: #23252e;
-  --ks-bg-input: #111115;
-  --ks-text-primary: #ffffff;
-  --ks-text-muted: #d0d0da;
-  --ks-text-link: #cdb6fb;
-  --ks-border-default: #2e2e3c;
-  --ks-border-focus: #9869f7;
-  --ks-topology-border-flowable-task: #1761fd;
-  --ks-topology-border-triggers: #15b983;
   --ks-spacing-1: 4px;
   --ks-spacing-2: 8px;
   --ks-spacing-3: 12px;
@@ -54,12 +54,12 @@
 }
 
 body.vscode-light {
-  --ks-bg-badge: #ffffff;
   --ks-bg-base: #f7f7f8;
   --ks-bg-surface: #ffffff;
   --ks-bg-elevated: #ffffff;
   --ks-bg-hover: #f7f7f8;
   --ks-bg-input: #ffffff;
+  --ks-bg-badge: #ffffff;
   --ks-text-primary: #08090a;
   --ks-text-muted: #7e7e9b;
   --ks-text-link: #631bf3;

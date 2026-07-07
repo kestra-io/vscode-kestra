@@ -3,7 +3,17 @@
 
 /* Generated from @kestra-io/design-system by `npm run tokens`. Do not edit. */
 :root {
+    --ks-bg-base: #{palette.$base-gray-neutral-950};
+    --ks-bg-surface: #{palette.$base-gray-neutral-900};
+    --ks-bg-elevated: #{palette.$base-gray-neutral-900};
+    --ks-bg-hover: #{palette.$base-gray-neutral-800};
+    --ks-bg-input: #{palette.$base-gray-neutral-950};
     --ks-bg-badge: #{palette.$base-gray-neutral-800};
+    --ks-text-primary: #{palette.$base-gray-neutral-white};
+    --ks-text-muted: #{palette.$base-gray-neutral-200};
+    --ks-text-link: #{palette.$base-primary-200};
+    --ks-border-default: #{palette.$base-gray-neutral-700};
+    --ks-border-focus: #{palette.$base-primary-300};
     --ks-status-success: #{palette.$base-green-400};
     --ks-status-running: #{palette.$base-primary-300};
     --ks-status-warning: #{palette.$base-orange-300};
@@ -13,23 +23,13 @@
     --ks-status-pending: #{palette.$base-yellow-300};
     --ks-primary: #{palette.$base-primary-500};
     --ks-primary-hover: #{palette.$base-primary-400};
+    --ks-topology-border-flowable-task: #{palette.$base-blue-500};
+    --ks-topology-border-triggers: #{palette.$base-green-500};
     --ks-content-code: #bbbbff;
     /* shiki github-dark */
     --ks-code-key: #85e89d;
     --ks-code-value: #9ecbff;
     --ks-code-comment: #6a737d;
-    --ks-bg-base: #{palette.$base-gray-neutral-950};
-    --ks-bg-surface: #{palette.$base-gray-neutral-900};
-    --ks-bg-elevated: #{palette.$base-gray-neutral-900};
-    --ks-bg-hover: #{palette.$base-gray-neutral-800};
-    --ks-bg-input: #{palette.$base-gray-neutral-950};
-    --ks-text-primary: #{palette.$base-gray-neutral-white};
-    --ks-text-muted: #{palette.$base-gray-neutral-200};
-    --ks-text-link: #{palette.$base-primary-200};
-    --ks-border-default: #{palette.$base-gray-neutral-700};
-    --ks-border-focus: #{palette.$base-primary-300};
-    --ks-topology-border-flowable-task: #{palette.$base-blue-500};
-    --ks-topology-border-triggers: #{palette.$base-green-500};
     --ks-spacing-1: 4px;
     --ks-spacing-2: 8px;
     --ks-spacing-3: 12px;
@@ -43,12 +43,12 @@
 }
 
 body.vscode-light {
-    --ks-bg-badge: #{palette.$base-gray-neutral-white};
     --ks-bg-base: #{palette.$base-gray-neutral-50};
     --ks-bg-surface: #{palette.$base-gray-neutral-white};
     --ks-bg-elevated: #{palette.$base-gray-neutral-white};
     --ks-bg-hover: #{palette.$base-gray-neutral-50};
     --ks-bg-input: #{palette.$base-gray-neutral-white};
+    --ks-bg-badge: #{palette.$base-gray-neutral-white};
     --ks-text-primary: #{palette.$base-gray-neutral-black};
     --ks-text-muted: #{palette.$base-gray-neutral-400};
     --ks-text-link: #{palette.$base-primary-500};
