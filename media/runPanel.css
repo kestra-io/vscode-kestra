@@ -26,10 +26,10 @@
     background: var(--ks-primary);
     color: #fff;
     border: none;
-    padding: 6px 14px;
+    padding: 4px 10px;
     border-radius: var(--ks-radius-base);
     font-weight: var(--ks-font-weight-semibold);
-    font-size: var(--ks-font-size-base);
+    font-size: var(--ks-font-size-sm);
     cursor: pointer;
     text-decoration: none;
 }

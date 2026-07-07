@@ -49,6 +49,7 @@ function buildLayout() {
     open.target = '_blank';
     open.rel = 'noopener';
     open.hidden = true;
+    copy.hidden = true;
     badge.hidden = true;
     form.hidden = true;
 
@@ -337,6 +338,7 @@ function resetView(flowId: string, level: string) {
     form.hidden = true;
     form.textContent = '';
     open.hidden = true;
+    copy.hidden = true;
     sections = {};
     logRows = [];
     truncationNotice?.remove();
@@ -386,6 +388,7 @@ function appendLogRows(entries: LogEntry[]) {
         getSection(entry.taskId || '').body.appendChild(row);
         logRows.push(row);
     });
+    copy.hidden = logRows.length === 0;
     if (logRows.length > MAX_LOG_ROWS) {
         logRows.splice(0, logRows.length - MAX_LOG_ROWS).forEach(row => row.remove());
         if (!truncationNotice) {
