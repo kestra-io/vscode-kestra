@@ -34,7 +34,7 @@
     text-decoration: none;
 }
 .ks-button:hover { background: var(--ks-primary-hover); }
-.ks-button .codicon { font-size: 12px; }
+.ks-button .codicon { font-size: 11px; }
 .ks-button[hidden] { display: none; }
 .ks-button.secondary { background: var(--ks-btn-secondary-bg); color: var(--ks-text-primary); border: 1px solid var(--ks-btn-secondary-border); }
 .ks-button.secondary:hover { background: var(--ks-btn-secondary-bg-hover); }
