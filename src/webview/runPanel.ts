@@ -33,7 +33,9 @@ function safeHttpUrl(value: string): string | undefined {
 const flow = el('span', 'flow');
 const badge = el('span', 'ks-badge');
 const copy = el('button', 'ks-button secondary', 'Copy logs');
+copy.insertAdjacentHTML('afterbegin', '<svg class="btn-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>');
 const open = el('a', 'ks-button', 'Open in Kestra');
+open.insertAdjacentHTML('afterbegin', '<svg class="btn-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="M10 14 21 3"/></svg>');
 const phase = el('div', 'phase');
 const form = el('div', 'ks-form');
 const levelFilter = el('select', 'ks-select');
