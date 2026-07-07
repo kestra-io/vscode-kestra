@@ -4,7 +4,7 @@
     align-items: center;
     gap: var(--ks-spacing-1);
     font-size: var(--ks-font-size-sm);
-    font-weight: var(--ks-font-weight-semibold);
+    font-weight: 500;
     padding: 4px var(--ks-spacing-3);
     border-radius: var(--ks-radius-base);
     background: var(--ks-bg-badge);
@@ -131,8 +131,9 @@ body { font-family: var(--vscode-font-family); color: var(--ks-text-primary); ba
 }
 
 /* Task tree */
-.task-section { margin-bottom: var(--ks-spacing-1); }
-.task-head { display: flex; align-items: center; gap: var(--ks-spacing-2); cursor: pointer; padding: var(--ks-spacing-2); min-height: 34px; border-radius: var(--ks-radius-sm); }
+.tasks:not(:empty) { background: var(--ks-bg-surface); border: 1px solid var(--ks-border-default); border-radius: var(--ks-radius-base); overflow: hidden; }
+.task-section + .task-section { border-top: 1px solid var(--ks-border-default); }
+.task-head { display: flex; align-items: center; gap: var(--ks-spacing-2); cursor: pointer; padding: var(--ks-spacing-3); min-height: 34px; }
 .task-head:hover { background: var(--ks-bg-hover); }
 .chevron {
     display: inline-block;
