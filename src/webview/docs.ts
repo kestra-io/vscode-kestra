@@ -1,3 +1,4 @@
+import DOMPurify from 'dompurify';
 import {acquireApi, el} from './dom';
 import {DocCrumb, DocsHostMessage, DocsWebviewMessage} from './messages';
 
@@ -146,8 +147,8 @@ window.addEventListener('message', event => {
     switch (m.type) {
         case 'doc':
             heading.textContent = m.title;
-            // Rendered by the host from the docs markdown, the CSP blocks any script in it.
-            content.innerHTML = m.html;
+            // Host-rendered markdown, sanitized before it reaches the DOM. Plugin icons ride in as data: image URIs.
+            content.innerHTML = DOMPurify.sanitize(m.html, {ADD_DATA_URI_TAGS: ['img']});
             transformTables();
             addCopyButtons();
             showCrumbs(m.crumbs);
