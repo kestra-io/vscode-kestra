@@ -14,6 +14,9 @@
     --ks-text-dim: #{palette.$base-gray-neutral-300};
     --ks-text-inactive: #{palette.$base-gray-neutral-400};
     --ks-text-link: #{palette.$base-primary-200};
+    --ks-btn-secondary-bg: #{palette.$base-gray-neutral-800};
+    --ks-btn-secondary-bg-hover: #{palette.$base-gray-neutral-700};
+    --ks-btn-secondary-border: #{palette.$base-gray-neutral-600};
     --ks-border-default: #{palette.$base-gray-neutral-700};
     --ks-border-focus: #{palette.$base-primary-300};
     --ks-status-success: #{palette.$base-green-400};
@@ -56,6 +59,9 @@ body.vscode-light {
     --ks-text-dim: #{palette.$base-gray-neutral-600};
     --ks-text-inactive: #{palette.$base-gray-neutral-400};
     --ks-text-link: #{palette.$base-primary-500};
+    --ks-btn-secondary-bg: #{palette.$base-gray-neutral-white};
+    --ks-btn-secondary-bg-hover: #{palette.$base-gray-neutral-50};
+    --ks-btn-secondary-border: #{palette.$base-gray-neutral-100};
     --ks-border-default: #{palette.$base-gray-neutral-100};
     --ks-border-focus: #{palette.$base-primary-500};
     --ks-status-success: #{palette.$base-green-600};

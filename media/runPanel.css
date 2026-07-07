@@ -35,8 +35,8 @@
 }
 .ks-button:hover { background: var(--ks-primary-hover); }
 .ks-button[hidden] { display: none; }
-.ks-button.secondary { background: transparent; color: var(--ks-primary); border: 1px solid color-mix(in srgb, var(--ks-primary) 45%, transparent); }
-.ks-button.secondary:hover { background: color-mix(in srgb, var(--ks-primary) 12%, transparent); }
+.ks-button.secondary { background: var(--ks-btn-secondary-bg); color: var(--ks-text-primary); border: 1px solid var(--ks-btn-secondary-border); }
+.ks-button.secondary:hover { background: var(--ks-btn-secondary-bg-hover); }
 
 /* Form */
 .ks-form { margin: var(--ks-spacing-3) 0; padding: var(--ks-spacing-4); background: var(--ks-bg-surface); border: 1px solid var(--ks-border-default); border-radius: var(--ks-radius-base); }

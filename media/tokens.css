@@ -25,6 +25,9 @@
   --ks-text-dim: #adadbf;
   --ks-text-inactive: #7e7e9b;
   --ks-text-link: #cdb6fb;
+  --ks-btn-secondary-bg: #23252e;
+  --ks-btn-secondary-bg-hover: #2e2e3c;
+  --ks-btn-secondary-border: #424256;
   --ks-border-default: #2e2e3c;
   --ks-border-focus: #9869f7;
   --ks-status-success: #06f0b1;
@@ -67,6 +70,9 @@ body.vscode-light {
   --ks-text-dim: #424256;
   --ks-text-inactive: #7e7e9b;
   --ks-text-link: #631bf3;
+  --ks-btn-secondary-bg: #ffffff;
+  --ks-btn-secondary-bg-hover: #f7f7f8;
+  --ks-btn-secondary-border: #e9e9ee;
   --ks-border-default: #e9e9ee;
   --ks-border-focus: #631bf3;
   --ks-status-success: #1e875e;
