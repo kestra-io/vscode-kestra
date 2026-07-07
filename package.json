@@ -178,7 +178,7 @@
     "run-in-browser": "vscode-test-web --browserType=chromium --extensionDevelopmentPath=. .",
     "vsix": "vsce package",
     "publish": "vsce publish",
-    "tokens": "sass --no-source-map --style=expanded scripts/tokens.scss media/tokens.css"
+    "tokens": "sass --no-source-map --style=expanded scripts/tokens.scss media/tokens.css && node scripts/trim-tokens.mjs"
   },
   "extensionDependencies": [
     "redhat.vscode-yaml"

@@ -1,10 +1,7 @@
-// Source of media/tokens.css, compiled by `npm run tokens`.
-// Colors come from @kestra-io/design-system, bump the dependency to follow design changes.
-// Dark values follow ks-theme-dark-2 and light values ks-theme-light, the themes the Kestra UI renders.
-// Sizes are VS Code-tuned and the code block colors mirror core's shiki github themes.
+// Compiled to media/tokens.css by `npm run tokens`. Color mappings follow ks-theme-dark-2 and ks-theme-light.
 @use "../node_modules/@kestra-io/design-system/dist/assets/styles/color-palette" as palette;
 
-/* Generated from @kestra-io/design-system by `npm run tokens`. Do not edit by hand. */
+/* Generated from @kestra-io/design-system by `npm run tokens`. Do not edit. */
 :root {
     --ks-bg-badge: #{palette.$base-gray-neutral-800};
     --ks-status-success: #{palette.$base-green-400};
@@ -17,7 +14,7 @@
     --ks-primary: #{palette.$base-primary-500};
     --ks-primary-hover: #{palette.$base-primary-400};
     --ks-content-code: #bbbbff;
-    /* Code block colors from core's shiki github-dark theme */
+    /* shiki github-dark */
     --ks-code-key: #85e89d;
     --ks-code-value: #9ecbff;
     --ks-code-comment: #6a737d;
@@ -66,7 +63,7 @@ body.vscode-light {
     --ks-status-pending: #{palette.$base-yellow-700};
     --ks-primary-hover: #{palette.$base-primary-400};
     --ks-content-code: #7400df;
-    /* github-light */
+    /* shiki github-light */
     --ks-code-key: #22863a;
     --ks-code-value: #032f62;
 }
