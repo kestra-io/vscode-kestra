@@ -26,7 +26,7 @@
     background: var(--ks-primary);
     color: #fff;
     border: none;
-    padding: 4px 10px;
+    padding: 6px 12px;
     border-radius: var(--ks-radius-base);
     font-weight: var(--ks-font-weight-semibold);
     font-size: var(--ks-font-size-sm);
