@@ -75,7 +75,7 @@ body {
     display: flex;
     align-items: center;
     gap: var(--ks-spacing-2);
-    margin: var(--ks-spacing-2) 0;
+    margin: var(--ks-spacing-2) 0 var(--ks-spacing-4);
 }
 .crumb {
     padding: 0;

@@ -23,6 +23,7 @@
   --ks-text-primary: #ffffff;
   --ks-text-muted: #d0d0da;
   --ks-text-dim: #adadbf;
+  --ks-text-inactive: #7e7e9b;
   --ks-text-link: #cdb6fb;
   --ks-border-default: #2e2e3c;
   --ks-border-focus: #9869f7;
@@ -64,6 +65,7 @@ body.vscode-light {
   --ks-text-primary: #08090a;
   --ks-text-muted: #7e7e9b;
   --ks-text-dim: #424256;
+  --ks-text-inactive: #7e7e9b;
   --ks-text-link: #631bf3;
   --ks-border-default: #e9e9ee;
   --ks-border-focus: #631bf3;
