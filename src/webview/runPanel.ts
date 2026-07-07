@@ -1,7 +1,7 @@
 import {stateBucket, logLevelRank, LOG_LEVELS} from '../shared/executionState';
 import {HostMessage, WebviewMessage} from './messages';
 import {FlowInput, LogEntry, formatDuration, formatLogTimestamp, formatLogLine, inputFallback, isInputRequired} from '../shared/flow';
-import {acquireApi, el, icon} from './dom';
+import {acquireApi, el} from './dom';
 
 interface TagSelectElement extends HTMLDivElement {
     getSelected(): string[];
@@ -33,9 +33,7 @@ function safeHttpUrl(value: string): string | undefined {
 const flow = el('span', 'flow');
 const badge = el('span', 'ks-badge');
 const copy = el('button', 'ks-button secondary', 'Copy logs');
-copy.insertAdjacentHTML('afterbegin', icon('copy'));
 const open = el('a', 'ks-button', 'Open in Kestra');
-open.insertAdjacentHTML('afterbegin', icon('openInNew'));
 const phase = el('div', 'phase');
 const form = el('div', 'ks-form');
 const levelFilter = el('select', 'ks-select');
@@ -213,7 +211,6 @@ function createControl(type: string, input: FlowInput, fallback: unknown): HTMLE
 function createFormActions(): HTMLDivElement {
     const actions = el('div', 'ks-form-actions');
     const run = el('button', 'ks-button', 'Execute');
-    run.insertAdjacentHTML('afterbegin', icon('play'));
     run.addEventListener('click', submitForm);
     const cancel = el('button', 'ks-button secondary', 'Cancel');
     cancel.addEventListener('click', () => {
