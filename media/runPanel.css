@@ -41,12 +41,12 @@
 /* Form */
 .ks-form { margin: var(--ks-spacing-3) 0; padding: var(--ks-spacing-3); border: 1px solid var(--ks-border-default); border-radius: var(--ks-radius-base); }
 .ks-form-title { font-weight: var(--ks-font-weight-semibold); margin-bottom: var(--ks-spacing-3); }
-.ks-field { display: flex; flex-direction: column; gap: var(--ks-spacing-1); margin-bottom: var(--ks-spacing-3); }
+.ks-field { display: flex; flex-direction: column; gap: var(--ks-spacing-2); margin-bottom: var(--ks-spacing-4); }
 .ks-field.inline { flex-direction: row; align-items: center; gap: var(--ks-spacing-2); }
 .ks-label { font-size: var(--ks-font-size-sm); font-weight: var(--ks-font-weight-semibold); }
 .ks-label .req { color: var(--ks-status-error); margin-left: 2px; }
 .ks-label .type { color: var(--ks-text-muted); font-weight: 400; font-size: var(--ks-font-size-xs); margin-left: var(--ks-spacing-2); padding: 1px 6px; border: 1px solid var(--ks-border-default); border-radius: var(--ks-radius-sm); }
-.ks-desc { font-size: var(--ks-font-size-sm); color: var(--ks-text-muted); margin-top: 2px; }
+.ks-desc { font-size: var(--ks-font-size-sm); color: var(--ks-text-muted); margin-top: -2px; }
 .ks-input, .ks-select {
     background: var(--ks-bg-input);
     color: var(--ks-text-primary);
