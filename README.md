@@ -28,7 +28,7 @@
 
 # Kestra for VS Code
 
-Author Kestra flows in VS Code with live validation, `{{ }}` autocompletion, and per-task documentation, all backed by the schema and validation of the Kestra instance you connect to.
+Author, run, and inspect Kestra flows in VS Code: live validation, `{{ }}` autocompletion, run from the editor with live logs, topology preview, and documentation, all backed by the Kestra instance you connect to.
 
 ## Features
 
