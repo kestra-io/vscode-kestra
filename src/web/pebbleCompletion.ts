@@ -19,10 +19,12 @@ const NESTED_FIELDS: Record<string, string[]> = {
 
 let cachedFilters: string[] | null = null;
 let cachedFunctions: Array<string | PebbleFunctionDef> | null = null;
+const cachedOutputs = new Map<string, string[]>();
 
 export function resetPebbleCache() {
     cachedFilters = null;
     cachedFunctions = null;
+    cachedOutputs.clear();
 }
 
 async function filtersFor(apiClient: ApiClient): Promise<string[]> {
@@ -64,9 +66,9 @@ export function registerPebbleCompletion(context: vscode.ExtensionContext, apiCl
                     return (await filtersFor(apiClient)).map(filterItem);
                 }
 
-                const member = expression.match(/([\w]+)\.([\w]*)$/);
+                const member = expression.match(/([\w.]+)\.([\w]*)$/);
                 if (member) {
-                    const fields = membersFor(member[1], document);
+                    const fields = await membersForPath(member[1], document, apiClient);
                     if (!fields) {
                         return undefined;
                     }
@@ -109,6 +111,18 @@ function filterItem(name: string): vscode.CompletionItem {
     return item;
 }
 
+async function membersForPath(path: string, document: vscode.TextDocument, apiClient: ApiClient): Promise<string[] | undefined> {
+    const segments = path.split('.');
+    // outputs.<taskId>. resolves to that task's output properties, from its type (as the Kestra UI does).
+    if (segments.length === 2 && segments[0] === 'outputs') {
+        return outputsFor(segments[1], document, apiClient);
+    }
+    if (segments.length === 1) {
+        return membersFor(segments[0], document);
+    }
+    return undefined;
+}
+
 function membersFor(base: string, document: vscode.TextDocument): string[] | undefined {
     const source = document.getText();
     switch (base) {
@@ -118,4 +132,22 @@ function membersFor(base: string, document: vscode.TextDocument): string[] | und
         case 'vars': return YamlUtils.sectionKeys(source, 'variables');
         default: return NESTED_FIELDS[base];
     }
+}
+
+async function outputsFor(taskId: string, document: vscode.TextDocument, apiClient: ApiClient): Promise<string[] | undefined> {
+    const type = YamlUtils.taskType(document.getText(), taskId);
+    if (!type) {
+        return undefined;
+    }
+    const cached = cachedOutputs.get(type);
+    if (cached) {
+        return cached;
+    }
+    // null means the fetch failed or the type is unknown, so don't cache it (allow a later retry).
+    const outputs = await apiClient.taskOutputProperties(type);
+    if (outputs === null) {
+        return undefined;
+    }
+    cachedOutputs.set(type, outputs);
+    return outputs;
 }
