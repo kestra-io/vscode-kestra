@@ -151,7 +151,7 @@ body { font-family: var(--vscode-font-family); color: var(--ks-text-primary); ba
 .task-body { font-family: var(--vscode-editor-font-family); font-size: var(--vscode-editor-font-size); margin: var(--ks-spacing-1) 0 var(--ks-spacing-2) var(--ks-spacing-4); }
 
 /* Log rows */
-.row { display: flex; align-items: baseline; gap: var(--ks-spacing-2); padding: var(--ks-spacing-2) var(--ks-spacing-3); min-height: 30px; border-left: 2px solid transparent; }
+.row { display: flex; align-items: baseline; gap: var(--ks-spacing-2); padding: var(--ks-spacing-2) var(--ks-spacing-3); border-left: 2px solid transparent; }
 .row.hidden { display: none; }
 .row + .row { border-top: 1px solid color-mix(in srgb, var(--ks-border-default) 40%, transparent); }
 .row:hover { background: var(--ks-bg-hover); }
