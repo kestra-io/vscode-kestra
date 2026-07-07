@@ -11,6 +11,7 @@
     --ks-bg-badge: #{palette.$base-gray-neutral-800};
     --ks-text-primary: #{palette.$base-gray-neutral-white};
     --ks-text-muted: #{palette.$base-gray-neutral-200};
+    --ks-text-dim: #{palette.$base-gray-neutral-300};
     --ks-text-link: #{palette.$base-primary-200};
     --ks-border-default: #{palette.$base-gray-neutral-700};
     --ks-border-focus: #{palette.$base-primary-300};
@@ -51,6 +52,7 @@ body.vscode-light {
     --ks-bg-badge: #{palette.$base-gray-neutral-white};
     --ks-text-primary: #{palette.$base-gray-neutral-black};
     --ks-text-muted: #{palette.$base-gray-neutral-400};
+    --ks-text-dim: #{palette.$base-gray-neutral-600};
     --ks-text-link: #{palette.$base-primary-500};
     --ks-border-default: #{palette.$base-gray-neutral-100};
     --ks-border-focus: #{palette.$base-primary-500};

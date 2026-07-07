@@ -161,7 +161,7 @@ body { font-family: var(--vscode-font-family); color: var(--ks-text-primary); ba
 .row.warn  { border-left-color: color-mix(in srgb, var(--ks-status-warning) 40%, transparent); background: color-mix(in srgb, var(--ks-status-warning) 8%, transparent); }
 .row.error { border-left-color: color-mix(in srgb, var(--ks-status-error) 40%, transparent); background: color-mix(in srgb, var(--ks-status-error) 8%, transparent); }
 .entry { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
-.ts { color: var(--ks-text-muted); font-variant-numeric: tabular-nums; }
+.ts { color: var(--ks-text-dim); font-variant-numeric: tabular-nums; }
 .lvl { flex-shrink: 0; width: 52px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; font-size: var(--ks-font-size-xs); line-height: 1.5; }
 .lvl.info { color: var(--ks-status-info); }
 .lvl.warn { color: var(--ks-status-warning); }

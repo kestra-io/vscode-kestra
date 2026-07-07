@@ -70,6 +70,11 @@ export function formatLogTime(timestamp: string | undefined): string {
     return ((timestamp ?? '').split('T')[1] ?? '').replace('Z', '');
 }
 
+// Full date and time for the log panel, matching the core UI's timestamp.
+export function formatLogTimestamp(timestamp: string | undefined): string {
+    return (timestamp ?? '').replace('T', ' ').replace('Z', '');
+}
+
 export function formatLogLine(log: LogEntry): string {
     const time = formatLogTime(log.timestamp).slice(0, 12).padEnd(12);
     const level = `[${(log.level ?? 'INFO').toUpperCase()}]`.padEnd(8);

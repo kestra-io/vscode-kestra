@@ -1,6 +1,6 @@
 import {stateBucket, logLevelRank, LOG_LEVELS} from '../shared/executionState';
 import {HostMessage, WebviewMessage} from './messages';
-import {FlowInput, LogEntry, formatDuration, formatLogTime, formatLogLine, inputFallback, isInputRequired} from '../shared/flow';
+import {FlowInput, LogEntry, formatDuration, formatLogTimestamp, formatLogLine, inputFallback, isInputRequired} from '../shared/flow';
 import {acquireApi, el} from './dom';
 
 interface TagSelectElement extends HTMLDivElement {
@@ -362,7 +362,7 @@ function logRow(log: LogEntry): HTMLDivElement {
     row.dataset.copy = formatLogLine(log);
     const entry = el('div', 'entry');
     entry.append(
-        el('span', 'ts', formatLogTime(log.timestamp)),
+        el('span', 'ts', formatLogTimestamp(log.timestamp)),
         el('div', 'msg', log.message || '')
     );
     row.append(el('span', `lvl ${level.toLowerCase()}`, level), entry);
