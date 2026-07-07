@@ -2,6 +2,7 @@ export interface FlowInput {
     id: string;
     type?: string;
     required?: boolean;
+    description?: string;
     defaults?: unknown;
     prefill?: unknown;
     values?: string[];

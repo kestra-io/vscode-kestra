@@ -14,3 +14,4 @@ export function el<K extends keyof HTMLElementTagNameMap>(tag: K, className = ''
     node.textContent = text;
     return node;
 }
+

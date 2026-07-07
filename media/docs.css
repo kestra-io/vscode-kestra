@@ -1,6 +1,8 @@
 body {
     padding: 0 var(--ks-spacing-4) var(--ks-spacing-4);
     font-size: var(--ks-font-size-base);
+    color: var(--ks-text-primary);
+    background: var(--ks-bg-base);
 }
 
 .toolbar {
@@ -10,16 +12,16 @@ body {
     display: flex;
     gap: var(--ks-spacing-2);
     padding: var(--ks-spacing-3) 0;
-    background: var(--vscode-editor-background);
+    background: var(--ks-bg-base);
 }
 
 .back {
     width: 28px;
     font-size: 18px;
     line-height: 1;
-    color: var(--vscode-foreground);
+    color: var(--ks-text-primary);
     background: none;
-    border: 1px solid var(--vscode-widget-border);
+    border: 1px solid var(--ks-border-default);
     border-radius: var(--ks-radius-base);
     cursor: pointer;
 }
@@ -31,14 +33,14 @@ body {
 .search {
     flex: 1;
     padding: var(--ks-spacing-2) var(--ks-spacing-3);
-    color: var(--vscode-input-foreground);
-    background: var(--vscode-input-background);
-    border: 1px solid var(--vscode-input-border, transparent);
+    color: var(--ks-text-primary);
+    background: var(--ks-bg-input);
+    border: 1px solid var(--ks-border-default);
     border-radius: var(--ks-radius-base);
     outline: none;
 }
 .search:focus {
-    border-color: var(--vscode-focusBorder);
+    border-color: var(--ks-border-focus);
 }
 
 .results {
@@ -47,8 +49,8 @@ body {
     z-index: 2;
     max-height: 50vh;
     overflow-y: auto;
-    background: var(--vscode-editorWidget-background);
-    border: 1px solid var(--vscode-widget-border);
+    background: var(--ks-bg-elevated);
+    border: 1px solid var(--ks-border-default);
     border-radius: var(--ks-radius-base);
 }
 .result {
@@ -56,42 +58,42 @@ body {
     width: 100%;
     padding: var(--ks-spacing-2) var(--ks-spacing-3);
     text-align: left;
-    color: var(--vscode-foreground);
+    color: var(--ks-text-primary);
     background: none;
     border: none;
     cursor: pointer;
 }
 .result:hover {
-    background: var(--vscode-list-hoverBackground);
+    background: var(--ks-bg-hover);
 }
 .no-results {
     padding: var(--ks-spacing-2) var(--ks-spacing-3);
-    color: var(--vscode-descriptionForeground);
+    color: var(--ks-text-muted);
 }
 
 .crumbs {
     display: flex;
     align-items: center;
     gap: var(--ks-spacing-2);
-    margin: var(--ks-spacing-2) 0;
+    margin: var(--ks-spacing-2) 0 var(--ks-spacing-4);
 }
 .crumb {
     padding: 0;
     font-size: var(--ks-font-size-base);
-    color: var(--vscode-foreground);
+    color: var(--ks-text-primary);
     background: none;
     border: none;
     cursor: pointer;
 }
 .crumb:hover:not(.current) {
-    color: var(--vscode-textLink-foreground);
+    color: var(--ks-text-link);
 }
 .crumb.current {
     font-weight: var(--ks-font-weight-semibold);
     cursor: default;
 }
 .crumb-sep {
-    color: var(--vscode-foreground);
+    color: var(--ks-text-primary);
 }
 
 .doc-title {
@@ -109,7 +111,7 @@ body {
 .content h2 {
     margin-top: 1.6em;
     padding-bottom: 0.3em;
-    border-bottom: 1px solid var(--vscode-widget-border);
+    border-bottom: 1px solid var(--ks-border-default);
 }
 .content h3 {
     margin-top: 1.6em;
@@ -117,7 +119,7 @@ body {
     border-left: 3px solid var(--ks-primary);
 }
 .content a {
-    color: var(--vscode-textLink-foreground);
+    color: var(--ks-text-link);
     text-decoration: none;
 }
 .content a:hover {
@@ -128,13 +130,13 @@ body {
     font-family: var(--vscode-editor-font-family);
     font-size: 0.95em;
     color: var(--ks-content-code);
-    background: var(--vscode-textCodeBlock-background);
+    background: var(--ks-bg-surface);
     border-radius: var(--ks-radius-sm);
 }
 .content pre {
     position: relative;
     padding: var(--ks-spacing-3);
-    background: var(--vscode-textCodeBlock-background);
+    background: var(--ks-bg-surface);
     border-radius: var(--ks-radius-base);
     overflow-x: auto;
 }
@@ -144,9 +146,9 @@ body {
     right: var(--ks-spacing-2);
     display: flex;
     padding: var(--ks-spacing-1);
-    color: var(--vscode-foreground);
-    background: var(--vscode-editorWidget-background);
-    border: 1px solid var(--vscode-widget-border);
+    color: var(--ks-text-primary);
+    background: var(--ks-bg-elevated);
+    border: 1px solid var(--ks-border-default);
     border-radius: var(--ks-radius-sm);
     cursor: pointer;
     opacity: 0;
@@ -166,7 +168,7 @@ body {
 }
 .content pre code {
     padding: 0;
-    color: var(--vscode-foreground);
+    color: var(--ks-text-primary);
     background: none;
 }
 .content img {
@@ -176,8 +178,8 @@ body {
 .content blockquote {
     margin: 0;
     padding-left: var(--ks-spacing-3);
-    color: var(--vscode-descriptionForeground);
-    border-left: 3px solid var(--vscode-widget-border);
+    color: var(--ks-text-muted);
+    border-left: 3px solid var(--ks-border-default);
 }
 .content table {
     border-collapse: collapse;
@@ -185,7 +187,7 @@ body {
 .content th,
 .content td {
     padding: var(--ks-spacing-2) var(--ks-spacing-3);
-    border: 1px solid var(--vscode-widget-border);
+    border: 1px solid var(--ks-border-default);
 }
 
 .alert {
@@ -213,8 +215,8 @@ body {
 
 details {
     margin: var(--ks-spacing-2) 0;
-    background: var(--ks-bg-badge);
-    border: 1px solid var(--vscode-widget-border);
+    background: var(--ks-bg-surface);
+    border: 1px solid var(--ks-border-default);
     border-radius: var(--ks-radius-base);
 }
 summary {
@@ -231,7 +233,7 @@ summary {
 .video-link {
     display: inline-block;
     padding: var(--ks-spacing-2) var(--ks-spacing-3);
-    border: 1px solid var(--vscode-widget-border);
+    border: 1px solid var(--ks-border-default);
     border-radius: var(--ks-radius-base);
 }
 
@@ -254,7 +256,7 @@ summary {
     font-size: var(--ks-font-size-xs);
     font-weight: var(--ks-font-weight-semibold);
     text-transform: uppercase;
-    color: var(--vscode-descriptionForeground);
+    color: var(--ks-text-muted);
 }
 
 .nav-row {
@@ -265,14 +267,14 @@ summary {
     margin: var(--ks-spacing-2) 0;
     padding: var(--ks-spacing-3);
     text-align: left;
-    color: var(--vscode-foreground);
-    background: var(--ks-bg-badge);
-    border: 1px solid var(--vscode-widget-border);
+    color: var(--ks-text-primary);
+    background: var(--ks-bg-surface);
+    border: 1px solid var(--ks-border-default);
     border-radius: var(--ks-radius-base);
     cursor: pointer;
 }
 .nav-row:hover {
-    background: var(--vscode-list-hoverBackground);
+    background: var(--ks-bg-hover);
 }
 .row-icon {
     width: 26px;
@@ -286,11 +288,11 @@ summary {
 .row-sub {
     display: block;
     font-weight: normal;
-    color: var(--vscode-descriptionForeground);
+    color: var(--ks-text-muted);
 }
 .chev {
     margin-left: auto;
-    color: var(--vscode-descriptionForeground);
+    color: var(--ks-text-muted);
 }
 
 .plugin-header {
@@ -320,13 +322,13 @@ summary {
 .section > summary {
     padding: var(--ks-spacing-3) 0;
     font-size: 1.15em;
-    color: var(--vscode-foreground);
+    color: var(--ks-text-primary);
     font-family: inherit;
 }
 .section-body > hr {
     margin: var(--ks-spacing-3) 0;
     border: none;
-    border-top: 1px solid var(--vscode-widget-border);
+    border-top: 1px solid var(--ks-border-default);
 }
 
 .prop {
@@ -338,8 +340,8 @@ summary {
     gap: var(--ks-spacing-2);
 }
 .prop[open] > summary {
-    background: color-mix(in srgb, var(--vscode-foreground) 5%, transparent);
-    border-bottom: 1px solid var(--vscode-widget-border);
+    background: color-mix(in srgb, var(--ks-text-primary) 5%, transparent);
+    border-bottom: 1px solid var(--ks-border-default);
 }
 .prop .spacer {
     flex: 1;
@@ -354,15 +356,15 @@ summary {
 .type-box {
     padding: 1px var(--ks-spacing-2);
     font-size: var(--ks-font-size-xs);
-    color: var(--vscode-descriptionForeground);
-    border: 1px solid var(--vscode-widget-border);
+    color: var(--ks-text-muted);
+    border: 1px solid var(--ks-border-default);
     border-radius: var(--ks-radius-sm);
     white-space: nowrap;
 }
 .prop-body {
     padding: var(--ks-spacing-3) var(--ks-spacing-4);
-    background: color-mix(in srgb, var(--vscode-editor-background) 45%, transparent);
+    background: color-mix(in srgb, var(--ks-bg-base) 45%, transparent);
 }
 .muted {
-    color: var(--vscode-descriptionForeground);
+    color: var(--ks-text-muted);
 }

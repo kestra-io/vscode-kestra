@@ -1,0 +1,79 @@
+// Mappings follow ks-theme-dark-2 and ks-theme-light
+@use "../node_modules/@kestra-io/design-system/dist/assets/styles/color-palette" as palette;
+
+/* Generated from @kestra-io/design-system by `npm run tokens`. Do not edit. */
+:root {
+    --ks-bg-base: #{palette.$base-gray-neutral-950};
+    --ks-bg-surface: #{palette.$base-gray-neutral-900};
+    --ks-bg-elevated: #{palette.$base-gray-neutral-900};
+    --ks-bg-hover: #{palette.$base-gray-neutral-800};
+    --ks-bg-input: #{palette.$base-gray-neutral-950};
+    --ks-bg-badge: #{palette.$base-gray-neutral-800};
+    --ks-text-primary: #{palette.$base-gray-neutral-white};
+    --ks-text-muted: #{palette.$base-gray-neutral-200};
+    --ks-text-dim: #{palette.$base-gray-neutral-300};
+    --ks-text-inactive: #{palette.$base-gray-neutral-400};
+    --ks-text-link: #{palette.$base-primary-200};
+    --ks-btn-secondary-bg: #{palette.$base-gray-neutral-800};
+    --ks-btn-secondary-bg-hover: #{palette.$base-gray-neutral-700};
+    --ks-btn-secondary-border: #{palette.$base-gray-neutral-600};
+    --ks-border-default: #{palette.$base-gray-neutral-700};
+    --ks-border-focus: #{palette.$base-primary-300};
+    --ks-status-success: #{palette.$base-green-400};
+    --ks-status-running: #{palette.$base-primary-300};
+    --ks-status-warning: #{palette.$base-orange-300};
+    --ks-status-error: #{palette.$base-red-300};
+    --ks-status-info: #{palette.$base-blue-300};
+    --ks-status-neutral: #{palette.$base-gray-neutral-300};
+    --ks-status-pending: #{palette.$base-yellow-300};
+    --ks-primary: #{palette.$base-primary-500};
+    --ks-primary-hover: #{palette.$base-primary-400};
+    --ks-topology-border-flowable-task: #{palette.$base-blue-500};
+    --ks-topology-border-triggers: #{palette.$base-green-500};
+    --ks-content-code: #bbbbff;
+    /* shiki github-dark */
+    --ks-code-key: #85e89d;
+    --ks-code-value: #9ecbff;
+    --ks-code-comment: #6a737d;
+    --ks-spacing-1: 4px;
+    --ks-spacing-2: 8px;
+    --ks-spacing-3: 12px;
+    --ks-spacing-4: 16px;
+    --ks-radius-sm: 4px;
+    --ks-radius-base: 6px;
+    --ks-font-size-xs: 11px;
+    --ks-font-size-sm: 12px;
+    --ks-font-size-base: 13px;
+    --ks-font-weight-semibold: 600;
+}
+
+body.vscode-light {
+    --ks-bg-base: #{palette.$base-gray-neutral-50};
+    --ks-bg-surface: #{palette.$base-gray-neutral-white};
+    --ks-bg-elevated: #{palette.$base-gray-neutral-white};
+    --ks-bg-hover: #{palette.$base-gray-neutral-50};
+    --ks-bg-input: #{palette.$base-gray-neutral-white};
+    --ks-bg-badge: #{palette.$base-gray-neutral-white};
+    --ks-text-primary: #{palette.$base-gray-neutral-black};
+    --ks-text-muted: #{palette.$base-gray-neutral-400};
+    --ks-text-dim: #{palette.$base-gray-neutral-600};
+    --ks-text-inactive: #{palette.$base-gray-neutral-400};
+    --ks-text-link: #{palette.$base-primary-500};
+    --ks-btn-secondary-bg: #{palette.$base-gray-neutral-white};
+    --ks-btn-secondary-bg-hover: #{palette.$base-gray-neutral-50};
+    --ks-btn-secondary-border: #{palette.$base-gray-neutral-100};
+    --ks-border-default: #{palette.$base-gray-neutral-100};
+    --ks-border-focus: #{palette.$base-primary-500};
+    --ks-status-success: #{palette.$base-green-600};
+    --ks-status-running: #{palette.$base-primary-700};
+    --ks-status-warning: #{palette.$base-orange-700};
+    --ks-status-error: #{palette.$base-red-500};
+    --ks-status-info: #{palette.$base-blue-500};
+    --ks-status-neutral: #{palette.$base-gray-neutral-500};
+    --ks-status-pending: #{palette.$base-yellow-700};
+    --ks-primary-hover: #{palette.$base-primary-400};
+    --ks-content-code: #7400df;
+    /* shiki github-light */
+    --ks-code-key: #22863a;
+    --ks-code-value: #032f62;
+}

@@ -48,6 +48,16 @@ npm install
 
 Press F5 (Run and Debug) to launch an Extension Development Host with the extension loaded.
 
+#### Design tokens
+
+Webview colors come from Kestra's design system, not from hand-picked values.
+
+- `scripts/tokens.scss` declares the tokens the panels use. Each color points at a palette variable from `@kestra-io/design-system`, with the mapping copied from the package's `ks-theme-dark-2.scss` and `ks-theme-light.scss`. Sizes and code block colors are local values, documented in place.
+- `npm run tokens` compiles it to `media/tokens.css`, the file the webviews load. It runs automatically on every build. Never edit `media/tokens.css`, the next build overwrites it.
+- In panel stylesheets, use `var(--ks-*)` for anything Kestra-colored and `var(--vscode-*)` only for fonts.
+- To pick up a design change from core, bump the `@kestra-io/design-system` version and rebuild. The diff of `media/tokens.css` shows every color that moved.
+- To add a token, add one line to `scripts/tokens.scss` pointing at the palette variable the theme file uses for it.
+
 #### Package a local VSIX
 
 `npx @vscode/vsce package` creates a `.vsix` you can install via Extensions: Install from VSIX.

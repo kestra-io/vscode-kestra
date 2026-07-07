@@ -49,7 +49,7 @@ export default class RunPanel implements RunOutput {
     }
 
     private static html(webview: vscode.Webview, extensionUri: vscode.Uri): string {
-        return webviewHtml(webview, extensionUri, {title: 'Kestra Execution', style: 'runPanel.css', script: 'runPanel.js'});
+        return webviewHtml(webview, extensionUri, {title: 'Kestra Execution', style: 'runPanel.css', script: 'runPanel.js', codicons: true});
     }
 
     private constructor(panel: vscode.WebviewPanel, extensionUri: vscode.Uri, flowUid: string) {

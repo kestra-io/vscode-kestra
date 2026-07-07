@@ -33,7 +33,9 @@ function safeHttpUrl(value: string): string | undefined {
 const flow = el('span', 'flow');
 const badge = el('span', 'ks-badge');
 const copy = el('button', 'ks-button secondary', 'Copy logs');
+copy.insertAdjacentHTML('afterbegin', '<span class="codicon codicon-copy"></span>');
 const open = el('a', 'ks-button', 'Open in Kestra');
+open.insertAdjacentHTML('afterbegin', '<span class="codicon codicon-link-external"></span>');
 const phase = el('div', 'phase');
 const form = el('div', 'ks-form');
 const levelFilter = el('select', 'ks-select');
@@ -47,6 +49,7 @@ function buildLayout() {
     open.target = '_blank';
     open.rel = 'noopener';
     open.hidden = true;
+    copy.hidden = true;
     badge.hidden = true;
     form.hidden = true;
 
@@ -210,7 +213,8 @@ function createControl(type: string, input: FlowInput, fallback: unknown): HTMLE
 
 function createFormActions(): HTMLDivElement {
     const actions = el('div', 'ks-form-actions');
-    const run = el('button', 'ks-button', 'Run');
+    const run = el('button', 'ks-button', 'Execute');
+    run.insertAdjacentHTML('afterbegin', '<span class="codicon codicon-play"></span>');
     run.addEventListener('click', submitForm);
     const cancel = el('button', 'ks-button secondary', 'Cancel');
     cancel.addEventListener('click', () => {
@@ -236,14 +240,15 @@ function renderForm(inputs: FlowInput[]) {
         }
         label.appendChild(el('span', 'type', type));
 
+        const desc = input.description ? el('div', 'ks-desc', input.description) : undefined;
         if (type === 'FILE') {
-            field.append(label, createFileField(input));
+            field.append(label, ...(desc ? [desc] : []), createFileField(input));
         } else {
             const control = createControl(type, input, inputFallback(input));
             control.dataset.id = input.id;
             control.dataset.type = type;
             control.dataset.required = isInputRequired(input) ? '1' : '';
-            field.append(...(inline ? [control, label] : [label, control]));
+            field.append(...(inline ? [control, label] : [label, ...(desc ? [desc] : []), control]));
         }
         form.appendChild(field);
     });
@@ -333,6 +338,7 @@ function resetView(flowId: string, level: string) {
     form.hidden = true;
     form.textContent = '';
     open.hidden = true;
+    copy.hidden = true;
     sections = {};
     logRows = [];
     truncationNotice?.remove();
@@ -382,6 +388,7 @@ function appendLogRows(entries: LogEntry[]) {
         getSection(entry.taskId || '').body.appendChild(row);
         logRows.push(row);
     });
+    copy.hidden = logRows.length === 0;
     if (logRows.length > MAX_LOG_ROWS) {
         logRows.splice(0, logRows.length - MAX_LOG_ROWS).forEach(row => row.remove());
         if (!truncationNotice) {
