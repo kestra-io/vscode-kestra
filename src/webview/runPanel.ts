@@ -360,11 +360,12 @@ function logRow(log: LogEntry): HTMLDivElement {
     row.classList.toggle('hidden', logLevelRank(level) < logLevelRank(levelFilter.value));
     row.dataset.level = level;
     row.dataset.copy = formatLogLine(log);
-    row.append(
+    const entry = el('div', 'entry');
+    entry.append(
         el('span', 'ts', formatLogTime(log.timestamp)),
-        el('span', `lvl ${level.toLowerCase()}`, level),
-        el('span', 'msg', log.message || '')
+        el('div', 'msg', log.message || '')
     );
+    row.append(el('span', `lvl ${level.toLowerCase()}`, level), entry);
     return row;
 }
 
