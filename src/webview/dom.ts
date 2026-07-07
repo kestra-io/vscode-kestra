@@ -15,7 +15,9 @@ export function el<K extends keyof HTMLElementTagNameMap>(tag: K, className = ''
     return node;
 }
 
-// Material Design Icons (the set core uses), inlined because webviews cannot load the icon font.
+// Path data copied from Material Design Icons (mdiPlay, mdiContentCopy, mdiOpenInNew), the set core
+// uses via vue-material-design-icons. Inlined because a webview cannot mount those Vue components,
+// and pulling the full @mdi/js set (7000 icons) to ship three is not worth the dev-bundle weight.
 const ICONS = {
     play: 'M8,5.14V19.14L19,12.14L8,5.14Z',
     copy: 'M19,21H8V7H19M19,5H8A2,2 0 0,0 6,7V21A2,2 0 0,0 8,23H19A2,2 0 0,0 21,21V7A2,2 0 0,0 19,5M16,1H4A2,2 0 0,0 2,3V17H4V3H16V1Z',
