@@ -210,7 +210,7 @@ function createControl(type: string, input: FlowInput, fallback: unknown): HTMLE
 
 function createFormActions(): HTMLDivElement {
     const actions = el('div', 'ks-form-actions');
-    const run = el('button', 'ks-button', 'Run');
+    const run = el('button', 'ks-button', 'Execute');
     run.insertAdjacentHTML('afterbegin', '<svg class="btn-icon" width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>');
     run.addEventListener('click', submitForm);
     const cancel = el('button', 'ks-button secondary', 'Cancel');

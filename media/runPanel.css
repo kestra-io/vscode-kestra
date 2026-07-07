@@ -39,7 +39,7 @@
 .ks-button.secondary:hover { background: color-mix(in srgb, var(--ks-primary) 12%, transparent); }
 
 /* Form */
-.ks-form { margin: var(--ks-spacing-3) 0; padding: var(--ks-spacing-3); border: 1px solid var(--ks-border-default); border-radius: var(--ks-radius-base); }
+.ks-form { margin: var(--ks-spacing-3) 0; padding: var(--ks-spacing-4); background: var(--ks-bg-surface); border: 1px solid var(--ks-border-default); border-radius: var(--ks-radius-base); }
 .ks-form-title { font-weight: var(--ks-font-weight-semibold); margin-bottom: var(--ks-spacing-3); }
 .ks-field { display: flex; flex-direction: column; gap: var(--ks-spacing-3); margin-bottom: var(--ks-spacing-4); }
 .ks-field.inline { flex-direction: row; align-items: center; gap: var(--ks-spacing-2); }
@@ -52,10 +52,11 @@
     color: var(--ks-text-primary);
     border: 1px solid var(--ks-border-default);
     border-radius: var(--ks-radius-sm);
-    padding: var(--ks-spacing-1) var(--ks-spacing-2);
+    padding: var(--ks-spacing-2);
     font-size: var(--ks-font-size-base);
     font-family: inherit;
 }
+.ks-input:focus, .ks-select:focus, .ks-tags-box:focus-within { border-color: var(--ks-border-focus); outline: none; }
 .ks-input.invalid, .ks-select.invalid, .ks-tags.invalid { border-color: var(--ks-status-error); }
 .ks-field-file.invalid .ks-button { border-color: var(--ks-status-error); }
 textarea.ks-input { min-height: 64px; resize: vertical; }
