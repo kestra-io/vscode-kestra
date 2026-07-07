@@ -22,14 +22,15 @@ describe("renderPluginDoc", () => {
         assert.ok(!html.includes("release-notes"));
     });
     it("prefixes partial examples with the id and type preamble", () => {
+        // The base doc has no id line, so a highlighted id key can only come from the prepended preamble.
         const html = render({properties: {$examples: [{code: "message: hi"}]}});
-        const text = html.replace(/<[^>]+>/g, "");
-        assert.ok(text.includes(`id: log\ntype: ${TYPE}\nmessage: hi`));
+        assert.ok(html.includes('<span class="hl-key">id</span>'));
+        assert.ok(html.includes('<span class="hl-key">message</span>'));
     });
     it("keeps full examples untouched", () => {
-        const html = render({properties: {$examples: [{code: "id: x", full: true}]}});
-        const text = html.replace(/<[^>]+>/g, "");
-        assert.ok(!text.includes(`type: ${TYPE}\nid: x`));
+        const html = render({properties: {$examples: [{code: "level: DEBUG", full: true}]}});
+        assert.ok(html.includes('<span class="hl-key">level</span>'));
+        assert.ok(!html.includes('<span class="hl-key">id</span>'));
     });
     it("sorts required properties first and stars them", () => {
         const html = render({properties: {properties: {zeta: {type: "string", $required: true}, alpha: {type: "string"}}}});

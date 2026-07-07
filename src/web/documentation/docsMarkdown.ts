@@ -49,12 +49,22 @@ const md = new markdownIt({
 
 export function renderDocMarkdown(markdown: string): string {
     const html = md.render(normalizeMdc(stripFrontmatter(markdown)));
-    return html
-        // Embedded players cannot run under the webview CSP, so link out instead.
-        .replace(/<iframe[^>]*\bsrc="(https?:[^"]*)"[\s\S]*?<\/iframe>/g, '<p><a class="video-link" href="$1">Watch the video</a></p>')
-        .replace(/<iframe[\s\S]*?<\/iframe>/g, '')
+    // Embedded players cannot run under the webview CSP, so link out instead.
+    const linked = html.replace(/<iframe[^>]*\bsrc="(https?:[^"]*)"[\s\S]*?<\/iframe>/gi, '<p><a class="video-link" href="$1">Watch the video</a></p>');
+    return stripAll(linked, /<iframe[\s\S]*?<\/iframe>/gi)
         // Images with repository-relative paths have no reachable URL from here.
-        .replace(/<img(?![^>]*\bsrc="https?:)[^>]*\/?>/g, '');
+        .replace(/<img(?![^>]*\bsrc="https?:)[^>]*\/?>/gi, '');
+}
+
+// Removes every match, re-scanning until stable so overlapping or nested tags cannot leave a residual.
+function stripAll(input: string, pattern: RegExp): string {
+    let previous;
+    let current = input;
+    do {
+        previous = current;
+        current = current.replace(pattern, '');
+    } while (current !== previous);
+    return current;
 }
 
 function stripFrontmatter(markdown: string): string {
