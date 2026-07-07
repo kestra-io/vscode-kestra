@@ -33,7 +33,9 @@ function safeHttpUrl(value: string): string | undefined {
 const flow = el('span', 'flow');
 const badge = el('span', 'ks-badge');
 const copy = el('button', 'ks-button secondary', 'Copy logs');
+copy.insertAdjacentHTML('afterbegin', '<span class="codicon codicon-copy"></span>');
 const open = el('a', 'ks-button', 'Open in Kestra');
+open.insertAdjacentHTML('afterbegin', '<span class="codicon codicon-link-external"></span>');
 const phase = el('div', 'phase');
 const form = el('div', 'ks-form');
 const levelFilter = el('select', 'ks-select');
@@ -211,6 +213,7 @@ function createControl(type: string, input: FlowInput, fallback: unknown): HTMLE
 function createFormActions(): HTMLDivElement {
     const actions = el('div', 'ks-form-actions');
     const run = el('button', 'ks-button', 'Execute');
+    run.insertAdjacentHTML('afterbegin', '<span class="codicon codicon-play"></span>');
     run.addEventListener('click', submitForm);
     const cancel = el('button', 'ks-button secondary', 'Cancel');
     cancel.addEventListener('click', () => {
