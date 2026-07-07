@@ -1,6 +1,8 @@
 // apiClient.ts
 import * as vscode from 'vscode';
 import { kestraBaseUrl, secretStorageKey, yamlContentType, PebbleFunctionDef } from "./constants";
+import { FlowGraph } from "../shared/flow";
+import type { PluginDefinition, PluginEntry } from "./documentation/pluginDoc";
 
 export default class ApiClient {
     private readonly _secretStorage: vscode.SecretStorage;
@@ -230,6 +232,47 @@ export default class ApiClient {
     public async pebbleFunctions(): Promise<Array<string | PebbleFunctionDef> | null> {
         const response = await this.silentFetch("/pebble/functions", {}, false);
         return response?.ok ? (await response.json().catch(() => null)) as Array<string | PebbleFunctionDef> | null : null;
+    }
+
+    // Generates the topology graph for a flow source, without saving the flow.
+    public async flowGraph(source: string): Promise<FlowGraph | null> {
+        const response = await this.silentFetch("/flows/graph", {
+            method: "POST",
+            body: source,
+            headers: {"Content-Type": yamlContentType}
+        });
+        return response?.ok ? (await response.json().catch(() => null)) as FlowGraph | null : null;
+    }
+
+    // The instance version selects the matching docs content.
+    public async instanceVersion(): Promise<string | null> {
+        const response = await this.silentFetch("/configs", {}, false);
+        return response?.ok ? ((await response.json().catch(() => null)) as {version?: string} | null)?.version ?? null : null;
+    }
+
+    // Schema and markdown from the instance, the public registry covers the no-instance case.
+    public async pluginDefinition(type: string): Promise<PluginDefinition | null> {
+        const response = await this.silentFetch(`/plugins/${encodeURIComponent(type)}`, {}, false)
+            ?? await ApiClient.fetchWithTimeout(`${kestraBaseUrl}/plugins/definitions/${encodeURIComponent(type)}`, {}).catch(() => null);
+        return response?.ok ? (await response.json().catch(() => null)) as PluginDefinition | null : null;
+    }
+
+    // One entry per plugin plus one per subgroup.
+    public async pluginSubgroups(): Promise<PluginEntry[] | null> {
+        const response = await this.silentFetch("/plugins/groups/subgroups", {}, false);
+        return response?.ok ? (await response.json().catch(() => null)) as PluginEntry[] | null : null;
+    }
+
+    // Base64 SVG icons for plugin groups and subgroups, keyed by package id.
+    public async pluginGroupIcons(): Promise<Record<string, {icon?: string}> | null> {
+        const response = await this.silentFetch("/plugins/icons/groups", {}, false);
+        return response?.ok ? (await response.json().catch(() => null)) as Record<string, {icon?: string}> | null : null;
+    }
+
+    // Base64 SVG icons per plugin type. The icons endpoint is not tenant-scoped.
+    public async pluginIcons(): Promise<Record<string, {icon?: string}> | null> {
+        const response = await this.silentFetch("/plugins/icons", {}, false);
+        return response?.ok ? (await response.json().catch(() => null)) as Record<string, {icon?: string}> | null : null;
     }
 
     // Output property names for a task type, as the UI completes `outputs.<taskId>.`. Null if unknown.

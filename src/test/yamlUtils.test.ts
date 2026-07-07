@@ -115,3 +115,37 @@ describe("YamlUtils.getTaskType", () => {
         assert.strictEqual(YamlUtils.getTaskType(taskFlow, {lineNumber: 1, column: 1}), null);
     });
 });
+
+describe("YamlUtils.taskRangeById", () => {
+    it("returns the range of the task map with the given id", () => {
+        const range = YamlUtils.taskRangeById(flow, "download");
+        assert.ok(range);
+        assert.ok(flow.slice(range[0], range[1]).startsWith("id: download"));
+    });
+    it("finds a nested task", () => {
+        const range = YamlUtils.taskRangeById(flow, "child");
+        assert.ok(range);
+        assert.ok(flow.slice(range[0], range[1]).startsWith("id: child"));
+    });
+    it("returns undefined for an unknown id", () => {
+        assert.strictEqual(YamlUtils.taskRangeById(flow, "nope"), undefined);
+    });
+});
+
+describe("YamlUtils.taskRangeById (input collision)", () => {
+    it("ignores an input whose id matches a task id", () => {
+        const collided = `id: f
+namespace: n
+inputs:
+  - id: download
+    type: STRING
+tasks:
+  - id: download
+    type: io.kestra.plugin.core.log.Log
+    message: hi
+`;
+        const range = YamlUtils.taskRangeById(collided, "download");
+        assert.ok(range);
+        assert.ok(collided.slice(range[0], range[1]).includes("io.kestra.plugin.core.log.Log"));
+    });
+});

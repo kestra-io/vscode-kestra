@@ -1,11 +1,7 @@
 import {stateBucket, logLevelRank, LOG_LEVELS} from '../shared/executionState';
 import {HostMessage, WebviewMessage} from './messages';
-import {FlowInput, LogEntry, formatDuration, formatLogTime, formatLogLine, inputFallback, isInputRequired} from '../shared/flow';
-
-interface VsCodeApi {
-    postMessage(message: WebviewMessage): void;
-}
-declare function acquireVsCodeApi(): VsCodeApi;
+import {FlowInput, LogEntry, formatDuration, formatLogTimestamp, formatLogLine, inputFallback, isInputRequired} from '../shared/flow';
+import {acquireApi, el} from './dom';
 
 interface TagSelectElement extends HTMLDivElement {
     getSelected(): string[];
@@ -18,14 +14,7 @@ type SectionRefs = {
     duration: HTMLElement;
 };
 
-const vscode = acquireVsCodeApi();
-
-function el<K extends keyof HTMLElementTagNameMap>(tag: K, className = '', text = ''): HTMLElementTagNameMap[K] {
-    const node = document.createElement(tag);
-    node.className = className;
-    node.textContent = text;
-    return node;
-}
+const vscode = acquireApi<WebviewMessage>();
 
 function titleCase(state: string): string {
     return state.charAt(0) + state.slice(1).toLowerCase();
@@ -371,11 +360,12 @@ function logRow(log: LogEntry): HTMLDivElement {
     row.classList.toggle('hidden', logLevelRank(level) < logLevelRank(levelFilter.value));
     row.dataset.level = level;
     row.dataset.copy = formatLogLine(log);
-    row.append(
-        el('span', 'ts', formatLogTime(log.timestamp)),
-        el('span', `lvl ${level.toLowerCase()}`, level),
-        el('span', 'msg', log.message || '')
+    const entry = el('div', 'entry');
+    entry.append(
+        el('span', 'ts', formatLogTimestamp(log.timestamp)),
+        el('div', 'msg', log.message || '')
     );
+    row.append(el('span', `lvl ${level.toLowerCase()}`, level), entry);
     return row;
 }
 

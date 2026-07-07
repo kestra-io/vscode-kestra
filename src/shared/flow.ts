@@ -25,6 +25,16 @@ export interface LogEntry {
     level?: string;
     taskId?: string;
     message?: string;
+    taskRunId?: string;
+    attemptNumber?: number;
+    index?: number;
+}
+
+// The follow stream can re-emit a line where its backlog and live tail overlap. Mirrors the core UI's dedup key.
+export function logKey(log: LogEntry): string {
+    return log.index !== undefined
+        ? `${log.taskRunId}-${log.attemptNumber}-${log.index}`
+        : `${log.taskRunId}-${log.attemptNumber}-${log.timestamp}-${log.message}`;
 }
 
 export function inputFallback(input: FlowInput): unknown {
@@ -60,9 +70,35 @@ export function formatLogTime(timestamp: string | undefined): string {
     return ((timestamp ?? '').split('T')[1] ?? '').replace('Z', '');
 }
 
+// Full date and time for the log panel, matching the core UI's timestamp.
+export function formatLogTimestamp(timestamp: string | undefined): string {
+    return (timestamp ?? '').replace('T', ' ').replace('Z', '');
+}
+
 export function formatLogLine(log: LogEntry): string {
     const time = formatLogTime(log.timestamp).slice(0, 12).padEnd(12);
     const level = `[${(log.level ?? 'INFO').toUpperCase()}]`.padEnd(8);
     const task = log.taskId ? `[${log.taskId}] ` : '';
     return `${time}  ${level}${task}${log.message ?? ''}`;
+}
+
+export interface GraphNode {
+    uid: string;
+    task?: {id?: string; type?: string};
+    triggerDeclaration?: {id?: string; type?: string};
+}
+
+// The response is unvalidated JSON, so the collections are optional and read defensively.
+export interface FlowGraph {
+    nodes: GraphNode[];
+    edges?: Array<{source: string; target: string}>;
+    clusters?: Array<{cluster: {uid: string; taskNode?: GraphNode}; nodes?: string[]}>;
+}
+
+export function graphNodeId(node: GraphNode): string {
+    return node.task?.id ?? node.triggerDeclaration?.id ?? '';
+}
+
+export function graphNodePluginType(node: GraphNode): string | undefined {
+    return node.task?.type ?? node.triggerDeclaration?.type;
 }

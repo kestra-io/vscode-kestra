@@ -1,4 +1,5 @@
-export type StateBucket = 'success' | 'failed' | 'warning' | 'running' | 'info' | 'neutral' | 'pending';
+export const STATE_BUCKETS = ['success', 'failed', 'warning', 'running', 'info', 'neutral', 'pending'] as const;
+export type StateBucket = typeof STATE_BUCKETS[number];
 
 const STATES: Readonly<Record<string, StateBucket>> = Object.freeze({
     SUCCESS: 'success',

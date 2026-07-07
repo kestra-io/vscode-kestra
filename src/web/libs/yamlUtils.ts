@@ -1,4 +1,4 @@
-import { LineCounter, parseDocument, YAMLMap, visit, isMap, Range } from "yaml";
+import { LineCounter, parseDocument, YAMLMap, visit, isMap, isPair, isScalar, Range } from "yaml";
 
 
 export class YamlUtils {
@@ -10,8 +10,8 @@ export class YamlUtils {
       visit(yamlDoc, (_, node) => {
         if (isMap(node)) {
           for (const item of node.items as any[]) {
-            if (item.key?.value === "type") {
-              types.push({type: (item.value as string), range: (node.range as Range)});
+            if (item.key?.value === "type" && isScalar(item.value)) {
+              types.push({type: String(item.value.value), range: (node.range as Range)});
             }
           }
         }
@@ -89,6 +89,33 @@ export class YamlUtils {
     walk(root?.errors);
     walk(root?.finally);
     return ids;
+  }
+
+  // Scoped to task-bearing sections so an input with the same id is never matched.
+  static taskRangeById(source: string, taskId: string): [number, number] | undefined {
+    const sections = new Set(["tasks", "triggers", "errors", "finally"]);
+    try {
+      let range: [number, number] | undefined;
+      visit(parseDocument(source), {
+        Map(_key, node: YAMLMap, path) {
+          const inSection = path.some(parent =>
+            isPair(parent) && isScalar(parent.key) && sections.has(String(parent.key.value)));
+          if (!inSection) {
+            return;
+          }
+          const hasId = node.items.some(item =>
+            isScalar(item.key) && item.key.value === "id" &&
+            isScalar(item.value) && item.value.value === taskId);
+          if (hasId && node.range) {
+            range = [node.range[0], node.range[1]];
+            return visit.BREAK;
+          }
+        }
+      });
+      return range;
+    } catch {
+      return undefined;
+    }
   }
 
   static taskType(source: string, taskId: string): string | null {

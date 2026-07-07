@@ -5,6 +5,7 @@ import ApiClient from './apiClient';
 import {schemaStateKey, flowSchemaUri} from './constants';
 import {registerFlowValidation, isFlowDocument} from './flowValidation';
 import {registerPebbleCompletion, resetPebbleCache} from './pebbleCompletion';
+import TopologyPanel, {registerTopologyRefresh} from './topologyPanel';
 import {registerRequiredFieldsCompletion} from './requiredFieldsCompletion';
 import {runFlowFromEditor, saveFlowFromEditor} from './flowRunner';
 import {disposeRunLogs} from './runOutput';
@@ -44,6 +45,12 @@ function saveFlowCommand(apiClient: ApiClient) {
     return vscode.commands.registerCommand('kestra.flow.save', () => saveFlowFromEditor(apiClient));
 }
 
+function topologyCommand(apiClient: ApiClient, extensionUri: vscode.Uri) {
+    return vscode.commands.registerCommand('kestra.flow.topology', () =>
+        TopologyPanel.createOrShow(extensionUri, apiClient).update(vscode.window.activeTextEditor?.document)
+    );
+}
+
 function showDocumentation(context: vscode.ExtensionContext, apiClient: ApiClient) {
     return vscode.commands.registerCommand('kestra.view.documentation', async () => {
         DocumentationPanel.createOrShow(context.extensionUri, apiClient);
@@ -76,7 +83,9 @@ export async function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(signOutCommand(apiClient));
     context.subscriptions.push(runFlowCommand(apiClient, context.extensionUri));
     context.subscriptions.push(saveFlowCommand(apiClient));
+    context.subscriptions.push(topologyCommand(apiClient, context.extensionUri));
     context.subscriptions.push({dispose: disposeRunLogs});
+    registerTopologyRefresh(context);
 
     registerFlowValidation(context, apiClient);
     registerPebbleCompletion(context, apiClient);

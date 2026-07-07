@@ -54,6 +54,12 @@
         "title": "Save flow to Kestra",
         "category": "Kestra",
         "icon": "$(save-as)"
+      },
+      {
+        "command": "kestra.flow.topology",
+        "title": "Preview flow topology",
+        "category": "Kestra",
+        "icon": "$(type-hierarchy)"
       }
     ],
     "menus": {
@@ -69,6 +75,10 @@
         {
           "when": "resourceLangId == yaml",
           "command": "kestra.flow.save"
+        },
+        {
+          "when": "resourceLangId == yaml",
+          "command": "kestra.flow.topology"
         }
       ],
       "editor/title": [
@@ -80,6 +90,11 @@
         {
           "when": "resourceLangId == yaml",
           "command": "kestra.flow.save",
+          "group": "navigation"
+        },
+        {
+          "when": "resourceLangId == yaml",
+          "command": "kestra.flow.topology",
           "group": "navigation"
         },
         {
@@ -168,6 +183,7 @@
     "redhat.vscode-yaml"
   ],
   "devDependencies": {
+    "@types/dompurify": "3.0.5",
     "@types/eslint": "^8.44.2",
     "@types/mocha": "^10.0.1",
     "@types/node": "^20.10.4",
@@ -191,13 +207,11 @@
     "@types/markdown-it": "^13.0.6",
     "buffer": "^6.0.3",
     "css-loader": "^6.8.1",
+    "cytoscape": "^3.34.0",
+    "cytoscape-dagre": "^4.0.0",
+    "dompurify": "3.4.11",
     "markdown-it": "^13.0.2",
-    "markdown-it-anchor": "^8.6.7",
     "markdown-it-container": "^3.0.0",
-    "markdown-it-front-matter": "^0.2.3",
-    "markdown-it-mark": "^3.0.1",
-    "markdown-it-meta": "^0.0.1",
-    "raw-loader": "^4.0.2",
     "sass": "^1.69.5",
     "sass-loader": "^13.3.2",
     "style-loader": "^3.3.3",
