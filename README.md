@@ -9,8 +9,8 @@
 </h3>
 
 <div align="center">
-  <a href="https://marketplace.visualstudio.com/items?itemName=kestra-io.kestra"><img src="https://img.shields.io/visual-studio-marketplace/v/kestra-io.kestra?color=blueviolet&label=VS%20Marketplace" alt="VS Marketplace version" /></a>
-  <a href="https://marketplace.visualstudio.com/items?itemName=kestra-io.kestra"><img src="https://img.shields.io/visual-studio-marketplace/i/kestra-io.kestra?color=blueviolet&label=installs" alt="Installs" /></a>
+  <a href="https://marketplace.visualstudio.com/items?itemName=kestra-io.kestra"><img src="https://vsmarketplacebadges.dev/version-short/kestra-io.kestra.svg?color=blueviolet&label=VS%20Marketplace" alt="VS Marketplace version" /></a>
+  <a href="https://marketplace.visualstudio.com/items?itemName=kestra-io.kestra"><img src="https://vsmarketplacebadges.dev/installs-short/kestra-io.kestra.svg?color=blueviolet&label=installs" alt="Installs" /></a>
   <a href="https://kestra.io"><img src="https://img.shields.io/badge/Website-kestra.io-192A4E?color=blueviolet" alt="Kestra"></a>
   <a href="https://kestra.io/slack"><img src="https://img.shields.io/badge/Slack-Join%20Community-blueviolet?logo=slack" alt="Slack"></a>
 </div>
