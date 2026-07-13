@@ -9,10 +9,8 @@
     "vscode": "^1.82.0"
   },
   "categories": [
-    "Programming Languages",
-    "Linters",
-    "Visualization",
-    "Snippets"
+    "Data Science",
+    "Programming Languages"
   ],
   "keywords": [
     "kestra",
@@ -22,8 +20,6 @@
     "declarative",
     "yaml",
     "data engineering",
-    "scheduler",
-    "etl",
     "automation"
   ],
   "capabilities": {
