@@ -341,7 +341,7 @@ export default class ApiClient {
                 let newResponse = await this.askCredentialsAndFetch(url, options);
 
                 if (newResponse.status >= 400 && !ignoreCodes.includes(newResponse.status)) {
-                    vscode.window.showErrorMessage(`${errorMessage} ${response.statusText}`);
+                    vscode.window.showErrorMessage(`${errorMessage} ${newResponse.statusText}`);
                     return;
                 }
                 return newResponse;

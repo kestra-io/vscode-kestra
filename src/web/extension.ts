@@ -110,16 +110,16 @@ export async function activate(context: vscode.ExtensionContext) {
     }));
 
     if (vscode.env.uiKind === vscode.UIKind.Web) {
-        vscode.window.onDidChangeActiveTextEditor(async (editor) => {
+        context.subscriptions.push(vscode.window.onDidChangeActiveTextEditor(async (editor) => {
             if (editor) {
                 vscode.commands.executeCommand("custom.postMessage", {
                     type: "kestra.tabFileChanged",
                     filePath: editor.document.uri
                 });
             }
-        });
+        }));
 
-        vscode.window.tabGroups.onDidChangeTabs(async (event) => {
+        context.subscriptions.push(vscode.window.tabGroups.onDidChangeTabs(async (event) => {
             const tabs = {
                 dirty: event.changed.filter(tab => tab.isDirty).map(tab => {
                         // Required because tab.input is of type unknown so we must narrow it before accessing its properties
@@ -141,13 +141,13 @@ export async function activate(context: vscode.ExtensionContext) {
                 ),
             };
             vscode.commands.executeCommand("custom.postMessage", {type: "kestra.tabsChanged", tabs: tabs});
-        });
+        }));
 
-        vscode.workspace.onDidSaveTextDocument(document => {
+        context.subscriptions.push(vscode.workspace.onDidSaveTextDocument(document => {
             if (document.uri.path.includes("/_flows/")) {
                 vscode.commands.executeCommand("custom.postMessage", {type: "kestra.flowSaved"});
             }
-        });
+        }));
 
     }
 
