@@ -1,7 +1,7 @@
 {
   "name": "kestra",
   "displayName": "Kestra",
-  "description": "Kestra extension for VSCode to bring you smart autocompletion for your flows",
+  "description": "Build, validate, and run Kestra flows in VSCode.",
   "version": "0.0.0",
   "icon": "images/icon.png",
   "publisher": "kestra-io",
