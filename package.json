@@ -9,7 +9,22 @@
     "vscode": "^1.82.0"
   },
   "categories": [
-    "Other"
+    "Programming Languages",
+    "Linters",
+    "Visualization",
+    "Snippets"
+  ],
+  "keywords": [
+    "kestra",
+    "workflow",
+    "orchestration",
+    "data pipeline",
+    "declarative",
+    "yaml",
+    "data engineering",
+    "scheduler",
+    "etl",
+    "automation"
   ],
   "capabilities": {
     "virtualWorkspaces": true
