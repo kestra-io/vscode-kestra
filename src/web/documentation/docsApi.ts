@@ -1,4 +1,5 @@
 import {kestraBaseUrl} from '../constants';
+import {httpFetch} from '../http';
 
 // Kestra's central docs service: public, content selected by the connected instance's version.
 
@@ -10,7 +11,7 @@ type DocMetadata = {title?: string; parsedUrl?: string; isIndex?: boolean};
 const FETCH_TIMEOUT_MS = 15000;
 
 function fetchWithTimeout(url: string): Promise<Response> {
-    return fetch(url, {signal: AbortSignal.timeout(FETCH_TIMEOUT_MS)});
+    return httpFetch(url, {signal: AbortSignal.timeout(FETCH_TIMEOUT_MS)});
 }
 
 export function docByPath(version: string, path: string): Promise<DocPage | null> {

@@ -27,7 +27,7 @@ const webExtensionConfig = {
 	},
 	resolve: {
 		mainFields: ['browser', 'module', 'main'], // look for `browser` entry point in imported node modules
-		extensions: ['.ts', '.js'], // support ts-files and js-files
+		extensions: ['.web.ts', '.ts', '.js'], // prefer *.web.ts so browser-only stubs win (e.g. systemCa.web.ts)
 		alias: {
 			// provides alternate implementation for node module and source files
 		},
@@ -96,6 +96,47 @@ const webExtensionConfig = {
 };
 
 /** @type WebpackConfig */
+const nodeExtensionConfig = {
+	mode: 'none',
+	target: 'node', // desktop extensions run in a Node.js host, where systemCa.ts can read the OS trust store
+	entry: {
+		'extension': './src/web/extension.ts'
+	},
+	output: {
+		filename: '[name].js',
+		path: path.join(__dirname, './dist/node'),
+		libraryTarget: 'commonjs2',
+		devtoolModuleFilenameTemplate: '../../[resource-path]'
+	},
+	resolve: {
+		extensions: ['.ts', '.js'] // no `.web.ts`, so the Node systemCa.ts is used
+	},
+	module: {
+		rules: [
+			{
+				test: /\.ts$/,
+				exclude: /node_modules/,
+				use: [{loader: 'ts-loader'}]
+			},
+			{
+				test: /\.md$/,
+				type: 'asset/source'
+			}
+		]
+	},
+	externals: {
+		'vscode': 'commonjs vscode'
+	},
+	performance: {
+		hints: false
+	},
+	devtool: 'nosources-source-map',
+	infrastructureLogging: {
+		level: "log"
+	}
+};
+
+/** @type WebpackConfig */
 const webviewConfig = {
 	mode: 'none',
 	target: 'web', // webviews run in a browser (DOM) context, not a webworker
@@ -132,4 +173,4 @@ const webviewConfig = {
 	devtool: 'nosources-source-map'
 };
 
-module.exports = [ webExtensionConfig, webviewConfig ];
+module.exports = [ webExtensionConfig, nodeExtensionConfig, webviewConfig ];

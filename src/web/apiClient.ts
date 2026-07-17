@@ -3,6 +3,7 @@ import * as vscode from 'vscode';
 import { kestraBaseUrl, secretStorageKey, yamlContentType, PebbleFunctionDef } from "./constants";
 import { FlowGraph } from "../shared/flow";
 import type { PluginDefinition, PluginEntry } from "./documentation/pluginDoc";
+import { httpFetch } from "./http";
 
 export default class ApiClient {
     private readonly _secretStorage: vscode.SecretStorage;
@@ -155,7 +156,7 @@ export default class ApiClient {
         try {
             const authHeaders = await this.storedAuthHeaders();
             let response = authHeaders ?
-                await fetch(url,
+                await httpFetch(url,
                     {
                         ...options,
                         headers: {
@@ -163,7 +164,7 @@ export default class ApiClient {
                             ...authHeaders
                         }
                     }) :
-                await fetch(url, options);
+                await httpFetch(url, options);
 
             if (!response.ok) {
                 const newResponse = await this.handleFetchError(response, url, errorMessage, ignoreCodes, options);
@@ -322,7 +323,7 @@ export default class ApiClient {
             }
         }
         try {
-            return await fetch(url, {...options, signal: controller.signal});
+            return await httpFetch(url, {...options, signal: controller.signal});
         } finally {
             clearTimeout(timer);
         }
@@ -398,7 +399,7 @@ export default class ApiClient {
             }
 
             if (username && username.trim() && password && password.trim()) {
-                const basicAuthResponse = await fetch(url, {
+                const basicAuthResponse = await httpFetch(url, {
                     ...options,
                     headers: {
                         ...options?.headers,
@@ -443,7 +444,7 @@ export default class ApiClient {
         }
 
         const tokenHeaders = isApiToken ? this.bearerHeader(token.trim()) : {cookie: `JWT=${token.trim()}`};
-        const tokenResponse = await fetch(url, {...options, headers: {...options?.headers, ...tokenHeaders}});
+        const tokenResponse = await httpFetch(url, {...options, headers: {...options?.headers, ...tokenHeaders}});
 
         if (tokenResponse.status === 401) {
             throw new Error("Invalid token.");
