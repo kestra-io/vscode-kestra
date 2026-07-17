@@ -39,24 +39,32 @@ export default class ApiClient {
             await this._secretStorage.store(choice === apiToken ? secretStorageKey.apiToken : secretStorageKey.token, token.trim());
         }
 
-        const status = await this.verifyCredentials();
-        if (status === "unauthorized") {
+        const result = await this.verifyCredentials();
+        if (result.status === "unauthorized") {
             await this.clearSecrets();
             vscode.window.showErrorMessage("Sign in failed: invalid credentials");
-        } else if (status === "unreachable") {
-            vscode.window.showWarningMessage("Could not reach Kestra. Check the URL and that the instance is running.");
+        } else if (result.status === "unreachable") {
+            vscode.window.showWarningMessage(`Could not reach Kestra${result.detail ? `: ${result.detail}` : ""}. Check the URL and that the instance is running.`);
         } else {
             vscode.window.showInformationMessage("Signed in to Kestra");
         }
     }
 
     // GET /configs is the lightweight authenticated endpoint the Kestra UI itself uses to validate a login.
-    public async verifyCredentials(): Promise<"ok" | "unauthorized" | "unreachable"> {
-        const response = await this.silentFetch("/configs", {}, false);
-        if (!response) {
-            return "unreachable";
+    // Fetches directly (not via silentFetch) so the thrown cause is surfaced instead of a blanket "unreachable".
+    public async verifyCredentials(): Promise<{status: "ok" | "unauthorized" | "unreachable", detail?: string}> {
+        if (!(vscode.workspace.getConfiguration("kestra.api").get("url") as string)) {
+            return {status: "unreachable", detail: "no kestra.api.url configured"};
         }
-        return response.status === 401 ? "unauthorized" : "ok";
+        try {
+            const base = await ApiClient.getKestraApiUrl(false, false);
+            const authHeaders = await this.storedAuthHeaders();
+            const response = await ApiClient.fetchWithTimeout(`${base}/configs`, {headers: authHeaders ?? {}});
+            return {status: response.status === 401 ? "unauthorized" : "ok"};
+        } catch (error) {
+            const cause = (error as {cause?: {code?: string, message?: string}})?.cause;
+            return {status: "unreachable", detail: cause?.code ?? cause?.message};
+        }
     }
 
     public async signOut(): Promise<void> {
