@@ -55,6 +55,24 @@ Set the URL of your Kestra instance, and a tenant if it is multi-tenant:
 
 On a secured instance you are prompted for credentials on the first request. It supports basic auth (username and password), an Enterprise Edition API token (sent as a Bearer token), and a legacy JWT session token. Use the `Kestra: Sign in` command to set or change credentials, and `Kestra: Sign out` to clear them.
 
+### Internal or corporate certificates
+
+If Sign in reports the instance is not reachable, first confirm the instance itself is reachable. Open it in a browser, or run:
+
+```
+curl https://your-instance/api/v1/configs
+```
+
+If the browser loads it or curl returns a response (for example `401 Unauthorized`) but Sign in still fails, VS Code's extension host is not trusting your instance's certificate. This is common when the instance uses HTTPS with an internal CA: your machine trusts the certificate, but VS Code does not by default.
+
+Enable this setting and reload the window:
+
+```json
+"http.systemCertificatesNode": true
+```
+
+It loads the operating system's certificate store, so the extension uses the certificates your machine already trusts.
+
 ## Usage
 
 ### Schema and autocompletion
