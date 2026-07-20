@@ -57,13 +57,15 @@ On a secured instance you are prompted for credentials on the first request. It 
 
 ### Internal or corporate certificates
 
-If Sign in reports the instance is not reachable but it is reachable otherwise (a browser opens it, or `curl https://your-instance/api/v1/configs` returns a response), the instance is likely served over HTTPS with a certificate from an internal CA that VS Code's extension host does not trust by default. Enable this setting and reload the window:
+If Sign in reports the instance is not reachable, but `curl` or a browser can reach it, VS Code's extension host is not trusting your instance's certificate. This is common when the instance uses HTTPS with an internal CA: your machine trusts the certificate, but VS Code does not by default.
+
+Enable this setting and reload the window:
 
 ```json
 "http.systemCertificatesNode": true
 ```
 
-This loads the operating system's certificate store, so the extension trusts the same certificates the rest of your machine does.
+It loads the operating system's certificate store, so the extension uses the certificates your machine already trusts.
 
 ## Usage
 
