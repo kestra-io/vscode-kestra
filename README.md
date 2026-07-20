@@ -63,7 +63,7 @@ If Sign in reports the instance is not reachable but it is reachable otherwise (
 "http.systemCertificatesNode": true
 ```
 
-This loads the operating system's certificate store, so the extension trusts the same certificates your browser does.
+This loads the operating system's certificate store, so the extension trusts the same certificates the rest of your machine does.
 
 ## Usage
 
