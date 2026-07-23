@@ -146,8 +146,8 @@ export default class RunPanel implements RunOutput {
         }
     }
 
-    public setTaskState(taskId: string, state: string, durationSeconds?: number) {
-        this.post({type: 'taskState', taskId, state, duration: durationSeconds});
+    public setTaskState(taskRunId: string, taskId: string, state: string, durationSeconds?: number, value?: string) {
+        this.post({type: 'taskState', taskRunId, taskId, value, state, duration: durationSeconds});
     }
 
     public requestInputs(inputs: FlowInput[]): Promise<FormData | undefined> {

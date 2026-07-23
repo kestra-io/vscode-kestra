@@ -12,6 +12,7 @@ type SectionRefs = {
     body: HTMLDivElement;
     badge: HTMLElement;
     duration: HTMLElement;
+    name: HTMLElement;
 };
 
 const vscode = acquireApi<WebviewMessage>();
@@ -305,23 +306,30 @@ function submitForm() {
     vscode.postMessage({type: 'submitInputs', values});
 }
 
-function getSection(task: string): SectionRefs {
-    const key = task || '__flow__';
+// Sections are keyed by taskRunId so loop iterations stay separate; the iteration value refines the label.
+function getSection(taskRunId: string, taskId: string, value?: string): SectionRefs {
+    const key = taskRunId || taskId || '__flow__';
     const existing = sections[key];
     if (existing) {
+        // Logs arrive before the value is known, so only refine the label once a value appears.
+        if (value !== undefined && value !== '') {
+            existing.name.textContent = `${taskId} (${value})`;
+        }
         return existing;
     }
+    const label = value !== undefined && value !== '' ? `${taskId} (${value})` : (taskId || 'flow');
     const section = el('div', 'task-section collapsed');
     const head = el('div', 'task-head');
+    const name = el('span', 'task-name', label);
     const taskBadge = el('span', 'ks-badge task-status');
     taskBadge.hidden = true;
     const duration = el('span', 'duration');
-    head.append(el('span', 'chevron'), el('span', 'task-name', task || 'flow'), taskBadge, duration);
+    head.append(el('span', 'chevron'), name, taskBadge, duration);
     head.addEventListener('click', () => section.classList.toggle('collapsed'));
     const body = el('div', 'task-body');
     section.append(head, body);
     tasks.appendChild(section);
-    sections[key] = {section, body, badge: taskBadge, duration};
+    sections[key] = {section, body, badge: taskBadge, duration, name};
     return sections[key];
 }
 
@@ -347,8 +355,8 @@ function resetView(flowId: string, level: string) {
     setBadge('');
 }
 
-function updateTaskRow(taskId: string, state: string, duration?: number) {
-    const section = getSection(taskId);
+function updateTaskRow(taskRunId: string, taskId: string, state: string, duration?: number, value?: string) {
+    const section = getSection(taskRunId, taskId, value);
     if (state) {
         const bucket = stateBucket(state);
         section.badge.textContent = titleCase(state);
@@ -385,7 +393,7 @@ function appendLogRows(entries: LogEntry[]) {
     const atBottom = window.innerHeight + window.scrollY >= document.body.scrollHeight - 40;
     entries.forEach(entry => {
         const row = logRow(entry);
-        getSection(entry.taskId || '').body.appendChild(row);
+        getSection(entry.taskRunId || '', entry.taskId || '').body.appendChild(row);
         logRows.push(row);
     });
     copy.hidden = logRows.length === 0;
@@ -437,7 +445,7 @@ window.addEventListener('message', event => {
             setBadge(m.state);
             break;
         case 'taskState':
-            updateTaskRow(m.taskId, m.state, m.duration);
+            updateTaskRow(m.taskRunId, m.taskId, m.state, m.duration, m.value);
             break;
         case 'logs':
             appendLogRows(m.entries);

@@ -11,7 +11,7 @@ type Flow = {id: string; namespace: string; inputs?: FlowInput[]};
 type TaskState = {current?: string; histories?: Array<{date?: string}>};
 type Execution = {
     state?: {current?: string};
-    taskRunList?: Array<{taskId?: string; state?: TaskState}>;
+    taskRunList?: Array<{id?: string; taskId?: string; value?: string; state?: TaskState}>;
 };
 
 // The log indexer is asynchronous, so trailing lines can land after the execution turns terminal.
@@ -214,15 +214,17 @@ function onExecutionFrame(data: string | undefined, output: RunOutput, sentTaskS
     try {
         const execution = JSON.parse(data) as Execution;
         execution.taskRunList?.forEach(taskRun => {
-            if (!taskRun.taskId) {
+            // Key by taskRunId so loop iterations (same taskId, distinct runs) stay separate, as the core UI does.
+            const runId = taskRun.id;
+            if (!runId || !taskRun.taskId) {
                 return;
             }
             const state = taskRun.state?.current ?? "";
             const duration = durationOf(taskRun.state);
             const snapshot = `${state}|${duration ?? ""}`;
-            if (sentTaskStates.get(taskRun.taskId) !== snapshot) {
-                sentTaskStates.set(taskRun.taskId, snapshot);
-                output.setTaskState(taskRun.taskId, state, duration);
+            if (sentTaskStates.get(runId) !== snapshot) {
+                sentTaskStates.set(runId, snapshot);
+                output.setTaskState(runId, taskRun.taskId, state, duration, taskRun.value);
             }
         });
         return execution.state?.current;
