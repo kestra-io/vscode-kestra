@@ -11,7 +11,7 @@ export interface RunOutput {
     appendLogs(entries: LogEntry[]): void;
     error(text: string): void;
     setStatus(state: string): void;
-    setTaskState(taskId: string, state: string, durationSeconds?: number): void;
+    setTaskState(taskRunId: string, taskId: string, state: string, durationSeconds?: number, value?: string): void;
     requestInputs(inputs: FlowInput[]): Promise<FormData | undefined>;
 }
 
@@ -34,8 +34,9 @@ class TopologyOverlay implements RunOutput {
         TopologyPanel.current?.resetStates();
     }
 
-    public setTaskState(taskId: string, state: string, durationSeconds?: number) {
-        this.inner.setTaskState(taskId, state, durationSeconds);
+    public setTaskState(taskRunId: string, taskId: string, state: string, durationSeconds?: number, value?: string) {
+        this.inner.setTaskState(taskRunId, taskId, state, durationSeconds, value);
+        // The topology graph has one node per task, so it colors by taskId, not per iteration.
         TopologyPanel.current?.setTaskState(taskId, state);
     }
 
