@@ -28,15 +28,15 @@ export default class ApiClient {
                 return;
             }
             await this.clearSecrets();
-            await this._secretStorage.store(secretStorageKey.username, username.trim());
-            await this._secretStorage.store(secretStorageKey.password, password.trim());
+            await this._secretStorage.store(this.secretKey(secretStorageKey.username), username.trim());
+            await this._secretStorage.store(this.secretKey(secretStorageKey.password), password.trim());
         } else {
             const token = await vscode.window.showInputBox({prompt: choice === apiToken ? "Kestra API token" : "JWT token", password: true});
             if (!token?.trim()) {
                 return;
             }
             await this.clearSecrets();
-            await this._secretStorage.store(choice === apiToken ? secretStorageKey.apiToken : secretStorageKey.token, token.trim());
+            await this._secretStorage.store(this.secretKey(choice === apiToken ? secretStorageKey.apiToken : secretStorageKey.token), token.trim());
         }
 
         const result = await this.verifyCredentials();
@@ -74,6 +74,7 @@ export default class ApiClient {
 
     private async clearSecrets(): Promise<void> {
         for (const key of Object.values(secretStorageKey)) {
+            await this._secretStorage.delete(this.secretKey(key));
             await this._secretStorage.delete(key);
         }
     }
@@ -132,17 +133,37 @@ export default class ApiClient {
         return kestraUrl;
     }
 
+    // SecretStorage is global to the extension, so scope credentials to the instance URL.
+    private secretKey(base: string): string {
+        const url = (vscode.workspace.getConfiguration("kestra.api").get("url") as string) || "";
+        return url ? `${base}::${url}` : base;
+    }
+
+    private async getSecret(base: string): Promise<string | undefined> {
+        const key = this.secretKey(base);
+        const scoped = await this._secretStorage.get(key);
+        if (scoped !== undefined || key === base) {
+            return scoped;
+        }
+        const legacy = await this._secretStorage.get(base);
+        if (legacy !== undefined) {
+            await this._secretStorage.store(key, legacy);
+            await this._secretStorage.delete(base);
+        }
+        return legacy;
+    }
+
     private async storedAuthHeaders(): Promise<Record<string, string> | undefined> {
-        const apiToken = await this._secretStorage.get(secretStorageKey.apiToken);
+        const apiToken = await this.getSecret(secretStorageKey.apiToken);
         if (apiToken) {
             return this.bearerHeader(apiToken);
         }
-        const jwtToken = await this._secretStorage.get(secretStorageKey.token);
+        const jwtToken = await this.getSecret(secretStorageKey.token);
         if (jwtToken) {
             return {cookie: `JWT=${jwtToken}`};
         }
-        const username = await this._secretStorage.get(secretStorageKey.username);
-        const password = await this._secretStorage.get(secretStorageKey.password);
+        const username = await this.getSecret(secretStorageKey.username);
+        const password = await this.getSecret(secretStorageKey.password);
         return this.basicAuthHeader(username, password);
     }
 
@@ -376,8 +397,8 @@ export default class ApiClient {
 
     private async askCredentialsAndFetch(url: string, options?: RequestInit): Promise<Response> {
         try {
-            const storedUsername = await this._secretStorage.get(secretStorageKey.username);
-            const storedPassword = await this._secretStorage.get(secretStorageKey.password);
+            const storedUsername = await this.getSecret(secretStorageKey.username);
+            const storedPassword = await this.getSecret(secretStorageKey.password);
 
             let username = storedUsername;
             let password = storedPassword;
@@ -409,8 +430,8 @@ export default class ApiClient {
                 if (basicAuthResponse.status === 401) {
                     vscode.window.showWarningMessage("Invalid credentials. Try a token instead.");
                 } else {
-                    await this._secretStorage.store(secretStorageKey.username, username.trim());
-                    await this._secretStorage.store(secretStorageKey.password, password.trim());
+                    await this._secretStorage.store(this.secretKey(secretStorageKey.username), username.trim());
+                    await this._secretStorage.store(this.secretKey(secretStorageKey.password), password.trim());
                     if (basicAuthResponse.ok) {
                         vscode.window.showInformationMessage("Signed in to Kestra");
                     }
@@ -449,7 +470,7 @@ export default class ApiClient {
             throw new Error("Invalid token.");
         }
         if (tokenResponse.ok) {
-            await this._secretStorage.store(isApiToken ? secretStorageKey.apiToken : secretStorageKey.token, token.trim());
+            await this._secretStorage.store(this.secretKey(isApiToken ? secretStorageKey.apiToken : secretStorageKey.token), token.trim());
             vscode.window.showInformationMessage("Signed in to Kestra");
         }
 
