@@ -114,7 +114,7 @@ export async function activate(context: vscode.ExtensionContext) {
         context.subscriptions.push(vscode.workspace.registerFileSystemProvider('kestra', kestraFs));
         context.subscriptions.push(vscode.workspace.registerFileSearchProvider('kestra', new KestraFileSearchProvider(namespace, kestraFs, apiClient)));
 
-        await kestraFs.start();
+        await kestraFs.start().catch(() => undefined);
     }
     context.subscriptions.push(downloadSchemaCommand(context.globalState, apiClient));
     context.subscriptions.push(showDocumentation(context, apiClient));

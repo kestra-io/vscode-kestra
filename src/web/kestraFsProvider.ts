@@ -234,14 +234,17 @@ export class KestraFS implements vscode.FileSystemProvider {
 		await this.apiClient.fileApi(this.namespace, "/directory" + (uri ? `?path=${this.trimNamespace(uri.path)}` : ""), { method: "POST" });
 	}
 
+	// Open a landing doc if the namespace ships one, but never fail activation when none exists.
 	async start() {
-		try {
-			await this.stat(vscode.Uri.parse(`kestra:///${this.namespace}/README.md`));
-			await vscode.commands.executeCommand("vscode.open", vscode.Uri.parse(`kestra:///${this.namespace}/README.md`));
-		} catch (e) {
-			if(e instanceof vscode.FileSystemError && e.code === 'FileNotFound') {
-				await vscode.commands.executeCommand("vscode.open", vscode.Uri.parse(`kestra:///${this.namespace}/getting-started.md`));
+		for (const doc of ["README.md", "getting-started.md"]) {
+			const uri = vscode.Uri.parse(`kestra:///${this.namespace}/${doc}`);
+			try {
+				await this.stat(uri);
+			} catch {
+				continue;
 			}
+			await vscode.commands.executeCommand("vscode.open", uri);
+			return;
 		}
 	}
 
