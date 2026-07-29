@@ -86,6 +86,20 @@ async function pickNamespace(apiClient: ApiClient): Promise<string | undefined> 
     return typed?.trim() || undefined;
 }
 
+// A wrong config, a missing sign-in, and an RBAC denial all fail the pre-flight but need different fixes.
+function namespaceOpenError(namespace: string, result: {status?: number; detail?: string}): string {
+    switch (result.status) {
+        case 401:
+            return `Cannot open namespace "${namespace}": not signed in. Run "Kestra: Sign in" and try again.`;
+        case 403:
+            return `Cannot open namespace "${namespace}": you do not have permission to access its files.`;
+        case 404:
+            return `Namespace "${namespace}" was not found. Check the instance URL and tenant.`;
+        default:
+            return `Cannot open namespace "${namespace}": ${result.detail ?? (result.status ? `HTTP ${result.status}` : "the instance is not reachable")}.`;
+    }
+}
+
 function openNamespaceCommand(apiClient: ApiClient) {
     return vscode.commands.registerCommand('kestra.namespace.open', async () => {
         // Prompts for the instance URL on first use, cancelling that returns "".
@@ -94,6 +108,11 @@ function openNamespaceCommand(apiClient: ApiClient) {
         }
         const namespace = await pickNamespace(apiClient);
         if (!namespace) {
+            return;
+        }
+        const reachable = await apiClient.namespaceFilesReachable(namespace);
+        if (!reachable.ok) {
+            vscode.window.showErrorMessage(namespaceOpenError(namespace, reachable));
             return;
         }
         await vscode.commands.executeCommand('vscode.openFolder', vscode.Uri.parse(`kestra:///${namespace}`), {forceNewWindow: true});

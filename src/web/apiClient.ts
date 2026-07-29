@@ -283,6 +283,20 @@ export default class ApiClient {
         return (body?.results ?? []).map(r => r.id).filter((id): id is string => !!id);
     }
 
+    // Confirms the namespace files API answers before opening a virtual folder on it, so a wrong
+    // URL, tenant, or missing sign-in surfaces as a clear error instead of a silently empty window.
+    public async namespaceFilesReachable(namespace: string): Promise<{ok: boolean; status?: number; detail?: string}> {
+        const response = await this.silentFetch(`/namespaces/${encodeURIComponent(namespace)}/files/directory?path=/`);
+        if (!response) {
+            return {ok: false, detail: "the instance is not reachable, or you are not signed in"};
+        }
+        if (response.ok) {
+            return {ok: true};
+        }
+        const detail = ((await response.json().catch(() => null)) as {message?: string} | null)?.message;
+        return {ok: false, status: response.status, detail};
+    }
+
     // The instance version selects the matching docs content.
     public async instanceVersion(): Promise<string | null> {
         const response = await this.silentFetch("/configs", {}, false);
