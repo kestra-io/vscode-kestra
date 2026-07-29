@@ -273,6 +273,16 @@ export default class ApiClient {
         return response?.ok ? (await response.json().catch(() => null)) as FlowGraph | null : null;
     }
 
+    // Existing namespaces on the instance, to populate the "Open namespace" picker.
+    public async listNamespaces(): Promise<string[]> {
+        const response = await this.silentFetch("/namespaces/search?existing=true&size=200&sort=id%3Aasc");
+        if (!response?.ok) {
+            return [];
+        }
+        const body = (await response.json().catch(() => null)) as {results?: Array<{id?: string}>} | null;
+        return (body?.results ?? []).map(r => r.id).filter((id): id is string => !!id);
+    }
+
     // The instance version selects the matching docs content.
     public async instanceVersion(): Promise<string | null> {
         const response = await this.silentFetch("/configs", {}, false);

@@ -61,6 +61,45 @@ function signInCommand(apiClient: ApiClient) {
     return vscode.commands.registerCommand('kestra.auth.signIn', () => apiClient.signIn());
 }
 
+// Namespaces are free-form strings, so the picker lists known ones but always allows typing a new one.
+async function pickNamespace(apiClient: ApiClient): Promise<string | undefined> {
+    const manual = "$(edit) Enter namespace manually…";
+    const namespaces = await apiClient.listNamespaces();
+    if (namespaces.length > 0) {
+        const choice = await vscode.window.showQuickPick([manual, ...namespaces], {
+            title: "Kestra: Open namespace",
+            placeHolder: "Select a namespace to open"
+        });
+        if (choice === undefined) {
+            return undefined;
+        }
+        if (choice !== manual) {
+            return choice;
+        }
+    }
+    const typed = await vscode.window.showInputBox({
+        title: "Kestra: Open namespace",
+        prompt: "Namespace to open",
+        placeHolder: "company.team",
+        validateInput: value => value.trim() ? undefined : "Namespace cannot be empty"
+    });
+    return typed?.trim() || undefined;
+}
+
+function openNamespaceCommand(apiClient: ApiClient) {
+    return vscode.commands.registerCommand('kestra.namespace.open', async () => {
+        // Prompts for the instance URL on first use, cancelling that returns "".
+        if (!(await ApiClient.getKestraApiUrl(false, false))) {
+            return;
+        }
+        const namespace = await pickNamespace(apiClient);
+        if (!namespace) {
+            return;
+        }
+        await vscode.commands.executeCommand('vscode.openFolder', vscode.Uri.parse(`kestra:///${namespace}`), {forceNewWindow: true});
+    });
+}
+
 function signOutCommand(apiClient: ApiClient) {
     return vscode.commands.registerCommand('kestra.auth.signOut', () => apiClient.signOut());
 }
@@ -81,6 +120,7 @@ export async function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(showDocumentation(context, apiClient));
     context.subscriptions.push(signInCommand(apiClient));
     context.subscriptions.push(signOutCommand(apiClient));
+    context.subscriptions.push(openNamespaceCommand(apiClient));
     context.subscriptions.push(runFlowCommand(apiClient, context.extensionUri));
     context.subscriptions.push(saveFlowCommand(apiClient));
     context.subscriptions.push(topologyCommand(apiClient, context.extensionUri));

@@ -55,6 +55,11 @@
         "category": "Kestra"
       },
       {
+        "command": "kestra.namespace.open",
+        "title": "Open namespace",
+        "category": "Kestra"
+      },
+      {
         "command": "kestra.flow.run",
         "title": "Save and run flow",
         "category": "Kestra",
