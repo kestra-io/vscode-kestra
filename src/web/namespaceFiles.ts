@@ -37,7 +37,7 @@ export async function pickNamespace(apiClient: ApiClient): Promise<string | unde
 function reachabilityError(namespace: string, result: {status?: number; detail?: string}): string {
     switch (result.status) {
         case 401:
-            return `Cannot use namespace "${namespace}": not signed in. Run "Kestra: Sign in" and try again.`;
+            return `Cannot use namespace "${namespace}": not authorized. Check that you are signed in and that your user has access to this tenant.`;
         case 403:
             return `Cannot use namespace "${namespace}": you do not have permission to access its files.`;
         case 404:
