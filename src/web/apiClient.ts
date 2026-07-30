@@ -3,6 +3,7 @@ import * as vscode from 'vscode';
 import { kestraBaseUrl, secretStorageKey, yamlContentType, PebbleFunctionDef } from "./constants";
 import { FlowGraph } from "../shared/flow";
 import type { PluginDefinition, PluginEntry } from "./documentation/pluginDoc";
+import { logWarn } from "./log";
 
 export default class ApiClient {
     private readonly _secretStorage: vscode.SecretStorage;
@@ -153,6 +154,11 @@ export default class ApiClient {
         return legacy;
     }
 
+    // True when a credential is stored, used to tell "never signed in" apart from an authenticated-but-denied 401.
+    public async hasStoredCredentials(): Promise<boolean> {
+        return (await this.storedAuthHeaders()) !== undefined;
+    }
+
     private async storedAuthHeaders(): Promise<Record<string, string> | undefined> {
         const apiToken = await this.getSecret(secretStorageKey.apiToken);
         if (apiToken) {
@@ -271,6 +277,75 @@ export default class ApiClient {
             headers: {"Content-Type": yamlContentType}
         });
         return response?.ok ? (await response.json().catch(() => null)) as FlowGraph | null : null;
+    }
+
+    // Existing namespaces on the instance, to populate the "Open namespace" picker. Paged through in
+    // full so instances with more than one page are not silently truncated.
+    public async listNamespaces(): Promise<string[]> {
+        const size = 200;
+        const maxPages = 50;
+        const ids: string[] = [];
+        let page = 1;
+        for (; page <= maxPages; page++) {
+            const response = await this.silentFetch(`/namespaces/search?existing=true&size=${size}&page=${page}&sort=id%3Aasc`);
+            if (!response?.ok) {
+                logWarn(`Namespace list request failed on page ${page}${response ? ` (HTTP ${response.status})` : ''}; showing the ${ids.length} loaded so far.`);
+                return ids;
+            }
+            const body = (await response.json().catch(() => null)) as {results?: Array<{id?: string}>; total?: number} | null;
+            const results = body?.results ?? [];
+            ids.push(...results.map(r => r.id).filter((id): id is string => !!id));
+            if (results.length < size || (body?.total !== undefined && ids.length >= body.total)) {
+                return ids;
+            }
+        }
+        logWarn(`Namespace list truncated at ${ids.length}; type the name directly if it is not shown.`);
+        return ids;
+    }
+
+    // Whether the namespace exists. null when it can't be checked, so callers fall back to the files probe.
+    public async namespaceExists(namespace: string): Promise<boolean | null> {
+        const response = await this.silentFetch(`/namespaces/search?q=${encodeURIComponent(namespace)}&existing=true&size=200`);
+        if (!response?.ok) {
+            return null;
+        }
+        const body = (await response.json().catch(() => null)) as {results?: Array<{id?: string}>} | null;
+        return (body?.results ?? []).some(r => r.id === namespace);
+    }
+
+    // Uploads one file and returns the raw response (null if unreachable). The caller reports errors,
+    // so a batch sync can summarize instead of toasting per file. Path segments are encoded individually.
+    public async uploadNamespaceFile(namespace: string, path: string, content: Uint8Array, signal?: AbortSignal): Promise<Response | null> {
+        const base = await ApiClient.getKestraApiUrl();
+        if (!base) {
+            return null;
+        }
+        const encodedPath = path.split("/").map(encodeURIComponent).join("/");
+        const form = new FormData();
+        form.append("fileContent", new Blob([content]));
+        const authHeaders = await this.storedAuthHeaders();
+        try {
+            return await fetch(`${base}/namespaces/${encodeURIComponent(namespace)}/files?path=${encodedPath}`, {method: "POST", body: form, headers: {...(authHeaders ?? {})}, signal});
+        } catch {
+            return null;
+        }
+    }
+
+    // Checks a namespace is usable before opening it, so a bad URL, tenant, permission, or typo errors clearly.
+    public async namespaceFilesReachable(namespace: string): Promise<{ok: boolean; status?: number; detail?: string}> {
+        // A nonexistent namespace returns 200 here and auto-creates an empty dir, so reject typos first.
+        if ((await this.namespaceExists(namespace)) === false) {
+            return {ok: false, status: 404};
+        }
+        const response = await this.silentFetch(`/namespaces/${encodeURIComponent(namespace)}/files/directory?path=/`);
+        if (!response) {
+            return {ok: false, detail: "the instance is not reachable, or you are not signed in"};
+        }
+        if (response.ok) {
+            return {ok: true};
+        }
+        const detail = ((await response.json().catch(() => null)) as {message?: string} | null)?.message;
+        return {ok: false, status: response.status, detail};
     }
 
     // The instance version selects the matching docs content.

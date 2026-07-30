@@ -55,6 +55,21 @@
         "category": "Kestra"
       },
       {
+        "command": "kestra.namespace.open",
+        "title": "Open namespace",
+        "category": "Kestra"
+      },
+      {
+        "command": "kestra.namespace.uploadFile",
+        "title": "Upload file to namespace",
+        "category": "Kestra"
+      },
+      {
+        "command": "kestra.namespace.syncFolder",
+        "title": "Sync folder to namespace",
+        "category": "Kestra"
+      },
+      {
         "command": "kestra.flow.run",
         "title": "Save and run flow",
         "category": "Kestra",
@@ -74,6 +89,18 @@
       }
     ],
     "menus": {
+      "explorer/context": [
+        {
+          "when": "config.kestra.api.url && resourceScheme == file && !explorerResourceIsFolder",
+          "command": "kestra.namespace.uploadFile",
+          "group": "kestra@1"
+        },
+        {
+          "when": "config.kestra.api.url && resourceScheme == file && explorerResourceIsFolder",
+          "command": "kestra.namespace.syncFolder",
+          "group": "kestra@1"
+        }
+      ],
       "editor/context": [
         {
           "when": "resourceLangId == yaml",
@@ -175,6 +202,34 @@
           ],
           "default": null,
           "description": "Specify a directory to your Kestra flows so that only YAML files from that directory will be validated against the Kestra API schema."
+        },
+        "kestra.namespaceFiles.exclude": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [
+            ".git",
+            ".vscode",
+            ".idea",
+            "node_modules",
+            ".DS_Store",
+            ".env",
+            ".env.*",
+            ".envrc",
+            "*.pem",
+            "*.key",
+            "*.p8",
+            "*.pfx",
+            "*.p12",
+            "*.crt",
+            "id_rsa*",
+            "credentials.json",
+            ".npmrc",
+            ".netrc",
+            ".pypirc"
+          ],
+          "description": "File and folder names skipped when syncing or uploading a folder to a namespace. Matches per name; a leading or trailing * is a wildcard (for example *.pem or .env.*). Edit to add your own secrets or to allow one the defaults exclude."
         }
       }
     }

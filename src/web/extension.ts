@@ -9,6 +9,8 @@ import TopologyPanel, {registerTopologyRefresh} from './topologyPanel';
 import {registerRequiredFieldsCompletion} from './requiredFieldsCompletion';
 import {runFlowFromEditor, saveFlowFromEditor} from './flowRunner';
 import {disposeRunLogs} from './runOutput';
+import {resolveConfiguredNamespace, uploadFileToNamespace, syncFolderToNamespace} from './namespaceFiles';
+import {initLog} from './log';
 
 async function downloadSchema(globalState: vscode.Memento, apiClient: ApiClient, opts: {silent: boolean, forceInput?: boolean}): Promise<boolean> {
     // The plugin schema endpoint is global, not tenant-scoped.
@@ -61,11 +63,30 @@ function signInCommand(apiClient: ApiClient) {
     return vscode.commands.registerCommand('kestra.auth.signIn', () => apiClient.signIn());
 }
 
+function openNamespaceCommand(apiClient: ApiClient) {
+    return vscode.commands.registerCommand('kestra.namespace.open', async () => {
+        const namespace = await resolveConfiguredNamespace(apiClient, true);
+        if (!namespace) {
+            return;
+        }
+        await vscode.commands.executeCommand('vscode.openFolder', vscode.Uri.parse(`kestra:///${namespace}`), {forceNewWindow: true});
+    });
+}
+
+function uploadFileCommand(apiClient: ApiClient) {
+    return vscode.commands.registerCommand('kestra.namespace.uploadFile', (resource?: vscode.Uri, selected?: vscode.Uri[]) => uploadFileToNamespace(apiClient, resource, selected));
+}
+
+function syncFolderCommand(apiClient: ApiClient) {
+    return vscode.commands.registerCommand('kestra.namespace.syncFolder', (resource?: vscode.Uri, selected?: vscode.Uri[]) => syncFolderToNamespace(apiClient, resource, selected));
+}
+
 function signOutCommand(apiClient: ApiClient) {
     return vscode.commands.registerCommand('kestra.auth.signOut', () => apiClient.signOut());
 }
 
 export async function activate(context: vscode.ExtensionContext) {
+    initLog(context);
     const openedWs = vscode.workspace.workspaceFolders?.[0];
     const apiClient = new ApiClient(context.secrets);
     if (openedWs?.uri?.scheme === "kestra") {
@@ -75,12 +96,15 @@ export async function activate(context: vscode.ExtensionContext) {
         context.subscriptions.push(vscode.workspace.registerFileSystemProvider('kestra', kestraFs));
         context.subscriptions.push(vscode.workspace.registerFileSearchProvider('kestra', new KestraFileSearchProvider(namespace, kestraFs, apiClient)));
 
-        await kestraFs.start();
+        await kestraFs.start().catch(() => undefined);
     }
     context.subscriptions.push(downloadSchemaCommand(context.globalState, apiClient));
     context.subscriptions.push(showDocumentation(context, apiClient));
     context.subscriptions.push(signInCommand(apiClient));
     context.subscriptions.push(signOutCommand(apiClient));
+    context.subscriptions.push(openNamespaceCommand(apiClient));
+    context.subscriptions.push(uploadFileCommand(apiClient));
+    context.subscriptions.push(syncFolderCommand(apiClient));
     context.subscriptions.push(runFlowCommand(apiClient, context.extensionUri));
     context.subscriptions.push(saveFlowCommand(apiClient));
     context.subscriptions.push(topologyCommand(apiClient, context.extensionUri));
