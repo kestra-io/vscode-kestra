@@ -9,7 +9,7 @@ import TopologyPanel, {registerTopologyRefresh} from './topologyPanel';
 import {registerRequiredFieldsCompletion} from './requiredFieldsCompletion';
 import {runFlowFromEditor, saveFlowFromEditor} from './flowRunner';
 import {disposeRunLogs} from './runOutput';
-import {pickNamespace, ensureNamespaceReachable, uploadFileToNamespace, syncFolderToNamespace} from './namespaceFiles';
+import {resolveConfiguredNamespace, uploadFileToNamespace, syncFolderToNamespace} from './namespaceFiles';
 
 async function downloadSchema(globalState: vscode.Memento, apiClient: ApiClient, opts: {silent: boolean, forceInput?: boolean}): Promise<boolean> {
     // The plugin schema endpoint is global, not tenant-scoped.
@@ -64,15 +64,8 @@ function signInCommand(apiClient: ApiClient) {
 
 function openNamespaceCommand(apiClient: ApiClient) {
     return vscode.commands.registerCommand('kestra.namespace.open', async () => {
-        // Prompts for the instance URL on first use, cancelling that returns "".
-        if (!(await ApiClient.getKestraApiUrl(false, false))) {
-            return;
-        }
-        const namespace = await pickNamespace(apiClient);
+        const namespace = await resolveConfiguredNamespace(apiClient);
         if (!namespace) {
-            return;
-        }
-        if (!(await ensureNamespaceReachable(apiClient, namespace))) {
             return;
         }
         await vscode.commands.executeCommand('vscode.openFolder', vscode.Uri.parse(`kestra:///${namespace}`), {forceNewWindow: true});

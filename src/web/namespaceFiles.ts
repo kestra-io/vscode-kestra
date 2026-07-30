@@ -9,7 +9,7 @@ function basename(path: string): string {
 }
 
 // Namespaces are free-form strings, so the picker lists known ones but always allows typing a new one.
-export async function pickNamespace(apiClient: ApiClient): Promise<string | undefined> {
+async function pickNamespace(apiClient: ApiClient): Promise<string | undefined> {
     const manual = "$(edit) Enter namespace manually…";
     const namespaces = await apiClient.listNamespaces();
     if (namespaces.length > 0) {
@@ -52,7 +52,7 @@ function reachabilityError(namespace: string, result: {status?: number; detail?:
 }
 
 // Returns true when the namespace files API answers, otherwise reports the specific reason and returns false.
-export async function ensureNamespaceReachable(apiClient: ApiClient, namespace: string): Promise<boolean> {
+async function ensureNamespaceReachable(apiClient: ApiClient, namespace: string): Promise<boolean> {
     const result = await apiClient.namespaceFilesReachable(namespace);
     if (result.ok) {
         return true;
@@ -67,7 +67,7 @@ function namespacePath(base: string, relative: string): string {
     return `${trimmed}/${relative}`;
 }
 
-async function resolveConfiguredNamespace(apiClient: ApiClient): Promise<string | undefined> {
+export async function resolveConfiguredNamespace(apiClient: ApiClient): Promise<string | undefined> {
     if (!(await ApiClient.getKestraApiUrl(false, false))) {
         return undefined;
     }
@@ -107,7 +107,16 @@ export async function uploadFileToNamespace(apiClient: ApiClient, resource?: vsc
         title: `Upload to ${namespace}`,
         prompt: "Target path in the namespace",
         value: `/${name}`,
-        validateInput: value => value.trim().startsWith('/') ? undefined : "Path must start with /"
+        validateInput: value => {
+            const trimmed = value.trim();
+            if (!trimmed.startsWith('/')) {
+                return "Path must start with /";
+            }
+            if (trimmed.endsWith('/')) {
+                return "Path must include a file name";
+            }
+            return undefined;
+        }
     });
     if (!target) {
         return;
@@ -129,9 +138,11 @@ async function collectFiles(root: vscode.Uri): Promise<Array<{uri: vscode.Uri; r
             }
             const child = vscode.Uri.joinPath(dir, entryName);
             const relative = prefix ? `${prefix}/${entryName}` : entryName;
+            // FileType is a bitmask (a symlink adds SymbolicLink), so mask it. Symlinked files are
+            // uploaded, symlinked directories are skipped to avoid following cycles into an infinite walk.
             if (type === vscode.FileType.Directory) {
                 await walk(child, relative);
-            } else if (type === vscode.FileType.File) {
+            } else if ((type & vscode.FileType.File) !== 0) {
                 files.push({uri: child, relative});
             }
         }
@@ -187,26 +198,37 @@ export async function syncFolderToNamespace(apiClient: ApiClient, resource?: vsc
 
     await vscode.window.withProgress({location: vscode.ProgressLocation.Notification, title: `Syncing to ${namespace}`, cancellable: true}, async (progress, token) => {
         const failures: string[] = [];
-        let done = 0;
+        let uploaded = 0;
+        let processed = 0;
+        let accessDenied = false;
         for (const file of files) {
             if (token.isCancellationRequested) {
                 break;
             }
-            progress.report({message: `${done}/${files.length} ${file.relative}`, increment: 100 / files.length});
+            progress.report({message: `${processed}/${files.length} ${file.relative}`, increment: 100 / files.length});
             try {
                 const content = await vscode.workspace.fs.readFile(file.uri);
                 const response = await apiClient.uploadNamespaceFile(namespace, namespacePath(basePath, file.relative), content);
-                if (!response.ok) {
+                if (response.ok) {
+                    uploaded++;
+                } else {
                     failures.push(file.relative);
+                    // Auth failures will not recover for the remaining files, and each one prompts
+                    // for credentials, so stop after the first rather than repeating the prompt.
+                    if (response.status === 401 || response.status === 403) {
+                        accessDenied = true;
+                        break;
+                    }
                 }
             } catch {
                 failures.push(file.relative);
             }
-            done++;
+            processed++;
         }
 
-        const uploaded = done - failures.length;
-        if (failures.length > 0) {
+        if (accessDenied) {
+            vscode.window.showErrorMessage(`Sync stopped: access denied for namespace "${namespace}". Uploaded ${uploaded} file(s) before stopping.`);
+        } else if (failures.length > 0) {
             vscode.window.showWarningMessage(`Synced ${uploaded}/${files.length} to ${namespace}. Failed: ${failures.slice(0, 5).join(', ')}${failures.length > 5 ? '…' : ''}`);
         } else if (token.isCancellationRequested) {
             vscode.window.showInformationMessage(`Sync cancelled after ${uploaded} file(s).`);
