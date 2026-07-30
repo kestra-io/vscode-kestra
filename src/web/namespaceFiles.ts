@@ -40,7 +40,7 @@ function reachabilityError(namespace: string, result: {status?: number; detail?:
     switch (result.status) {
         case 401:
             return signedIn
-                ? `Cannot use namespace "${namespace}": your account is not allowed to access it. Check your tenant membership and namespace permissions, or your token may have expired.`
+                ? `Cannot use namespace "${namespace}": access denied. Your account may not have permission for this namespace, or your token may have expired.`
                 : `Cannot use namespace "${namespace}": not signed in. Run "Kestra: Sign in" and try again.`;
         case 403:
             return `Cannot use namespace "${namespace}": you do not have permission to access its files.`;
