@@ -163,14 +163,7 @@ async function pickLocalFolder(): Promise<vscode.Uri | undefined> {
     return picked?.[0];
 }
 
-async function pushFiles(
-    apiClient: ApiClient,
-    namespace: string,
-    basePath: string,
-    files: LocalFile[],
-    progress: vscode.Progress<{message?: string; increment?: number}>,
-    token: vscode.CancellationToken
-): Promise<SyncOutcome> {
+async function pushFiles(apiClient: ApiClient, namespace: string, basePath: string, files: LocalFile[], progress: vscode.Progress<{message?: string; increment?: number}>, token: vscode.CancellationToken): Promise<SyncOutcome> {
     const outcome: SyncOutcome = {uploaded: 0, failed: [], stoppedByAuth: false, cancelled: false};
     for (const [done, file] of files.entries()) {
         if (token.isCancellationRequested) {
