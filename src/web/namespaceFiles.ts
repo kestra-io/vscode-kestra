@@ -4,6 +4,9 @@ import ApiClient from './apiClient';
 // Local metadata folders that should never be pushed to a namespace.
 const IGNORED_NAMES = new Set(['.git', '.vscode', 'node_modules', '.DS_Store', '.idea']);
 
+type LocalFile = {uri: vscode.Uri; relative: string};
+type SyncOutcome = {uploaded: number; failed: string[]; stoppedByAuth: boolean; cancelled: boolean};
+
 function basename(path: string): string {
     return path.split('/').filter(Boolean).pop() ?? path;
 }
@@ -33,8 +36,8 @@ async function pickNamespace(apiClient: ApiClient): Promise<string | undefined> 
     return typed?.trim() || undefined;
 }
 
-// Kestra returns 401 for a bad token, a missing tenant, and a lacking permission alike, so the only
-// reliable split is whether we hold a credential: none means "not signed in", one means "denied".
+// A 401 does not say whether the credential is invalid or the account simply lacks access, so the
+// message splits on whether a credential is stored at all. (Permission denials come back as 403.)
 function reachabilityError(namespace: string, result: {status?: number; detail?: string}, signedIn: boolean): string {
     switch (result.status) {
         case 401:
@@ -127,8 +130,8 @@ export async function uploadFileToNamespace(apiClient: ApiClient, resource?: vsc
     }
 }
 
-async function collectFiles(root: vscode.Uri): Promise<Array<{uri: vscode.Uri; relative: string}>> {
-    const files: Array<{uri: vscode.Uri; relative: string}> = [];
+async function collectFiles(root: vscode.Uri): Promise<LocalFile[]> {
+    const files: LocalFile[] = [];
     async function walk(dir: vscode.Uri, prefix: string): Promise<void> {
         const entries = await vscode.workspace.fs.readDirectory(dir);
         for (const [entryName, type] of entries) {
@@ -150,12 +153,66 @@ async function collectFiles(root: vscode.Uri): Promise<Array<{uri: vscode.Uri; r
     return files;
 }
 
-export async function syncFolderToNamespace(apiClient: ApiClient, resource?: vscode.Uri): Promise<void> {
-    let folder = resource;
-    if (!folder) {
-        const picked = await vscode.window.showOpenDialog({canSelectFolders: true, canSelectFiles: false, canSelectMany: false, openLabel: "Sync folder"});
-        folder = picked?.[0];
+async function pickLocalFolder(): Promise<vscode.Uri | undefined> {
+    const picked = await vscode.window.showOpenDialog({
+        canSelectFolders: true,
+        canSelectFiles: false,
+        canSelectMany: false,
+        openLabel: "Sync folder"
+    });
+    return picked?.[0];
+}
+
+async function pushFiles(
+    apiClient: ApiClient,
+    namespace: string,
+    basePath: string,
+    files: LocalFile[],
+    progress: vscode.Progress<{message?: string; increment?: number}>,
+    token: vscode.CancellationToken
+): Promise<SyncOutcome> {
+    const outcome: SyncOutcome = {uploaded: 0, failed: [], stoppedByAuth: false, cancelled: false};
+    for (const [done, file] of files.entries()) {
+        if (token.isCancellationRequested) {
+            outcome.cancelled = true;
+            break;
+        }
+        progress.report({message: `${done}/${files.length} ${file.relative}`, increment: 100 / files.length});
+        try {
+            const content = await vscode.workspace.fs.readFile(file.uri);
+            const response = await apiClient.uploadNamespaceFile(namespace, namespacePath(basePath, file.relative), content);
+            if (response.ok) {
+                outcome.uploaded++;
+                continue;
+            }
+            outcome.failed.push(file.relative);
+            // Auth will not recover and each file re-prompts for credentials, so stop after the first.
+            if (response.status === 401 || response.status === 403) {
+                outcome.stoppedByAuth = true;
+                break;
+            }
+        } catch {
+            outcome.failed.push(file.relative);
+        }
     }
+    return outcome;
+}
+
+function reportSyncOutcome(namespace: string, total: number, outcome: SyncOutcome): void {
+    if (outcome.stoppedByAuth) {
+        vscode.window.showErrorMessage(`Sync stopped: access denied for namespace "${namespace}". Uploaded ${outcome.uploaded} file(s) before stopping.`);
+    } else if (outcome.failed.length > 0) {
+        const sample = outcome.failed.slice(0, 5).join(', ') + (outcome.failed.length > 5 ? '…' : '');
+        vscode.window.showWarningMessage(`Synced ${outcome.uploaded}/${total} to ${namespace}. Failed: ${sample}`);
+    } else if (outcome.cancelled) {
+        vscode.window.showInformationMessage(`Sync cancelled after ${outcome.uploaded} file(s).`);
+    } else {
+        vscode.window.showInformationMessage(`Synced ${outcome.uploaded} file(s) to ${namespace}.`);
+    }
+}
+
+export async function syncFolderToNamespace(apiClient: ApiClient, resource?: vscode.Uri): Promise<void> {
+    const folder = resource ?? await pickLocalFolder();
     if (!folder) {
         return;
     }
@@ -185,53 +242,19 @@ export async function syncFolderToNamespace(apiClient: ApiClient, resource?: vsc
         return;
     }
 
-    // Additive sync: local files are uploaded and overwrite matching remote files, remote-only files are left in place.
-    const confirm = await vscode.window.showWarningMessage(
+    // Additive: uploaded files overwrite matches, remote-only files are left in place.
+    const confirmed = await vscode.window.showWarningMessage(
         `Upload ${files.length} file(s) from "${basename(folder.path)}" to namespace "${namespace}"? Existing files at the same path are overwritten.`,
         {modal: true},
         "Upload"
     );
-    if (confirm !== "Upload") {
+    if (confirmed !== "Upload") {
         return;
     }
 
-    await vscode.window.withProgress({location: vscode.ProgressLocation.Notification, title: `Syncing to ${namespace}`, cancellable: true}, async (progress, token) => {
-        const failures: string[] = [];
-        let uploaded = 0;
-        let processed = 0;
-        let accessDenied = false;
-        for (const file of files) {
-            if (token.isCancellationRequested) {
-                break;
-            }
-            progress.report({message: `${processed}/${files.length} ${file.relative}`, increment: 100 / files.length});
-            try {
-                const content = await vscode.workspace.fs.readFile(file.uri);
-                const response = await apiClient.uploadNamespaceFile(namespace, namespacePath(basePath, file.relative), content);
-                if (response.ok) {
-                    uploaded++;
-                } else {
-                    failures.push(file.relative);
-                    // Auth won't recover and each file re-prompts for credentials, so stop after the first.
-                    if (response.status === 401 || response.status === 403) {
-                        accessDenied = true;
-                        break;
-                    }
-                }
-            } catch {
-                failures.push(file.relative);
-            }
-            processed++;
-        }
-
-        if (accessDenied) {
-            vscode.window.showErrorMessage(`Sync stopped: access denied for namespace "${namespace}". Uploaded ${uploaded} file(s) before stopping.`);
-        } else if (failures.length > 0) {
-            vscode.window.showWarningMessage(`Synced ${uploaded}/${files.length} to ${namespace}. Failed: ${failures.slice(0, 5).join(', ')}${failures.length > 5 ? '…' : ''}`);
-        } else if (token.isCancellationRequested) {
-            vscode.window.showInformationMessage(`Sync cancelled after ${uploaded} file(s).`);
-        } else {
-            vscode.window.showInformationMessage(`Synced ${uploaded} file(s) to ${namespace}.`);
-        }
-    });
+    const outcome = await vscode.window.withProgress(
+        {location: vscode.ProgressLocation.Notification, title: `Syncing to ${namespace}`, cancellable: true},
+        (progress, token) => pushFiles(apiClient, namespace, basePath, files, progress, token)
+    );
+    reportSyncOutcome(namespace, files.length, outcome);
 }
