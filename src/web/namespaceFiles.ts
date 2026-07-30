@@ -53,7 +53,7 @@ function reachabilityError(namespace: string, result: {status?: number; detail?:
     }
 }
 
-// Returns true when the namespace files API answers, otherwise reports the specific reason and returns false.
+// Confirms the namespace exists and its files are accessible; on failure reports the reason and returns false.
 async function ensureNamespaceReachable(apiClient: ApiClient, namespace: string): Promise<boolean> {
     const result = await apiClient.namespaceFilesReachable(namespace);
     if (result.ok) {
@@ -91,24 +91,15 @@ export async function uploadFileToNamespace(apiClient: ApiClient, resource?: vsc
         return;
     }
 
-    let content: Uint8Array;
-    try {
-        content = await vscode.workspace.fs.readFile(fileUri);
-    } catch {
-        vscode.window.showErrorMessage(`Cannot read ${fileUri.fsPath}.`);
-        return;
-    }
-
     const namespace = await resolveConfiguredNamespace(apiClient);
     if (!namespace) {
         return;
     }
 
-    const name = basename(fileUri.path);
     const target = await vscode.window.showInputBox({
         title: `Upload to ${namespace}`,
         prompt: "Target path in the namespace",
-        value: `/${name}`,
+        value: `/${basename(fileUri.path)}`,
         validateInput: value => {
             const trimmed = value.trim();
             if (!trimmed.startsWith('/')) {
@@ -123,11 +114,22 @@ export async function uploadFileToNamespace(apiClient: ApiClient, resource?: vsc
     if (!target) {
         return;
     }
+    const targetPath = target.trim();
 
-    const response = await apiClient.uploadNamespaceFile(namespace, target.trim(), content);
-    if (response.ok) {
-        vscode.window.showInformationMessage(`Uploaded ${name} to ${namespace}${target.trim()}`);
+    let content: Uint8Array;
+    try {
+        content = await vscode.workspace.fs.readFile(fileUri);
+    } catch {
+        vscode.window.showErrorMessage(`Cannot read ${fileUri.fsPath}.`);
+        return;
     }
+
+    const response = await apiClient.uploadNamespaceFile(namespace, targetPath, content);
+    if (!response?.ok) {
+        vscode.window.showErrorMessage(`Failed to upload to ${namespace}${targetPath}${response ? ` (HTTP ${response.status})` : ''}.`);
+        return;
+    }
+    vscode.window.showInformationMessage(`Uploaded to ${namespace}${targetPath}`);
 }
 
 async function collectFiles(root: vscode.Uri): Promise<LocalFile[]> {
@@ -174,13 +176,13 @@ async function pushFiles(apiClient: ApiClient, namespace: string, basePath: stri
         try {
             const content = await vscode.workspace.fs.readFile(file.uri);
             const response = await apiClient.uploadNamespaceFile(namespace, namespacePath(basePath, file.relative), content);
-            if (response.ok) {
+            if (response?.ok) {
                 outcome.uploaded++;
                 continue;
             }
             outcome.failed.push(file.relative);
-            // Auth will not recover and each file re-prompts for credentials, so stop after the first.
-            if (response.status === 401 || response.status === 403) {
+            // Auth will not recover for the remaining files, so stop after the first denial.
+            if (response && (response.status === 401 || response.status === 403)) {
                 outcome.stoppedByAuth = true;
                 break;
             }
@@ -194,11 +196,12 @@ async function pushFiles(apiClient: ApiClient, namespace: string, basePath: stri
 function reportSyncOutcome(namespace: string, total: number, outcome: SyncOutcome): void {
     if (outcome.stoppedByAuth) {
         vscode.window.showErrorMessage(`Sync stopped: access denied for namespace "${namespace}". Uploaded ${outcome.uploaded} file(s) before stopping.`);
+    } else if (outcome.cancelled) {
+        const failedNote = outcome.failed.length > 0 ? `, ${outcome.failed.length} failed` : '';
+        vscode.window.showInformationMessage(`Sync cancelled after ${outcome.uploaded} uploaded${failedNote}.`);
     } else if (outcome.failed.length > 0) {
         const sample = outcome.failed.slice(0, 5).join(', ') + (outcome.failed.length > 5 ? '…' : '');
         vscode.window.showWarningMessage(`Synced ${outcome.uploaded}/${total} to ${namespace}. Failed: ${sample}`);
-    } else if (outcome.cancelled) {
-        vscode.window.showInformationMessage(`Sync cancelled after ${outcome.uploaded} file(s).`);
     } else {
         vscode.window.showInformationMessage(`Synced ${outcome.uploaded} file(s) to ${namespace}.`);
     }

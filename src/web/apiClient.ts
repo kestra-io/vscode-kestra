@@ -308,13 +308,22 @@ export default class ApiClient {
         return (body?.results ?? []).some(r => r.id === namespace);
     }
 
-    // Uploads one file. Path segments are encoded individually so their separating slashes survive.
-    public async uploadNamespaceFile(namespace: string, path: string, content: Uint8Array): Promise<Response> {
+    // Uploads one file and returns the raw response (null if unreachable). The caller reports errors,
+    // so a batch sync can summarize instead of toasting per file. Path segments are encoded individually.
+    public async uploadNamespaceFile(namespace: string, path: string, content: Uint8Array): Promise<Response | null> {
         const base = await ApiClient.getKestraApiUrl();
+        if (!base) {
+            return null;
+        }
         const encodedPath = path.split("/").map(encodeURIComponent).join("/");
         const form = new FormData();
         form.append("fileContent", new Blob([content]));
-        return this.apiCall(`${base}/namespaces/${encodeURIComponent(namespace)}/files?path=${encodedPath}`, `Error uploading ${path}:`, [], {method: "POST", body: form});
+        const authHeaders = await this.storedAuthHeaders();
+        try {
+            return await fetch(`${base}/namespaces/${encodeURIComponent(namespace)}/files?path=${encodedPath}`, {method: "POST", body: form, headers: {...(authHeaders ?? {})}});
+        } catch {
+            return null;
+        }
     }
 
     // Checks a namespace is usable before opening it, so a bad URL, tenant, permission, or typo errors clearly.
