@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import ApiClient from './apiClient';
 import {SyncOutcome, basename, namespacePath, isIgnoredName, reachabilityError, uploadNotice} from './namespaceFilesHelpers';
+import {logWarn} from './log';
 
 type LocalFile = {uri: vscode.Uri; relative: string};
 
@@ -147,6 +148,7 @@ async function pushFiles(apiClient: ApiClient, namespace: string, basePath: stri
                     continue;
                 }
                 outcome.failed.push(file.relative);
+                logWarn(`Upload failed: ${file.relative}${response ? ` (HTTP ${response.status})` : ' (no response)'}`);
                 // Auth will not recover for the remaining files, so stop after the first denial.
                 if (response && (response.status === 401 || response.status === 403)) {
                     outcome.stoppedByAuth = true;
@@ -158,6 +160,7 @@ async function pushFiles(apiClient: ApiClient, namespace: string, basePath: stri
                     break;
                 }
                 outcome.failed.push(file.relative);
+                logWarn(`Upload failed to read or send: ${file.relative}`);
             }
         }
     } finally {

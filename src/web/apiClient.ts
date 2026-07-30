@@ -3,6 +3,7 @@ import * as vscode from 'vscode';
 import { kestraBaseUrl, secretStorageKey, yamlContentType, PebbleFunctionDef } from "./constants";
 import { FlowGraph } from "../shared/flow";
 import type { PluginDefinition, PluginEntry } from "./documentation/pluginDoc";
+import { logWarn } from "./log";
 
 export default class ApiClient {
     private readonly _secretStorage: vscode.SecretStorage;
@@ -282,19 +283,23 @@ export default class ApiClient {
     // full so instances with more than one page are not silently truncated.
     public async listNamespaces(): Promise<string[]> {
         const size = 200;
+        const maxPages = 50;
         const ids: string[] = [];
-        for (let page = 1; page <= 50; page++) {
+        let page = 1;
+        for (; page <= maxPages; page++) {
             const response = await this.silentFetch(`/namespaces/search?existing=true&size=${size}&page=${page}&sort=id%3Aasc`);
             if (!response?.ok) {
-                break;
+                logWarn(`Namespace list request failed on page ${page}${response ? ` (HTTP ${response.status})` : ''}; showing the ${ids.length} loaded so far.`);
+                return ids;
             }
             const body = (await response.json().catch(() => null)) as {results?: Array<{id?: string}>; total?: number} | null;
             const results = body?.results ?? [];
             ids.push(...results.map(r => r.id).filter((id): id is string => !!id));
             if (results.length < size || (body?.total !== undefined && ids.length >= body.total)) {
-                break;
+                return ids;
             }
         }
+        logWarn(`Namespace list truncated at ${ids.length}; type the name directly if it is not shown.`);
         return ids;
     }
 

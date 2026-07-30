@@ -10,6 +10,7 @@ import {registerRequiredFieldsCompletion} from './requiredFieldsCompletion';
 import {runFlowFromEditor, saveFlowFromEditor} from './flowRunner';
 import {disposeRunLogs} from './runOutput';
 import {resolveConfiguredNamespace, uploadFileToNamespace, syncFolderToNamespace} from './namespaceFiles';
+import {initLog} from './log';
 
 async function downloadSchema(globalState: vscode.Memento, apiClient: ApiClient, opts: {silent: boolean, forceInput?: boolean}): Promise<boolean> {
     // The plugin schema endpoint is global, not tenant-scoped.
@@ -91,6 +92,7 @@ function signOutCommand(apiClient: ApiClient) {
 }
 
 export async function activate(context: vscode.ExtensionContext) {
+    initLog(context);
     const openedWs = vscode.workspace.workspaceFolders?.[0];
     const apiClient = new ApiClient(context.secrets);
     if (openedWs?.uri?.scheme === "kestra") {
