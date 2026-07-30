@@ -298,8 +298,7 @@ export default class ApiClient {
         return ids;
     }
 
-    // Whether the namespace already exists on the instance. Returns null when it cannot be determined
-    // (unreachable, or the user cannot search namespaces), so callers fall back to the files probe.
+    // Whether the namespace exists. null when it can't be checked, so callers fall back to the files probe.
     public async namespaceExists(namespace: string): Promise<boolean | null> {
         const response = await this.silentFetch(`/namespaces/search?q=${encodeURIComponent(namespace)}&existing=true&size=200`);
         if (!response?.ok) {
@@ -309,8 +308,7 @@ export default class ApiClient {
         return (body?.results ?? []).some(r => r.id === namespace);
     }
 
-    // Uploads a single file to the namespace, creating parent directories as needed. Path segments
-    // are encoded individually so the slashes that separate them survive.
+    // Uploads one file. Path segments are encoded individually so their separating slashes survive.
     public async uploadNamespaceFile(namespace: string, path: string, content: Uint8Array): Promise<Response> {
         const base = await ApiClient.getKestraApiUrl();
         const encodedPath = path.split("/").map(encodeURIComponent).join("/");
@@ -319,12 +317,9 @@ export default class ApiClient {
         return this.apiCall(`${base}/namespaces/${encodeURIComponent(namespace)}/files?path=${encodedPath}`, `Error uploading ${path}:`, [], {method: "POST", body: form});
     }
 
-    // Confirms the namespace files API answers before opening a virtual folder on it, so a wrong
-    // URL, tenant, or missing sign-in surfaces as a clear error instead of a silently empty window.
+    // Checks a namespace is usable before opening it, so a bad URL, tenant, permission, or typo errors clearly.
     public async namespaceFilesReachable(namespace: string): Promise<{ok: boolean; status?: number; detail?: string}> {
-        // Reject a typo up front: probing the files directory of a nonexistent namespace returns 200
-        // and auto-creates an empty directory, which would open a blank window. null means "cannot
-        // check", so fall through to the files probe for a precise status.
+        // A nonexistent namespace returns 200 here and auto-creates an empty dir, so reject typos first.
         if ((await this.namespaceExists(namespace)) === false) {
             return {ok: false, status: 404};
         }

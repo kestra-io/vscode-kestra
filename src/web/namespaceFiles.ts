@@ -33,9 +33,8 @@ async function pickNamespace(apiClient: ApiClient): Promise<string | undefined> 
     return typed?.trim() || undefined;
 }
 
-// Kestra answers 401 for a bad/expired token, a missing tenant membership, and a lacking namespace
-// permission alike, so the only reliable split is whether we hold a credential at all: none means
-// "never signed in", one present means authenticated-but-denied.
+// Kestra returns 401 for a bad token, a missing tenant, and a lacking permission alike, so the only
+// reliable split is whether we hold a credential: none means "not signed in", one means "denied".
 function reachabilityError(namespace: string, result: {status?: number; detail?: string}, signedIn: boolean): string {
     switch (result.status) {
         case 401:
@@ -138,8 +137,8 @@ async function collectFiles(root: vscode.Uri): Promise<Array<{uri: vscode.Uri; r
             }
             const child = vscode.Uri.joinPath(dir, entryName);
             const relative = prefix ? `${prefix}/${entryName}` : entryName;
-            // FileType is a bitmask (a symlink adds SymbolicLink), so mask it. Symlinked files are
-            // uploaded, symlinked directories are skipped to avoid following cycles into an infinite walk.
+            // FileType is a bitmask, so mask the File bit to include symlinked files. Symlinked
+            // directories stay excluded (strict ===) to avoid walking into a cycle.
             if (type === vscode.FileType.Directory) {
                 await walk(child, relative);
             } else if ((type & vscode.FileType.File) !== 0) {
@@ -213,8 +212,7 @@ export async function syncFolderToNamespace(apiClient: ApiClient, resource?: vsc
                     uploaded++;
                 } else {
                     failures.push(file.relative);
-                    // Auth failures will not recover for the remaining files, and each one prompts
-                    // for credentials, so stop after the first rather than repeating the prompt.
+                    // Auth won't recover and each file re-prompts for credentials, so stop after the first.
                     if (response.status === 401 || response.status === 403) {
                         accessDenied = true;
                         break;
