@@ -45,7 +45,7 @@ function reachabilityError(namespace: string, result: {status?: number; detail?:
         case 403:
             return `Cannot use namespace "${namespace}": you do not have permission to access its files.`;
         case 404:
-            return `Namespace "${namespace}" was not found. Check the instance URL and tenant.`;
+            return `Namespace "${namespace}" was not found, or you cannot access it. Check the name, instance URL, and tenant.`;
         default:
             return `Cannot use namespace "${namespace}": ${result.detail ?? (result.status ? `HTTP ${result.status}` : "the instance is not reachable")}.`;
     }

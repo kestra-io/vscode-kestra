@@ -278,14 +278,35 @@ export default class ApiClient {
         return response?.ok ? (await response.json().catch(() => null)) as FlowGraph | null : null;
     }
 
-    // Existing namespaces on the instance, to populate the "Open namespace" picker.
+    // Existing namespaces on the instance, to populate the "Open namespace" picker. Paged through in
+    // full so instances with more than one page are not silently truncated.
     public async listNamespaces(): Promise<string[]> {
-        const response = await this.silentFetch("/namespaces/search?existing=true&size=200&sort=id%3Aasc");
+        const size = 200;
+        const ids: string[] = [];
+        for (let page = 1; page <= 50; page++) {
+            const response = await this.silentFetch(`/namespaces/search?existing=true&size=${size}&page=${page}&sort=id%3Aasc`);
+            if (!response?.ok) {
+                break;
+            }
+            const body = (await response.json().catch(() => null)) as {results?: Array<{id?: string}>; total?: number} | null;
+            const results = body?.results ?? [];
+            ids.push(...results.map(r => r.id).filter((id): id is string => !!id));
+            if (results.length < size || (body?.total !== undefined && ids.length >= body.total)) {
+                break;
+            }
+        }
+        return ids;
+    }
+
+    // Whether the namespace already exists on the instance. Returns null when it cannot be determined
+    // (unreachable, or the user cannot search namespaces), so callers fall back to the files probe.
+    public async namespaceExists(namespace: string): Promise<boolean | null> {
+        const response = await this.silentFetch(`/namespaces/search?q=${encodeURIComponent(namespace)}&existing=true&size=200`);
         if (!response?.ok) {
-            return [];
+            return null;
         }
         const body = (await response.json().catch(() => null)) as {results?: Array<{id?: string}>} | null;
-        return (body?.results ?? []).map(r => r.id).filter((id): id is string => !!id);
+        return (body?.results ?? []).some(r => r.id === namespace);
     }
 
     // Uploads a single file to the namespace, creating parent directories as needed. Path segments
@@ -301,6 +322,12 @@ export default class ApiClient {
     // Confirms the namespace files API answers before opening a virtual folder on it, so a wrong
     // URL, tenant, or missing sign-in surfaces as a clear error instead of a silently empty window.
     public async namespaceFilesReachable(namespace: string): Promise<{ok: boolean; status?: number; detail?: string}> {
+        // Reject a typo up front: probing the files directory of a nonexistent namespace returns 200
+        // and auto-creates an empty directory, which would open a blank window. null means "cannot
+        // check", so fall through to the files probe for a precise status.
+        if ((await this.namespaceExists(namespace)) === false) {
+            return {ok: false, status: 404};
+        }
         const response = await this.silentFetch(`/namespaces/${encodeURIComponent(namespace)}/files/directory?path=/`);
         if (!response) {
             return {ok: false, detail: "the instance is not reachable, or you are not signed in"};
