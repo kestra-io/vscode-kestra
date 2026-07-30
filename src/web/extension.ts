@@ -9,6 +9,7 @@ import TopologyPanel, {registerTopologyRefresh} from './topologyPanel';
 import {registerRequiredFieldsCompletion} from './requiredFieldsCompletion';
 import {runFlowFromEditor, saveFlowFromEditor} from './flowRunner';
 import {disposeRunLogs} from './runOutput';
+import {pickNamespace, ensureNamespaceReachable, uploadFileToNamespace, syncFolderToNamespace} from './namespaceFiles';
 
 async function downloadSchema(globalState: vscode.Memento, apiClient: ApiClient, opts: {silent: boolean, forceInput?: boolean}): Promise<boolean> {
     // The plugin schema endpoint is global, not tenant-scoped.
@@ -61,45 +62,6 @@ function signInCommand(apiClient: ApiClient) {
     return vscode.commands.registerCommand('kestra.auth.signIn', () => apiClient.signIn());
 }
 
-// Namespaces are free-form strings, so the picker lists known ones but always allows typing a new one.
-async function pickNamespace(apiClient: ApiClient): Promise<string | undefined> {
-    const manual = "$(edit) Enter namespace manually…";
-    const namespaces = await apiClient.listNamespaces();
-    if (namespaces.length > 0) {
-        const choice = await vscode.window.showQuickPick([manual, ...namespaces], {
-            title: "Kestra: Open namespace",
-            placeHolder: "Select a namespace to open"
-        });
-        if (choice === undefined) {
-            return undefined;
-        }
-        if (choice !== manual) {
-            return choice;
-        }
-    }
-    const typed = await vscode.window.showInputBox({
-        title: "Kestra: Open namespace",
-        prompt: "Namespace to open",
-        placeHolder: "company.team",
-        validateInput: value => value.trim() ? undefined : "Namespace cannot be empty"
-    });
-    return typed?.trim() || undefined;
-}
-
-// A wrong config, a missing sign-in, and an RBAC denial all fail the pre-flight but need different fixes.
-function namespaceOpenError(namespace: string, result: {status?: number; detail?: string}): string {
-    switch (result.status) {
-        case 401:
-            return `Cannot open namespace "${namespace}": not signed in. Run "Kestra: Sign in" and try again.`;
-        case 403:
-            return `Cannot open namespace "${namespace}": you do not have permission to access its files.`;
-        case 404:
-            return `Namespace "${namespace}" was not found. Check the instance URL and tenant.`;
-        default:
-            return `Cannot open namespace "${namespace}": ${result.detail ?? (result.status ? `HTTP ${result.status}` : "the instance is not reachable")}.`;
-    }
-}
-
 function openNamespaceCommand(apiClient: ApiClient) {
     return vscode.commands.registerCommand('kestra.namespace.open', async () => {
         // Prompts for the instance URL on first use, cancelling that returns "".
@@ -110,13 +72,19 @@ function openNamespaceCommand(apiClient: ApiClient) {
         if (!namespace) {
             return;
         }
-        const reachable = await apiClient.namespaceFilesReachable(namespace);
-        if (!reachable.ok) {
-            vscode.window.showErrorMessage(namespaceOpenError(namespace, reachable));
+        if (!(await ensureNamespaceReachable(apiClient, namespace))) {
             return;
         }
         await vscode.commands.executeCommand('vscode.openFolder', vscode.Uri.parse(`kestra:///${namespace}`), {forceNewWindow: true});
     });
+}
+
+function uploadFileCommand(apiClient: ApiClient) {
+    return vscode.commands.registerCommand('kestra.namespace.uploadFile', (resource?: vscode.Uri) => uploadFileToNamespace(apiClient, resource));
+}
+
+function syncFolderCommand(apiClient: ApiClient) {
+    return vscode.commands.registerCommand('kestra.namespace.syncFolder', (resource?: vscode.Uri) => syncFolderToNamespace(apiClient, resource));
 }
 
 function signOutCommand(apiClient: ApiClient) {
@@ -140,6 +108,8 @@ export async function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(signInCommand(apiClient));
     context.subscriptions.push(signOutCommand(apiClient));
     context.subscriptions.push(openNamespaceCommand(apiClient));
+    context.subscriptions.push(uploadFileCommand(apiClient));
+    context.subscriptions.push(syncFolderCommand(apiClient));
     context.subscriptions.push(runFlowCommand(apiClient, context.extensionUri));
     context.subscriptions.push(saveFlowCommand(apiClient));
     context.subscriptions.push(topologyCommand(apiClient, context.extensionUri));

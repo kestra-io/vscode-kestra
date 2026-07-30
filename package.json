@@ -60,6 +60,16 @@
         "category": "Kestra"
       },
       {
+        "command": "kestra.namespace.uploadFile",
+        "title": "Upload file to namespace",
+        "category": "Kestra"
+      },
+      {
+        "command": "kestra.namespace.syncFolder",
+        "title": "Sync folder to namespace",
+        "category": "Kestra"
+      },
+      {
         "command": "kestra.flow.run",
         "title": "Save and run flow",
         "category": "Kestra",
@@ -79,6 +89,18 @@
       }
     ],
     "menus": {
+      "explorer/context": [
+        {
+          "when": "resourceScheme == file && !explorerResourceIsFolder",
+          "command": "kestra.namespace.uploadFile",
+          "group": "kestra@1"
+        },
+        {
+          "when": "resourceScheme == file && explorerResourceIsFolder",
+          "command": "kestra.namespace.syncFolder",
+          "group": "kestra@1"
+        }
+      ],
       "editor/context": [
         {
           "when": "resourceLangId == yaml",

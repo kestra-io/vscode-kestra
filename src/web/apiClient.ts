@@ -283,6 +283,16 @@ export default class ApiClient {
         return (body?.results ?? []).map(r => r.id).filter((id): id is string => !!id);
     }
 
+    // Uploads a single file to the namespace, creating parent directories as needed. Path segments
+    // are encoded individually so the slashes that separate them survive.
+    public async uploadNamespaceFile(namespace: string, path: string, content: Uint8Array): Promise<Response> {
+        const base = await ApiClient.getKestraApiUrl();
+        const encodedPath = path.split("/").map(encodeURIComponent).join("/");
+        const form = new FormData();
+        form.append("fileContent", new Blob([content]));
+        return this.apiCall(`${base}/namespaces/${encodeURIComponent(namespace)}/files?path=${encodedPath}`, `Error uploading ${path}:`, [], {method: "POST", body: form});
+    }
+
     // Confirms the namespace files API answers before opening a virtual folder on it, so a wrong
     // URL, tenant, or missing sign-in surfaces as a clear error instead of a silently empty window.
     public async namespaceFilesReachable(namespace: string): Promise<{ok: boolean; status?: number; detail?: string}> {
