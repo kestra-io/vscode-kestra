@@ -33,11 +33,15 @@ export async function pickNamespace(apiClient: ApiClient): Promise<string | unde
     return typed?.trim() || undefined;
 }
 
-// A wrong config, a missing sign-in, and an RBAC denial all fail the pre-flight but need different fixes.
-function reachabilityError(namespace: string, result: {status?: number; detail?: string}): string {
+// Kestra answers 401 for a bad/expired token, a missing tenant membership, and a lacking namespace
+// permission alike, so the only reliable split is whether we hold a credential at all: none means
+// "never signed in", one present means authenticated-but-denied.
+function reachabilityError(namespace: string, result: {status?: number; detail?: string}, signedIn: boolean): string {
     switch (result.status) {
         case 401:
-            return `Cannot use namespace "${namespace}": not authorized. Check that you are signed in and that your user has access to this tenant.`;
+            return signedIn
+                ? `Cannot use namespace "${namespace}": your account is not allowed to access it. Check your tenant membership and namespace permissions, or your token may have expired.`
+                : `Cannot use namespace "${namespace}": not signed in. Run "Kestra: Sign in" and try again.`;
         case 403:
             return `Cannot use namespace "${namespace}": you do not have permission to access its files.`;
         case 404:
@@ -53,7 +57,7 @@ export async function ensureNamespaceReachable(apiClient: ApiClient, namespace: 
     if (result.ok) {
         return true;
     }
-    vscode.window.showErrorMessage(reachabilityError(namespace, result));
+    vscode.window.showErrorMessage(reachabilityError(namespace, result, await apiClient.hasStoredCredentials()));
     return false;
 }
 

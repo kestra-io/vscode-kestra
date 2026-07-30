@@ -153,6 +153,11 @@ export default class ApiClient {
         return legacy;
     }
 
+    // True when a credential is stored, used to tell "never signed in" apart from an authenticated-but-denied 401.
+    public async hasStoredCredentials(): Promise<boolean> {
+        return (await this.storedAuthHeaders()) !== undefined;
+    }
+
     private async storedAuthHeaders(): Promise<Record<string, string> | undefined> {
         const apiToken = await this.getSecret(secretStorageKey.apiToken);
         if (apiToken) {
