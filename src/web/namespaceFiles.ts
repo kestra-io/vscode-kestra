@@ -73,11 +73,11 @@ function validatePath(value: string, requireFileName: boolean): string | undefin
     return undefined;
 }
 
-// Prefers an open document's (possibly unsaved) text, so an upload sends what the user sees rather
-// than stale disk bytes. Binary files are never open as text documents, so they fall back to disk.
+// Uploads the unsaved editor text when the file has pending changes, otherwise the exact disk bytes.
+// Reading a clean file from disk preserves its encoding and any BOM, which re-encoding would drop.
 async function readLocalFile(uri: vscode.Uri): Promise<Uint8Array> {
     const open = vscode.workspace.textDocuments.find(doc => doc.uri.toString() === uri.toString());
-    return open ? new TextEncoder().encode(open.getText()) : vscode.workspace.fs.readFile(uri);
+    return open && open.isDirty ? new TextEncoder().encode(open.getText()) : vscode.workspace.fs.readFile(uri);
 }
 
 function excludePatterns(): string[] {
@@ -129,7 +129,13 @@ async function gatherFiles(uris: vscode.Uri[]): Promise<LocalFile[]> {
             const nested = await collectFiles(uri, exclude);
             files.push(...nested.map(file => ({uri: file.uri, relative: `${dir}/${file.relative}`})));
         } else if ((stat.type & vscode.FileType.File) !== 0) {
-            files.push({uri, relative: basename(uri.path)});
+            const name = basename(uri.path);
+            // A blanket selection can include secrets, so an explicitly picked file is filtered too.
+            if (isIgnored(name, exclude)) {
+                logWarn(`Skipped ${name} (matches kestra.namespaceFiles.exclude)`);
+                continue;
+            }
+            files.push({uri, relative: name});
         }
     }
     return files;
@@ -205,11 +211,16 @@ async function uploadBatch(apiClient: ApiClient, namespace: string, files: Local
     showNotice(notice.kind, notice.text);
 }
 
-function resolveUris(resource: vscode.Uri | undefined, selected: vscode.Uri[] | undefined, fallback?: vscode.Uri): vscode.Uri[] {
+// The fallback is a thunk so a side-effecting default (like opening a folder picker) runs only when
+// there is no resource or selection, not eagerly on every invocation.
+async function resolveUris(resource: vscode.Uri | undefined, selected: vscode.Uri[] | undefined, fallback: () => vscode.Uri | undefined | Thenable<vscode.Uri | undefined>): Promise<vscode.Uri[]> {
     if (selected && selected.length > 0) {
         return selected;
     }
-    const single = resource ?? fallback;
+    if (resource) {
+        return [resource];
+    }
+    const single = await fallback();
     return single ? [single] : [];
 }
 
@@ -238,7 +249,21 @@ async function uploadSingleFile(apiClient: ApiClient, fileUri: vscode.Uri): Prom
         return;
     }
 
-    const response = await apiClient.uploadNamespaceFile(namespace, targetPath, content);
+    let cancelled = false;
+    const response = await vscode.window.withProgress(
+        {location: vscode.ProgressLocation.Notification, title: `Uploading to ${namespace}${targetPath}`, cancellable: true},
+        (_progress, token) => {
+            const controller = new AbortController();
+            token.onCancellationRequested(() => {
+                cancelled = true;
+                controller.abort();
+            });
+            return apiClient.uploadNamespaceFile(namespace, targetPath, content, controller.signal);
+        }
+    );
+    if (cancelled) {
+        return;
+    }
     if (!response?.ok) {
         showNotice('error', `Failed to upload to ${namespace}${targetPath}${response ? ` (HTTP ${response.status})` : ''}.`);
         return;
@@ -247,7 +272,7 @@ async function uploadSingleFile(apiClient: ApiClient, fileUri: vscode.Uri): Prom
 }
 
 export async function uploadFileToNamespace(apiClient: ApiClient, resource?: vscode.Uri, selected?: vscode.Uri[]): Promise<void> {
-    const uris = resolveUris(resource, selected, vscode.window.activeTextEditor?.document.uri);
+    const uris = await resolveUris(resource, selected, () => vscode.window.activeTextEditor?.document.uri);
     if (uris.length === 0) {
         showNotice('error', "Open or select a file to upload.");
         return;
@@ -286,7 +311,7 @@ async function pickLocalFolder(): Promise<vscode.Uri | undefined> {
 }
 
 export async function syncFolderToNamespace(apiClient: ApiClient, resource?: vscode.Uri, selected?: vscode.Uri[]): Promise<void> {
-    const uris = resolveUris(resource, selected, await pickLocalFolder());
+    const uris = await resolveUris(resource, selected, () => pickLocalFolder());
     if (uris.length === 0) {
         return;
     }

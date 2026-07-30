@@ -91,12 +91,12 @@
     "menus": {
       "explorer/context": [
         {
-          "when": "kestra.hasApiUrl && resourceScheme == file && !explorerResourceIsFolder",
+          "when": "config.kestra.api.url && resourceScheme == file && !explorerResourceIsFolder",
           "command": "kestra.namespace.uploadFile",
           "group": "kestra@1"
         },
         {
-          "when": "kestra.hasApiUrl && resourceScheme == file && explorerResourceIsFolder",
+          "when": "config.kestra.api.url && resourceScheme == file && explorerResourceIsFolder",
           "command": "kestra.namespace.syncFolder",
           "group": "kestra@1"
         }
@@ -216,15 +216,18 @@
             ".DS_Store",
             ".env",
             ".env.*",
+            ".envrc",
             "*.pem",
             "*.key",
+            "*.p8",
             "*.pfx",
             "*.p12",
             "*.crt",
             "id_rsa*",
             "credentials.json",
             ".npmrc",
-            ".netrc"
+            ".netrc",
+            ".pypirc"
           ],
           "description": "File and folder names skipped when syncing or uploading a folder to a namespace. Matches per name; a leading or trailing * is a wildcard (for example *.pem or .env.*). Edit to add your own secrets or to allow one the defaults exclude."
         }
