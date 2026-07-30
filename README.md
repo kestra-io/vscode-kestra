@@ -98,7 +98,7 @@ On a flow file, run `Kestra: Preview flow topology` (or the graph button in the 
 
 `Kestra: Open namespace` mounts a namespace as a folder: browse, edit, create, rename, and delete its files, with each save writing back to the instance. Editing is live, there is no local copy. The picker lists namespaces you can access, or you can type one.
 
-`Kestra: Upload file to namespace` pushes the active file, or a file selected in the Explorer, to a namespace at a path you choose. `Kestra: Sync folder to namespace` walks a local folder and uploads every file, creating directories as needed and overwriting files at the same path. It does not delete files that exist only on the instance.
+`Kestra: Upload file to namespace` pushes the active file, or the files selected in the Explorer, to a namespace. `Kestra: Sync folder to namespace` walks a local folder and uploads every file, creating directories as needed and overwriting files at the same path. It does not delete files that exist only on the instance. Names matching `kestra.namespaceFiles.exclude` (metadata and secret files like `.env` and `*.pem` by default) are skipped.
 
 All three respect the instance's permissions. You can only reach namespaces and files your Kestra user is allowed to, and a denied request reports why instead of failing silently.
 
@@ -113,6 +113,7 @@ The `Open Kestra documentation` action opens the Kestra docs beside the editor, 
 - `kestra.run.output`: Where to show a flow run, the styled `panel` (default) or the native `logs` output channel.
 - `kestra.run.logLevel`: Minimum log level streamed when running a flow. Defaults to `INFO`.
 - `kestra.schema.match-path`: Restrict the schema to files under a path, for example `_flows`.
+- `kestra.namespaceFiles.exclude`: Names skipped when uploading or syncing a folder to a namespace. A leading or trailing `*` is a wildcard, for example `*.pem` or `.env.*`. Defaults to common metadata and secret files.
 
 ## Contributing
 

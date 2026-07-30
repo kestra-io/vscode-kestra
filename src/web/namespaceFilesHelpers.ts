@@ -4,9 +4,31 @@ export type SyncOutcome = {uploaded: number; failed: string[]; stoppedByAuth: bo
 export type Reachability = {status?: number; detail?: string};
 export type Notice = {kind: 'info' | 'warning' | 'error'; text: string};
 
-// Local metadata and secret files that should never be pushed to a namespace.
-const IGNORED_NAMES = new Set(['.git', '.vscode', '.idea', 'node_modules', '.DS_Store', 'credentials.json', '.npmrc', '.netrc']);
-const SECRET_SUFFIXES = ['.pem', '.key', '.pfx', '.p12', '.crt'];
+// Matches a file or folder name against one exclude pattern. A leading and/or trailing "*" is a
+// wildcard (`*.pem`, `.env.*`, `id_rsa*`); anything else is an exact name. Patterns are kept simple
+// on purpose, the list is user-configurable, so there is nothing to grow in code.
+export function matchesPattern(name: string, pattern: string): boolean {
+    const n = name.toLowerCase();
+    const p = pattern.toLowerCase();
+    if (!p.includes('*')) {
+        return n === p;
+    }
+    if (p.startsWith('*') && p.endsWith('*')) {
+        return n.includes(p.slice(1, -1));
+    }
+    if (p.startsWith('*')) {
+        return n.endsWith(p.slice(1));
+    }
+    if (p.endsWith('*')) {
+        return n.startsWith(p.slice(0, -1));
+    }
+    const [prefix, suffix] = p.split('*');
+    return n.startsWith(prefix) && n.endsWith(suffix) && n.length >= prefix.length + suffix.length;
+}
+
+export function isIgnored(name: string, patterns: string[]): boolean {
+    return patterns.some(pattern => matchesPattern(name, pattern));
+}
 
 export function basename(path: string): string {
     return path.split('/').filter(Boolean).pop() ?? path;
@@ -16,20 +38,6 @@ export function basename(path: string): string {
 export function namespacePath(base: string, relative: string): string {
     const trimmed = base.endsWith('/') ? base.slice(0, -1) : base;
     return `${trimmed}/${relative}`;
-}
-
-export function isIgnoredName(name: string): boolean {
-    if (IGNORED_NAMES.has(name)) {
-        return true;
-    }
-    if (name === '.env' || name.startsWith('.env.')) {
-        return true;
-    }
-    if (name.startsWith('id_rsa') || name.startsWith('id_ed25519')) {
-        return true;
-    }
-    const lower = name.toLowerCase();
-    return SECRET_SUFFIXES.some(suffix => lower.endsWith(suffix));
 }
 
 // A 401 does not say whether the credential is invalid or the account simply lacks access, so the

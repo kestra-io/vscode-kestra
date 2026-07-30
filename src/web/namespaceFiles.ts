@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import ApiClient from './apiClient';
-import {SyncOutcome, basename, namespacePath, isIgnoredName, reachabilityError, uploadNotice} from './namespaceFilesHelpers';
+import {SyncOutcome, basename, namespacePath, isIgnored, reachabilityError, uploadNotice} from './namespaceFilesHelpers';
 import {logWarn} from './log';
 
 type LocalFile = {uri: vscode.Uri; relative: string};
@@ -80,7 +80,11 @@ async function readLocalFile(uri: vscode.Uri): Promise<Uint8Array> {
     return open ? new TextEncoder().encode(open.getText()) : vscode.workspace.fs.readFile(uri);
 }
 
-async function collectFiles(root: vscode.Uri): Promise<LocalFile[]> {
+function excludePatterns(): string[] {
+    return vscode.workspace.getConfiguration("kestra.namespaceFiles").get<string[]>("exclude") ?? [];
+}
+
+async function collectFiles(root: vscode.Uri, exclude: string[]): Promise<LocalFile[]> {
     const files: LocalFile[] = [];
     async function walk(dir: vscode.Uri, prefix: string): Promise<void> {
         let entries: [string, vscode.FileType][];
@@ -90,7 +94,7 @@ async function collectFiles(root: vscode.Uri): Promise<LocalFile[]> {
             return; // skip unreadable directories rather than aborting the whole sync
         }
         for (const [entryName, type] of entries) {
-            if (isIgnoredName(entryName)) {
+            if (isIgnored(entryName, exclude)) {
                 continue;
             }
             const child = vscode.Uri.joinPath(dir, entryName);
@@ -108,8 +112,10 @@ async function collectFiles(root: vscode.Uri): Promise<LocalFile[]> {
     return files;
 }
 
-// Expands a selection of files and folders into a flat, namespace-relative file list.
+// Expands a selection of files and folders into a flat, namespace-relative file list. Directory
+// contents are filtered by the configured exclude patterns; explicitly selected files are not.
 async function gatherFiles(uris: vscode.Uri[]): Promise<LocalFile[]> {
+    const exclude = excludePatterns();
     const files: LocalFile[] = [];
     for (const uri of uris) {
         let stat: vscode.FileStat;
@@ -120,7 +126,7 @@ async function gatherFiles(uris: vscode.Uri[]): Promise<LocalFile[]> {
         }
         if ((stat.type & vscode.FileType.Directory) !== 0) {
             const dir = basename(uri.path);
-            const nested = await collectFiles(uri);
+            const nested = await collectFiles(uri, exclude);
             files.push(...nested.map(file => ({uri: file.uri, relative: `${dir}/${file.relative}`})));
         } else if ((stat.type & vscode.FileType.File) !== 0) {
             files.push({uri, relative: basename(uri.path)});

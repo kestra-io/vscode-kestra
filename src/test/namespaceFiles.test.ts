@@ -1,5 +1,5 @@
 import * as assert from "assert";
-import {basename, namespacePath, isIgnoredName, reachabilityError, uploadNotice} from "../web/namespaceFilesHelpers";
+import {basename, namespacePath, matchesPattern, isIgnored, reachabilityError, uploadNotice} from "../web/namespaceFilesHelpers";
 
 describe("basename", () => {
     it("returns the last path segment", () => {
@@ -25,26 +25,39 @@ describe("namespacePath", () => {
     });
 });
 
-describe("isIgnoredName", () => {
-    it("ignores metadata directories", () => {
-        assert.ok(isIgnoredName(".git"));
-        assert.ok(isIgnoredName("node_modules"));
+describe("matchesPattern", () => {
+    it("matches an exact name", () => {
+        assert.ok(matchesPattern(".git", ".git"));
+        assert.ok(!matchesPattern(".gitignore", ".git"));
     });
-    it("ignores env and credential files", () => {
-        assert.ok(isIgnoredName(".env"));
-        assert.ok(isIgnoredName(".env.local"));
-        assert.ok(isIgnoredName("credentials.json"));
-        assert.ok(isIgnoredName(".npmrc"));
+    it("matches a trailing-wildcard suffix", () => {
+        assert.ok(matchesPattern("server.pem", "*.pem"));
+        assert.ok(matchesPattern("tls.KEY", "*.key")); // case-insensitive
+        assert.ok(!matchesPattern("pem.txt", "*.pem"));
     });
-    it("ignores private key material by suffix", () => {
-        assert.ok(isIgnoredName("server.pem"));
-        assert.ok(isIgnoredName("tls.KEY"));
-        assert.ok(isIgnoredName("id_rsa"));
+    it("matches a leading-wildcard prefix", () => {
+        assert.ok(matchesPattern(".env.local", ".env.*"));
+        assert.ok(matchesPattern("id_rsa.pub", "id_rsa*"));
+    });
+});
+
+describe("isIgnored", () => {
+    const patterns = [".git", "node_modules", ".env", ".env.*", "*.pem", "credentials.json"];
+    it("excludes metadata, env, and secret files", () => {
+        assert.ok(isIgnored(".git", patterns));
+        assert.ok(isIgnored("node_modules", patterns));
+        assert.ok(isIgnored(".env", patterns));
+        assert.ok(isIgnored(".env.local", patterns));
+        assert.ok(isIgnored("server.pem", patterns));
+        assert.ok(isIgnored("credentials.json", patterns));
     });
     it("keeps ordinary source files", () => {
-        assert.ok(!isIgnoredName("main.py"));
-        assert.ok(!isIgnoredName("query.sql"));
-        assert.ok(!isIgnoredName("README.md"));
+        assert.ok(!isIgnored("main.py", patterns));
+        assert.ok(!isIgnored("query.sql", patterns));
+        assert.ok(!isIgnored("README.md", patterns));
+    });
+    it("excludes nothing when the pattern list is empty", () => {
+        assert.ok(!isIgnored(".env", []));
     });
 });
 
