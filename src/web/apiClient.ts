@@ -310,7 +310,7 @@ export default class ApiClient {
 
     // Uploads one file and returns the raw response (null if unreachable). The caller reports errors,
     // so a batch sync can summarize instead of toasting per file. Path segments are encoded individually.
-    public async uploadNamespaceFile(namespace: string, path: string, content: Uint8Array): Promise<Response | null> {
+    public async uploadNamespaceFile(namespace: string, path: string, content: Uint8Array, signal?: AbortSignal): Promise<Response | null> {
         const base = await ApiClient.getKestraApiUrl();
         if (!base) {
             return null;
@@ -320,7 +320,7 @@ export default class ApiClient {
         form.append("fileContent", new Blob([content]));
         const authHeaders = await this.storedAuthHeaders();
         try {
-            return await fetch(`${base}/namespaces/${encodeURIComponent(namespace)}/files?path=${encodedPath}`, {method: "POST", body: form, headers: {...(authHeaders ?? {})}});
+            return await fetch(`${base}/namespaces/${encodeURIComponent(namespace)}/files?path=${encodedPath}`, {method: "POST", body: form, headers: {...(authHeaders ?? {})}, signal});
         } catch {
             return null;
         }

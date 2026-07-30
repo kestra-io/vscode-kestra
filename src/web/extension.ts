@@ -64,7 +64,7 @@ function signInCommand(apiClient: ApiClient) {
 
 function openNamespaceCommand(apiClient: ApiClient) {
     return vscode.commands.registerCommand('kestra.namespace.open', async () => {
-        const namespace = await resolveConfiguredNamespace(apiClient);
+        const namespace = await resolveConfiguredNamespace(apiClient, true);
         if (!namespace) {
             return;
         }
@@ -73,11 +73,17 @@ function openNamespaceCommand(apiClient: ApiClient) {
 }
 
 function uploadFileCommand(apiClient: ApiClient) {
-    return vscode.commands.registerCommand('kestra.namespace.uploadFile', (resource?: vscode.Uri) => uploadFileToNamespace(apiClient, resource));
+    return vscode.commands.registerCommand('kestra.namespace.uploadFile', (resource?: vscode.Uri, selected?: vscode.Uri[]) => uploadFileToNamespace(apiClient, resource, selected));
 }
 
 function syncFolderCommand(apiClient: ApiClient) {
-    return vscode.commands.registerCommand('kestra.namespace.syncFolder', (resource?: vscode.Uri) => syncFolderToNamespace(apiClient, resource));
+    return vscode.commands.registerCommand('kestra.namespace.syncFolder', (resource?: vscode.Uri, selected?: vscode.Uri[]) => syncFolderToNamespace(apiClient, resource, selected));
+}
+
+// Gates the namespace Explorer context menu items on an instance being configured.
+function setNamespaceMenuContext(): void {
+    const url = vscode.workspace.getConfiguration("kestra.api").get("url") as string;
+    vscode.commands.executeCommand('setContext', 'kestra.hasApiUrl', !!url);
 }
 
 function signOutCommand(apiClient: ApiClient) {
@@ -113,6 +119,8 @@ export async function activate(context: vscode.ExtensionContext) {
     registerPebbleCompletion(context, apiClient);
     registerRequiredFieldsCompletion(context);
 
+    setNamespaceMenuContext();
+
     const configuredUrl = vscode.workspace.getConfiguration("kestra.api").get("url") as string;
     if (vscode.env.uiKind === vscode.UIKind.Web) {
         await downloadSchema(context.globalState, apiClient, {silent: true});
@@ -126,6 +134,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
     context.subscriptions.push(vscode.workspace.onDidChangeConfiguration(async (event) => {
         if (event.affectsConfiguration("kestra.api.url") || event.affectsConfiguration("kestra.api.tenant")) {
+            setNamespaceMenuContext();
             resetPebbleCache();
             await downloadSchema(context.globalState, apiClient, {silent: true});
         }

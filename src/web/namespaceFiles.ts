@@ -1,14 +1,14 @@
 import * as vscode from 'vscode';
 import ApiClient from './apiClient';
-
-// Local metadata folders that should never be pushed to a namespace.
-const IGNORED_NAMES = new Set(['.git', '.vscode', 'node_modules', '.DS_Store', '.idea']);
+import {SyncOutcome, basename, namespacePath, isIgnoredName, reachabilityError, uploadNotice} from './namespaceFilesHelpers';
 
 type LocalFile = {uri: vscode.Uri; relative: string};
-type SyncOutcome = {uploaded: number; failed: string[]; stoppedByAuth: boolean; cancelled: boolean};
 
-function basename(path: string): string {
-    return path.split('/').filter(Boolean).pop() ?? path;
+function showNotice(kind: 'info' | 'warning' | 'error', text: string): void {
+    const show = kind === 'error' ? vscode.window.showErrorMessage
+        : kind === 'warning' ? vscode.window.showWarningMessage
+        : vscode.window.showInformationMessage;
+    show(text);
 }
 
 // Namespaces are free-form strings, so the picker lists known ones but always allows typing a new one.
@@ -36,40 +36,9 @@ async function pickNamespace(apiClient: ApiClient): Promise<string | undefined> 
     return typed?.trim() || undefined;
 }
 
-// A 401 does not say whether the credential is invalid or the account simply lacks access, so the
-// message splits on whether a credential is stored at all. (Permission denials come back as 403.)
-function reachabilityError(namespace: string, result: {status?: number; detail?: string}, signedIn: boolean): string {
-    switch (result.status) {
-        case 401:
-            return signedIn
-                ? `Cannot use namespace "${namespace}": access denied. Your account may not have permission for this namespace, or your token may have expired.`
-                : `Cannot use namespace "${namespace}": not signed in. Run "Kestra: Sign in" and try again.`;
-        case 403:
-            return `Cannot use namespace "${namespace}": you do not have permission to access its files.`;
-        case 404:
-            return `Namespace "${namespace}" was not found, or you cannot access it. Check the name, instance URL, and tenant.`;
-        default:
-            return `Cannot use namespace "${namespace}": ${result.detail ?? (result.status ? `HTTP ${result.status}` : "the instance is not reachable")}.`;
-    }
-}
-
-// Confirms the namespace exists and its files are accessible; on failure reports the reason and returns false.
-async function ensureNamespaceReachable(apiClient: ApiClient, namespace: string): Promise<boolean> {
-    const result = await apiClient.namespaceFilesReachable(namespace);
-    if (result.ok) {
-        return true;
-    }
-    vscode.window.showErrorMessage(reachabilityError(namespace, result, await apiClient.hasStoredCredentials()));
-    return false;
-}
-
-// Joins a namespace base path with a relative path, keeping a single leading slash and no doubles.
-function namespacePath(base: string, relative: string): string {
-    const trimmed = base.endsWith('/') ? base.slice(0, -1) : base;
-    return `${trimmed}/${relative}`;
-}
-
-export async function resolveConfiguredNamespace(apiClient: ApiClient): Promise<string | undefined> {
+// Resolves the namespace to work with. requireExisting is true for "open" (a typo would otherwise
+// open a blank window); false for upload/sync, where a new namespace is offered for creation.
+export async function resolveConfiguredNamespace(apiClient: ApiClient, requireExisting: boolean): Promise<string | undefined> {
     if (!(await ApiClient.getKestraApiUrl(false, false))) {
         return undefined;
     }
@@ -77,67 +46,50 @@ export async function resolveConfiguredNamespace(apiClient: ApiClient): Promise<
     if (!namespace) {
         return undefined;
     }
-    return (await ensureNamespaceReachable(apiClient, namespace)) ? namespace : undefined;
+    const result = await apiClient.namespaceFilesReachable(namespace);
+    if (result.ok) {
+        return namespace;
+    }
+    if (!requireExisting && result.status === 404) {
+        const create = await vscode.window.showWarningMessage(`Namespace "${namespace}" does not exist yet. Create it?`, {modal: true}, "Create");
+        return create === "Create" ? namespace : undefined;
+    }
+    showNotice('error', reachabilityError(namespace, result, await apiClient.hasStoredCredentials()));
+    return undefined;
 }
 
-export async function uploadFileToNamespace(apiClient: ApiClient, resource?: vscode.Uri): Promise<void> {
-    const fileUri = resource ?? vscode.window.activeTextEditor?.document.uri;
-    if (!fileUri) {
-        vscode.window.showErrorMessage("Open or select a file to upload.");
-        return;
+function validatePath(value: string, requireFileName: boolean): string | undefined {
+    const trimmed = value.trim();
+    if (!trimmed.startsWith('/')) {
+        return "Path must start with /";
     }
-    if (fileUri.scheme === 'kestra') {
-        vscode.window.showErrorMessage("That file already lives on a Kestra namespace.");
-        return;
+    if (requireFileName && trimmed.endsWith('/')) {
+        return "Path must include a file name";
     }
+    if (trimmed.split('/').includes('..')) {
+        return "Path cannot contain ..";
+    }
+    return undefined;
+}
 
-    const namespace = await resolveConfiguredNamespace(apiClient);
-    if (!namespace) {
-        return;
-    }
-
-    const target = await vscode.window.showInputBox({
-        title: `Upload to ${namespace}`,
-        prompt: "Target path in the namespace",
-        value: `/${basename(fileUri.path)}`,
-        validateInput: value => {
-            const trimmed = value.trim();
-            if (!trimmed.startsWith('/')) {
-                return "Path must start with /";
-            }
-            if (trimmed.endsWith('/')) {
-                return "Path must include a file name";
-            }
-            return undefined;
-        }
-    });
-    if (!target) {
-        return;
-    }
-    const targetPath = target.trim();
-
-    let content: Uint8Array;
-    try {
-        content = await vscode.workspace.fs.readFile(fileUri);
-    } catch {
-        vscode.window.showErrorMessage(`Cannot read ${fileUri.fsPath}.`);
-        return;
-    }
-
-    const response = await apiClient.uploadNamespaceFile(namespace, targetPath, content);
-    if (!response?.ok) {
-        vscode.window.showErrorMessage(`Failed to upload to ${namespace}${targetPath}${response ? ` (HTTP ${response.status})` : ''}.`);
-        return;
-    }
-    vscode.window.showInformationMessage(`Uploaded to ${namespace}${targetPath}`);
+// Prefers an open document's (possibly unsaved) text, so an upload sends what the user sees rather
+// than stale disk bytes. Binary files are never open as text documents, so they fall back to disk.
+async function readLocalFile(uri: vscode.Uri): Promise<Uint8Array> {
+    const open = vscode.workspace.textDocuments.find(doc => doc.uri.toString() === uri.toString());
+    return open ? new TextEncoder().encode(open.getText()) : vscode.workspace.fs.readFile(uri);
 }
 
 async function collectFiles(root: vscode.Uri): Promise<LocalFile[]> {
     const files: LocalFile[] = [];
     async function walk(dir: vscode.Uri, prefix: string): Promise<void> {
-        const entries = await vscode.workspace.fs.readDirectory(dir);
+        let entries: [string, vscode.FileType][];
+        try {
+            entries = await vscode.workspace.fs.readDirectory(dir);
+        } catch {
+            return; // skip unreadable directories rather than aborting the whole sync
+        }
         for (const [entryName, type] of entries) {
-            if (IGNORED_NAMES.has(entryName)) {
+            if (isIgnoredName(entryName)) {
                 continue;
             }
             const child = vscode.Uri.joinPath(dir, entryName);
@@ -155,6 +107,165 @@ async function collectFiles(root: vscode.Uri): Promise<LocalFile[]> {
     return files;
 }
 
+// Expands a selection of files and folders into a flat, namespace-relative file list.
+async function gatherFiles(uris: vscode.Uri[]): Promise<LocalFile[]> {
+    const files: LocalFile[] = [];
+    for (const uri of uris) {
+        let stat: vscode.FileStat;
+        try {
+            stat = await vscode.workspace.fs.stat(uri);
+        } catch {
+            continue;
+        }
+        if ((stat.type & vscode.FileType.Directory) !== 0) {
+            const dir = basename(uri.path);
+            const nested = await collectFiles(uri);
+            files.push(...nested.map(file => ({uri: file.uri, relative: `${dir}/${file.relative}`})));
+        } else if ((stat.type & vscode.FileType.File) !== 0) {
+            files.push({uri, relative: basename(uri.path)});
+        }
+    }
+    return files;
+}
+
+async function pushFiles(apiClient: ApiClient, namespace: string, basePath: string, files: LocalFile[], progress: vscode.Progress<{message?: string; increment?: number}>, token: vscode.CancellationToken): Promise<SyncOutcome> {
+    const outcome: SyncOutcome = {uploaded: 0, failed: [], stoppedByAuth: false, cancelled: false};
+    const controller = new AbortController();
+    const cancelSub = token.onCancellationRequested(() => controller.abort());
+    try {
+        for (const [done, file] of files.entries()) {
+            if (token.isCancellationRequested) {
+                outcome.cancelled = true;
+                break;
+            }
+            progress.report({message: `${done + 1}/${files.length} ${file.relative}`, increment: 100 / files.length});
+            try {
+                const content = await readLocalFile(file.uri);
+                const response = await apiClient.uploadNamespaceFile(namespace, namespacePath(basePath, file.relative), content, controller.signal);
+                if (response?.ok) {
+                    outcome.uploaded++;
+                    continue;
+                }
+                outcome.failed.push(file.relative);
+                // Auth will not recover for the remaining files, so stop after the first denial.
+                if (response && (response.status === 401 || response.status === 403)) {
+                    outcome.stoppedByAuth = true;
+                    break;
+                }
+            } catch {
+                if (token.isCancellationRequested) {
+                    outcome.cancelled = true;
+                    break;
+                }
+                outcome.failed.push(file.relative);
+            }
+        }
+    } finally {
+        cancelSub.dispose();
+    }
+    return outcome;
+}
+
+// Prompts for a base path, confirms, uploads with a cancellable progress bar, and reports the outcome.
+async function uploadBatch(apiClient: ApiClient, namespace: string, files: LocalFile[], source: string): Promise<void> {
+    const basePath = await vscode.window.showInputBox({
+        title: `Upload to ${namespace}`,
+        prompt: "Target base path in the namespace",
+        value: "/",
+        validateInput: value => validatePath(value, false)
+    });
+    if (basePath === undefined) {
+        return;
+    }
+
+    // Additive: uploaded files overwrite matches, remote-only files are left in place.
+    const confirmed = await vscode.window.showWarningMessage(
+        `Upload ${files.length} file(s) from ${source} to namespace "${namespace}"? Existing files at the same path are overwritten.`,
+        {modal: true},
+        "Upload"
+    );
+    if (confirmed !== "Upload") {
+        return;
+    }
+
+    const outcome = await vscode.window.withProgress(
+        {location: vscode.ProgressLocation.Notification, title: `Uploading to ${namespace}`, cancellable: true},
+        (progress, token) => pushFiles(apiClient, namespace, basePath, files, progress, token)
+    );
+    const notice = uploadNotice(namespace, files.length, outcome);
+    showNotice(notice.kind, notice.text);
+}
+
+function resolveUris(resource: vscode.Uri | undefined, selected: vscode.Uri[] | undefined, fallback?: vscode.Uri): vscode.Uri[] {
+    if (selected && selected.length > 0) {
+        return selected;
+    }
+    const single = resource ?? fallback;
+    return single ? [single] : [];
+}
+
+async function uploadSingleFile(apiClient: ApiClient, fileUri: vscode.Uri): Promise<void> {
+    const namespace = await resolveConfiguredNamespace(apiClient, false);
+    if (!namespace) {
+        return;
+    }
+
+    const target = await vscode.window.showInputBox({
+        title: `Upload to ${namespace}`,
+        prompt: "Target path in the namespace",
+        value: `/${basename(fileUri.path)}`,
+        validateInput: value => validatePath(value, true)
+    });
+    if (!target) {
+        return;
+    }
+    const targetPath = target.trim();
+
+    let content: Uint8Array;
+    try {
+        content = await readLocalFile(fileUri);
+    } catch {
+        showNotice('error', `Cannot read ${fileUri.fsPath}.`);
+        return;
+    }
+
+    const response = await apiClient.uploadNamespaceFile(namespace, targetPath, content);
+    if (!response?.ok) {
+        showNotice('error', `Failed to upload to ${namespace}${targetPath}${response ? ` (HTTP ${response.status})` : ''}.`);
+        return;
+    }
+    showNotice('info', `Uploaded to ${namespace}${targetPath}`);
+}
+
+export async function uploadFileToNamespace(apiClient: ApiClient, resource?: vscode.Uri, selected?: vscode.Uri[]): Promise<void> {
+    const uris = resolveUris(resource, selected, vscode.window.activeTextEditor?.document.uri);
+    if (uris.length === 0) {
+        showNotice('error', "Open or select a file to upload.");
+        return;
+    }
+    if (uris.some(uri => uri.scheme === 'kestra')) {
+        showNotice('error', "That file already lives on a Kestra namespace.");
+        return;
+    }
+
+    // A single file keeps the choose-the-exact-path flow; a multi-selection uploads under a base path.
+    if (uris.length === 1) {
+        await uploadSingleFile(apiClient, uris[0]);
+        return;
+    }
+
+    const namespace = await resolveConfiguredNamespace(apiClient, false);
+    if (!namespace) {
+        return;
+    }
+    const files = await gatherFiles(uris);
+    if (files.length === 0) {
+        showNotice('info', "No files to upload.");
+        return;
+    }
+    await uploadBatch(apiClient, namespace, files, `${uris.length} selected item(s)`);
+}
+
 async function pickLocalFolder(): Promise<vscode.Uri | undefined> {
     const picked = await vscode.window.showOpenDialog({
         canSelectFolders: true,
@@ -165,92 +276,25 @@ async function pickLocalFolder(): Promise<vscode.Uri | undefined> {
     return picked?.[0];
 }
 
-async function pushFiles(apiClient: ApiClient, namespace: string, basePath: string, files: LocalFile[], progress: vscode.Progress<{message?: string; increment?: number}>, token: vscode.CancellationToken): Promise<SyncOutcome> {
-    const outcome: SyncOutcome = {uploaded: 0, failed: [], stoppedByAuth: false, cancelled: false};
-    for (const [done, file] of files.entries()) {
-        if (token.isCancellationRequested) {
-            outcome.cancelled = true;
-            break;
-        }
-        progress.report({message: `${done}/${files.length} ${file.relative}`, increment: 100 / files.length});
-        try {
-            const content = await vscode.workspace.fs.readFile(file.uri);
-            const response = await apiClient.uploadNamespaceFile(namespace, namespacePath(basePath, file.relative), content);
-            if (response?.ok) {
-                outcome.uploaded++;
-                continue;
-            }
-            outcome.failed.push(file.relative);
-            // Auth will not recover for the remaining files, so stop after the first denial.
-            if (response && (response.status === 401 || response.status === 403)) {
-                outcome.stoppedByAuth = true;
-                break;
-            }
-        } catch {
-            outcome.failed.push(file.relative);
-        }
-    }
-    return outcome;
-}
-
-function reportSyncOutcome(namespace: string, total: number, outcome: SyncOutcome): void {
-    if (outcome.stoppedByAuth) {
-        vscode.window.showErrorMessage(`Sync stopped: access denied for namespace "${namespace}". Uploaded ${outcome.uploaded} file(s) before stopping.`);
-    } else if (outcome.cancelled) {
-        const failedNote = outcome.failed.length > 0 ? `, ${outcome.failed.length} failed` : '';
-        vscode.window.showInformationMessage(`Sync cancelled after ${outcome.uploaded} uploaded${failedNote}.`);
-    } else if (outcome.failed.length > 0) {
-        const sample = outcome.failed.slice(0, 5).join(', ') + (outcome.failed.length > 5 ? '…' : '');
-        vscode.window.showWarningMessage(`Synced ${outcome.uploaded}/${total} to ${namespace}. Failed: ${sample}`);
-    } else {
-        vscode.window.showInformationMessage(`Synced ${outcome.uploaded} file(s) to ${namespace}.`);
-    }
-}
-
-export async function syncFolderToNamespace(apiClient: ApiClient, resource?: vscode.Uri): Promise<void> {
-    const folder = resource ?? await pickLocalFolder();
-    if (!folder) {
+export async function syncFolderToNamespace(apiClient: ApiClient, resource?: vscode.Uri, selected?: vscode.Uri[]): Promise<void> {
+    const uris = resolveUris(resource, selected, await pickLocalFolder());
+    if (uris.length === 0) {
         return;
     }
-    if (folder.scheme === 'kestra') {
-        vscode.window.showErrorMessage("That folder already lives on a Kestra namespace.");
+    if (uris.some(uri => uri.scheme === 'kestra')) {
+        showNotice('error', "That folder already lives on a Kestra namespace.");
         return;
     }
 
-    const namespace = await resolveConfiguredNamespace(apiClient);
+    const namespace = await resolveConfiguredNamespace(apiClient, false);
     if (!namespace) {
         return;
     }
-
-    const basePath = await vscode.window.showInputBox({
-        title: `Sync to ${namespace}`,
-        prompt: "Target base path in the namespace",
-        value: "/",
-        validateInput: value => value.startsWith('/') ? undefined : "Path must start with /"
-    });
-    if (basePath === undefined) {
-        return;
-    }
-
-    const files = await collectFiles(folder);
+    const files = await gatherFiles(uris);
     if (files.length === 0) {
-        vscode.window.showInformationMessage("No files to sync.");
+        showNotice('info', "No files to sync.");
         return;
     }
-
-    // Additive: uploaded files overwrite matches, remote-only files are left in place.
-    const confirmed = await vscode.window.showWarningMessage(
-        `Upload ${files.length} file(s) from "${basename(folder.path)}" to namespace "${namespace}"? Existing files at the same path are overwritten.`,
-        {modal: true},
-        "Upload"
-    );
-    if (confirmed !== "Upload") {
-        return;
-    }
-
-    const outcome = await vscode.window.withProgress(
-        {location: vscode.ProgressLocation.Notification, title: `Syncing to ${namespace}`, cancellable: true},
-        (progress, token) => pushFiles(apiClient, namespace, basePath, files, progress, token)
-    );
-    reportSyncOutcome(namespace, files.length, outcome);
+    const source = uris.length === 1 ? `"${basename(uris[0].path)}"` : `${uris.length} folders`;
+    await uploadBatch(apiClient, namespace, files, source);
 }
