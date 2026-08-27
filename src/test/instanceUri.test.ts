@@ -13,7 +13,7 @@ describe("instance authority", () => {
     });
 
     it("encodes to a lowercase hex authority", () => {
-        assert.match(encodeInstanceAuthority({url: "http://localhost:8080", tenant: "main"}), /^[0-9a-f]+$/);
+        assert.match(encodeInstanceAuthority({url: "http://localhost:8080", tenant: "main"}), /^[0-9a-f]+-[0-9a-f]+$/);
     });
 
     it("decodes whatever case the authority comes back in", () => {
@@ -21,9 +21,14 @@ describe("instance authority", () => {
         assert.deepStrictEqual(decodeInstanceAuthority(encodeInstanceAuthority(instance).toUpperCase()), instance);
     });
 
+    it("keeps a url containing the separator intact", () => {
+        const instance = {url: "http://host:8080/api/v1?x=a-b|c", tenant: "main"};
+        assert.deepStrictEqual(decodeInstanceAuthority(encodeInstanceAuthority(instance)), instance);
+    });
+
     it("returns undefined for an authority this extension did not write", () => {
-        for (const authority of ["", "github", "zz", "abc", "6162"]) {
-            assert.strictEqual(decodeInstanceAuthority(authority), undefined);
+        for (const authority of ["", "github", "zz", "abc", "6162", "-", "61-62-63", "ab-cd", "some-host"]) {
+            assert.strictEqual(decodeInstanceAuthority(authority), undefined, `decoded "${authority}"`);
         }
     });
 });

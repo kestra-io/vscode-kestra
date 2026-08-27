@@ -54,7 +54,7 @@ Set the URL of your Kestra instance, and a tenant if it is multi-tenant:
 "kestra.api.tenant": "main"
 ```
 
-Both settings work in User settings or in a folder's `.vscode/settings.json`. Set them per folder when you work with more than one instance.
+Both settings work in User settings or in a folder's `.vscode/settings.json`. Use the folder's file when you work with more than one instance, one folder per window. They are window settings, so a per folder value in a multi-root workspace does not apply.
 
 On a secured instance you are prompted for credentials on the first request. It supports basic auth (username and password), an Enterprise Edition API token (sent as a Bearer token), and a legacy JWT session token. Use the `Kestra: Sign in` command to set or change credentials, and `Kestra: Sign out` to clear them.
 

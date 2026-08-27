@@ -23,10 +23,15 @@ export default class ApiClient {
 
     // The instance this window talks to, with the url exactly as configured (not normalized).
     public static currentInstance(): KestraInstance {
-        return ApiClient.pinnedInstance ?? {
-            url: (vscode.workspace.getConfiguration("kestra.api").get("url") as string) || "",
-            tenant: (vscode.workspace.getConfiguration("kestra.api").get("tenant") as string) || ""
-        };
+        if (ApiClient.pinnedInstance) {
+            return ApiClient.pinnedInstance;
+        }
+        const config = vscode.workspace.getConfiguration("kestra.api");
+        return {url: (config.get("url") as string) || "", tenant: (config.get("tenant") as string) || ""};
+    }
+
+    public static isPinned(): boolean {
+        return ApiClient.pinnedInstance !== undefined;
     }
 
     public async signIn(): Promise<void> {
@@ -115,9 +120,14 @@ export default class ApiClient {
 
             finalUrl = this.formatApiUrl(kestraInputUrl);
 
-            // url was updated, we must save it to config
+            // url was updated, we must save it to config. A settings file that cannot be written is
+            // worth reporting, but the caller still has the url it asked for, so it is not fatal.
             if (kestraConfigUrl !== finalUrl) {
-                await vscode.workspace.getConfiguration('kestra.api').update('url', finalUrl, this.urlTarget());
+                try {
+                    await vscode.workspace.getConfiguration('kestra.api').update('url', finalUrl, this.urlTarget());
+                } catch (error) {
+                    logWarn(`Could not save kestra.api.url: ${error instanceof Error ? error.message : String(error)}`);
+                }
             }
         }
 
@@ -128,7 +138,7 @@ export default class ApiClient {
     // folder that configures its own instance does not change every other workspace.
     private static urlTarget(): vscode.ConfigurationTarget {
         const scopes = vscode.workspace.getConfiguration("kestra.api").inspect<string>("url");
-        return scopes?.workspaceValue !== undefined || scopes?.workspaceFolderValue !== undefined
+        return scopes?.workspaceValue !== undefined
             ? vscode.ConfigurationTarget.Workspace
             : vscode.ConfigurationTarget.Global;
     }

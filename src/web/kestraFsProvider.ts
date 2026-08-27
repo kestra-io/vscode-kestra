@@ -51,9 +51,10 @@ export class KestraFS implements vscode.FileSystemProvider {
 		this.authority = authority;
 	}
 
-	// Child URIs keep the opened folder's authority, which is what pins the window to its instance.
-	public uriFor(path: string): vscode.Uri {
-		return vscode.Uri.from({scheme: "kestra", authority: this.authority, path});
+	// Builds a URI for a namespace-relative path. Child URIs keep the opened folder's authority,
+	// which is what pins the window to its instance.
+	public uriFor(relativePath: string): vscode.Uri {
+		return vscode.Uri.from({scheme: "kestra", authority: this.authority, path: `/${this.namespace}${relativePath}`});
 	}
 
 
@@ -244,7 +245,7 @@ export class KestraFS implements vscode.FileSystemProvider {
 	// Open a landing doc if the namespace ships one, but never fail activation when none exists.
 	async start() {
 		for (const doc of ["README.md", "getting-started.md"]) {
-			const uri = this.uriFor(`/${this.namespace}/${doc}`);
+			const uri = this.uriFor(`/${doc}`);
 			try {
 				await this.stat(uri);
 			} catch {
@@ -304,14 +305,15 @@ export class KestraFileSearchProvider implements FileSearchProvider {
 			new Promise(async (resolve, reject) => {
 				const response = await this.apiClient.fileApi(this.namespace, `/search?q=${query.pattern}`);
 				if (!response.ok) {
-					reject(response.text());
+					reject(new Error(await response.text()));
+					return;
 				}
 
-				resolve((await response.json() as Array<string>).map(path => this.fileSystemProvider.uriFor(`/${this.namespace}${path}`)));
+				resolve((await response.json() as Array<string>).map(path => this.fileSystemProvider.uriFor(path)));
 			}) as Promise<Uri[]>,
-			this.fileSystemProvider.readDirectory(this.fileSystemProvider.uriFor(`/${this.namespace}/${this.fileSystemProvider.FLOWS_DIRECTORY}`))
+			this.fileSystemProvider.readDirectory(this.fileSystemProvider.uriFor(`/${this.fileSystemProvider.FLOWS_DIRECTORY}`))
 				.then(flows => flows
-					.map(([fileName]) => this.fileSystemProvider.uriFor(`/${this.namespace}/${this.fileSystemProvider.FLOWS_DIRECTORY}/${fileName}`))
+					.map(([fileName]) => this.fileSystemProvider.uriFor(`/${this.fileSystemProvider.FLOWS_DIRECTORY}/${fileName}`))
 				)
 		]).then(([files, flows]) => {
 			return [...files, ...flows];

@@ -10,7 +10,7 @@ import {registerRequiredFieldsCompletion} from './requiredFieldsCompletion';
 import {runFlowFromEditor, saveFlowFromEditor} from './flowRunner';
 import {disposeRunLogs} from './runOutput';
 import {resolveConfiguredNamespace, uploadFileToNamespace, syncFolderToNamespace} from './namespaceFiles';
-import {initLog} from './log';
+import {initLog, logInfo, logWarn} from './log';
 import {decodeInstanceAuthority, encodeInstanceAuthority} from './instanceUri';
 
 async function downloadSchema(globalState: vscode.Memento, apiClient: ApiClient, opts: {silent: boolean, forceInput?: boolean}): Promise<boolean> {
@@ -103,8 +103,15 @@ export async function activate(context: vscode.ExtensionContext) {
         const instance = decodeInstanceAuthority(root.authority);
         if (instance) {
             ApiClient.pinInstance(instance);
+            // Output channels end up pasted into bug reports, so drop any user:password@ in the url.
+            const shown = instance.url.replace(/\/\/[^/@]*@/, "//");
+            logInfo(`Namespace window pinned to ${shown}${instance.tenant ? ` (tenant ${instance.tenant})` : ""}`);
+        } else if (root.authority) {
+            // Silence is right for a legacy kestra:///namespace folder, but an authority we cannot
+            // read means the window is about to fall back to settings and may hit another instance.
+            logWarn(`Ignored an unreadable instance on the folder URI, falling back to kestra.api.url. Reopen the namespace with "Kestra: Open namespace" if it targets the wrong instance.`);
         }
-        const namespace = root.path.replace(/^\/+/, "") || openedWs.name;
+        const namespace = root.path.replace(/^\/+/, "").replace(/\/+$/, "") || openedWs.name;
         const kestraFs = new KestraFS(namespace, apiClient, root.authority);
 
         context.subscriptions.push(vscode.workspace.registerFileSystemProvider('kestra', kestraFs));
@@ -141,6 +148,9 @@ export async function activate(context: vscode.ExtensionContext) {
     }
 
     context.subscriptions.push(vscode.workspace.onDidChangeConfiguration(async (event) => {
+        if (ApiClient.isPinned()) {
+            return;
+        }
         if (event.affectsConfiguration("kestra.api.url") || event.affectsConfiguration("kestra.api.tenant")) {
             resetPebbleCache();
             await downloadSchema(context.globalState, apiClient, {silent: true});
