@@ -43,10 +43,17 @@ export class KestraFS implements vscode.FileSystemProvider {
 
 	namespace: string;
 	apiClient: ApiClient;
+	private readonly authority: string;
 
-	constructor(namespace: string, apiClient: ApiClient) {
+	constructor(namespace: string, apiClient: ApiClient, authority: string = "") {
 		this.namespace = namespace;
 		this.apiClient = apiClient;
+		this.authority = authority;
+	}
+
+	// Child URIs keep the opened folder's authority, which is what pins the window to its instance.
+	public uriFor(path: string): vscode.Uri {
+		return vscode.Uri.from({scheme: "kestra", authority: this.authority, path});
 	}
 
 
@@ -237,7 +244,7 @@ export class KestraFS implements vscode.FileSystemProvider {
 	// Open a landing doc if the namespace ships one, but never fail activation when none exists.
 	async start() {
 		for (const doc of ["README.md", "getting-started.md"]) {
-			const uri = vscode.Uri.parse(`kestra:///${this.namespace}/${doc}`);
+			const uri = this.uriFor(`/${this.namespace}/${doc}`);
 			try {
 				await this.stat(uri);
 			} catch {
@@ -300,11 +307,11 @@ export class KestraFileSearchProvider implements FileSearchProvider {
 					reject(response.text());
 				}
 
-				resolve((await response.json() as Array<string>).map(path => vscode.Uri.parse("kestra:///" + this.namespace + path)));
+				resolve((await response.json() as Array<string>).map(path => this.fileSystemProvider.uriFor(`/${this.namespace}${path}`)));
 			}) as Promise<Uri[]>,
-			this.fileSystemProvider.readDirectory(vscode.Uri.parse("kestra:///" + this.namespace + "/" + this.fileSystemProvider.FLOWS_DIRECTORY))
+			this.fileSystemProvider.readDirectory(this.fileSystemProvider.uriFor(`/${this.namespace}/${this.fileSystemProvider.FLOWS_DIRECTORY}`))
 				.then(flows => flows
-					.map(([fileName]) => vscode.Uri.parse(`kestra:///${this.namespace}/${this.fileSystemProvider.FLOWS_DIRECTORY}/${fileName}`))
+					.map(([fileName]) => this.fileSystemProvider.uriFor(`/${this.namespace}/${this.fileSystemProvider.FLOWS_DIRECTORY}/${fileName}`))
 				)
 		]).then(([files, flows]) => {
 			return [...files, ...flows];

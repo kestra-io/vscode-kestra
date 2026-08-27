@@ -54,6 +54,8 @@ Set the URL of your Kestra instance, and a tenant if it is multi-tenant:
 "kestra.api.tenant": "main"
 ```
 
+Both settings work in User settings or in a folder's `.vscode/settings.json`. Set them per folder when you work with more than one instance.
+
 On a secured instance you are prompted for credentials on the first request. It supports basic auth (username and password), an Enterprise Edition API token (sent as a Bearer token), and a legacy JWT session token. Use the `Kestra: Sign in` command to set or change credentials, and `Kestra: Sign out` to clear them.
 
 ### Internal or corporate certificates
@@ -96,7 +98,7 @@ On a flow file, run `Kestra: Preview flow topology` (or the graph button in the 
 
 ### Namespace files
 
-`Kestra: Open namespace` mounts a namespace as a folder: browse, edit, create, rename, and delete its files, with each save writing back to the instance. Editing is live, there is no local copy. The picker lists namespaces you can access, or you can type one.
+`Kestra: Open namespace` mounts a namespace as a folder: browse, edit, create, rename, and delete its files, with each save writing back to the instance. Editing is live, there is no local copy. The picker lists namespaces you can access, or you can type one. The mounted folder stays on the instance it was opened from, so a URL set per folder keeps working in the new window.
 
 `Kestra: Upload file to namespace` pushes the active file, or the files selected in the Explorer, to a namespace. `Kestra: Sync folder to namespace` walks a local folder and uploads every file, creating directories as needed and overwriting files at the same path. It does not delete files that exist only on the instance. Names matching `kestra.namespaceFiles.exclude` (metadata and secret files like `.env` and `*.pem` by default) are skipped.
 

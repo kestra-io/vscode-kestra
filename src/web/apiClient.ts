@@ -4,12 +4,29 @@ import { kestraBaseUrl, secretStorageKey, yamlContentType, PebbleFunctionDef } f
 import { FlowGraph } from "../shared/flow";
 import type { PluginDefinition, PluginEntry } from "./documentation/pluginDoc";
 import { logWarn } from "./log";
+import type { KestraInstance } from "./instanceUri";
 
 export default class ApiClient {
     private readonly _secretStorage: vscode.SecretStorage;
 
+    // A namespace folder is virtual and has no settings of its own, so the window is pinned to the
+    // instance it was opened from. The pin wins over settings for the whole window.
+    private static pinnedInstance: KestraInstance | undefined;
+
     public constructor(secretStorage: vscode.SecretStorage) {
         this._secretStorage = secretStorage;
+    }
+
+    public static pinInstance(instance: KestraInstance): void {
+        ApiClient.pinnedInstance = instance;
+    }
+
+    // The instance this window talks to, with the url exactly as configured (not normalized).
+    public static currentInstance(): KestraInstance {
+        return ApiClient.pinnedInstance ?? {
+            url: (vscode.workspace.getConfiguration("kestra.api").get("url") as string) || "",
+            tenant: (vscode.workspace.getConfiguration("kestra.api").get("tenant") as string) || ""
+        };
     }
 
     public async signIn(): Promise<void> {
@@ -54,7 +71,7 @@ export default class ApiClient {
     // GET /configs is the lightweight authenticated endpoint the Kestra UI itself uses to validate a login.
     // Fetches directly (not via silentFetch) so the thrown cause is surfaced instead of a blanket "unreachable".
     public async verifyCredentials(): Promise<{status: "ok" | "unauthorized" | "unreachable", detail?: string}> {
-        if (!(vscode.workspace.getConfiguration("kestra.api").get("url") as string)) {
+        if (!ApiClient.currentInstance().url) {
             return {status: "unreachable", detail: "no kestra.api.url configured"};
         }
         try {
@@ -81,13 +98,14 @@ export default class ApiClient {
     }
 
     public static async getKestraApiUrl(forceInput: boolean = false, includeTenant: boolean = true): Promise<string> {
-        const kestraConfigUrl = (vscode.workspace.getConfiguration("kestra.api").get("url") as string);
+        const kestraConfigUrl = ApiClient.currentInstance().url;
         let finalUrl = this.formatApiUrl(kestraConfigUrl);
 
-        if (vscode.env.uiKind !== vscode.UIKind.Web && (!kestraConfigUrl || forceInput)) {
+        // A pinned window is bound to one instance, so asking for a url there would be a no-op.
+        if (vscode.env.uiKind !== vscode.UIKind.Web && !ApiClient.pinnedInstance && (!kestraConfigUrl || forceInput)) {
             const kestraInputUrl = await vscode.window.showInputBox({
                 prompt: "Kestra instance URL",
-                value: kestraConfigUrl ?? kestraBaseUrl
+                value: kestraConfigUrl || kestraBaseUrl
             });
 
             if (kestraInputUrl === undefined) {
@@ -99,15 +117,24 @@ export default class ApiClient {
 
             // url was updated, we must save it to config
             if (kestraConfigUrl !== finalUrl) {
-                vscode.workspace.getConfiguration('kestra.api').update('url', finalUrl, vscode.ConfigurationTarget.Global);
+                await vscode.workspace.getConfiguration('kestra.api').update('url', finalUrl, this.urlTarget());
             }
         }
 
         return includeTenant ? this.withTenant(finalUrl) : finalUrl;
     }
 
+    // The answer goes back to the scope the url already lives in, so replying to the prompt in a
+    // folder that configures its own instance does not change every other workspace.
+    private static urlTarget(): vscode.ConfigurationTarget {
+        const scopes = vscode.workspace.getConfiguration("kestra.api").inspect<string>("url");
+        return scopes?.workspaceValue !== undefined || scopes?.workspaceFolderValue !== undefined
+            ? vscode.ConfigurationTarget.Workspace
+            : vscode.ConfigurationTarget.Global;
+    }
+
     private static withTenant(url: string): string {
-        const tenant = (vscode.workspace.getConfiguration("kestra.api").get("tenant") as string);
+        const tenant = ApiClient.currentInstance().tenant;
         if (!url || !tenant) {
             return url;
         }
@@ -116,7 +143,7 @@ export default class ApiClient {
 
     public static async executionUiUrl(namespace: string, flowId: string, executionId: string): Promise<string> {
         const webUrl = (await this.getKestraApiUrl()).split("/api/v1")[0];
-        const tenant = (vscode.workspace.getConfiguration("kestra.api").get("tenant") as string) || "main";
+        const tenant = ApiClient.currentInstance().tenant || "main";
         return `${webUrl}/ui/${tenant}/executions/${namespace}/${flowId}/${executionId}`;
     }
 
@@ -136,7 +163,7 @@ export default class ApiClient {
 
     // SecretStorage is global to the extension, so scope credentials to the instance URL.
     private secretKey(base: string): string {
-        const url = (vscode.workspace.getConfiguration("kestra.api").get("url") as string) || "";
+        const url = ApiClient.currentInstance().url;
         return url ? `${base}::${url}` : base;
     }
 
@@ -391,7 +418,7 @@ export default class ApiClient {
     }
 
     private async silentFetch(suffix: string, options: RequestInit = {}, includeTenant: boolean = true): Promise<Response | null> {
-        if (!(vscode.workspace.getConfiguration("kestra.api").get("url") as string)) {
+        if (!ApiClient.currentInstance().url) {
             return null;
         }
         try {
