@@ -15,6 +15,8 @@ import {
 	Uri
 } from 'vscode';
 import ApiClient from "./apiClient";
+import { kestraScheme } from "./constants";
+import { logWarn } from "./log";
 
 type KestraFileAttributes = {
 	fileName: string;
@@ -43,10 +45,17 @@ export class KestraFS implements vscode.FileSystemProvider {
 
 	namespace: string;
 	apiClient: ApiClient;
+	private readonly authority: string;
 
-	constructor(namespace: string, apiClient: ApiClient) {
+	constructor(namespace: string, apiClient: ApiClient, authority: string = "") {
 		this.namespace = namespace;
 		this.apiClient = apiClient;
+		this.authority = authority;
+	}
+
+	// Keeps the folder's authority, which pins the window to its instance.
+	public uriFor(relativePath: string): vscode.Uri {
+		return vscode.Uri.from({scheme: kestraScheme, authority: this.authority, path: `/${this.namespace}${relativePath}`});
 	}
 
 
@@ -237,7 +246,7 @@ export class KestraFS implements vscode.FileSystemProvider {
 	// Open a landing doc if the namespace ships one, but never fail activation when none exists.
 	async start() {
 		for (const doc of ["README.md", "getting-started.md"]) {
-			const uri = vscode.Uri.parse(`kestra:///${this.namespace}/${doc}`);
+			const uri = this.uriFor(`/${doc}`);
 			try {
 				await this.stat(uri);
 			} catch {
@@ -282,32 +291,35 @@ tasks:
 }
 
 export class KestraFileSearchProvider implements FileSearchProvider {
-	namespace: string;
 	fileSystemProvider: KestraFS;
-	apiClient: ApiClient;
 
-	constructor(namespace: string, fileSystemProvider: KestraFS, apiClient: ApiClient) {
-		this.namespace = namespace;
+	constructor(fileSystemProvider: KestraFS) {
 		this.fileSystemProvider = fileSystemProvider;
-		this.apiClient = apiClient;
 	}
 
-	provideFileSearchResults(query: FileSearchQuery, options: FileSearchOptions, token: CancellationToken): ProviderResult<Uri[]> {
-		return Promise.all([
-			new Promise(async (resolve, reject) => {
-				const response = await this.apiClient.fileApi(this.namespace, `/search?q=${query.pattern}`);
-				if (!response.ok) {
-					reject(response.text());
-				}
+	private async searchFiles(pattern: string): Promise<Uri[]> {
+		const fs = this.fileSystemProvider;
+		const response = await fs.apiClient.fileApi(fs.namespace, `/search?q=${encodeURIComponent(pattern)}`);
+		if (!response.ok) {
+			throw new Error(await response.text());
+		}
+		return (await response.json() as Array<string>).map(path => fs.uriFor(path));
+	}
 
-				resolve((await response.json() as Array<string>).map(path => vscode.Uri.parse("kestra:///" + this.namespace + path)));
-			}) as Promise<Uri[]>,
-			this.fileSystemProvider.readDirectory(vscode.Uri.parse("kestra:///" + this.namespace + "/" + this.fileSystemProvider.FLOWS_DIRECTORY))
-				.then(flows => flows
-					.map(([fileName]) => vscode.Uri.parse(`kestra:///${this.namespace}/${this.fileSystemProvider.FLOWS_DIRECTORY}/${fileName}`))
-				)
-		]).then(([files, flows]) => {
-			return [...files, ...flows];
-		});
+	private async searchFlows(): Promise<Uri[]> {
+		const flowsDirectory = `/${this.fileSystemProvider.FLOWS_DIRECTORY}`;
+		const flows = await this.fileSystemProvider.readDirectory(this.fileSystemProvider.uriFor(flowsDirectory));
+		return flows.map(([fileName]) => this.fileSystemProvider.uriFor(`${flowsDirectory}/${fileName}`));
+	}
+
+	// Half the results beat none, so one side failing does not discard the other.
+	async provideFileSearchResults(query: FileSearchQuery, options: FileSearchOptions, token: CancellationToken): Promise<Uri[]> {
+		const results = await Promise.allSettled([this.searchFiles(query.pattern), this.searchFlows()]);
+		for (const result of results) {
+			if (result.status === "rejected") {
+				logWarn(`Namespace search partly failed: ${result.reason}`);
+			}
+		}
+		return results.flatMap(result => result.status === "fulfilled" ? result.value : []);
 	}
 }

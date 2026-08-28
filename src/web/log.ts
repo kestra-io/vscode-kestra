@@ -11,6 +11,10 @@ export function initLog(context: vscode.ExtensionContext): void {
     }
 }
 
+export function logInfo(message: string): void {
+    channel?.info(message);
+}
+
 export function logWarn(message: string): void {
     channel?.warn(message);
 }
