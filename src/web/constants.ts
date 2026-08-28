@@ -1,6 +1,5 @@
 export const kestraBaseUrl = "https://api.kestra.io/v1";
 
-// URI scheme of a mounted namespace folder.
 export const kestraScheme = "kestra";
 
 export const yamlContentType = "application/x-yaml";
@@ -12,7 +11,7 @@ export interface PebbleFunctionDef {
     arguments: Array<{name: string; defaultValue: string | null}>;
 }
 
-// Instances the user has opened a namespace on, which a folder URI may pin to without asking.
+// Instances a folder URI may pin to without asking.
 export const knownInstancesKey = "kestra.instances.known";
 
 export const schemaStateKey = {

@@ -13,7 +13,7 @@ import {resolveConfiguredNamespace, uploadFileToNamespace, syncFolderToNamespace
 import {initLog, logInfo} from './log';
 import {decodeInstanceAuthority, encodeInstanceAuthority} from './instanceUri';
 
-// user:password@ in a url, which must never reach the output channel.
+// user:password@ in a url.
 const urlUserinfo = /\/\/[^/@]*@/;
 
 function hostOf(url: string): string {
@@ -31,9 +31,7 @@ async function rememberInstance(globalState: vscode.Memento, url: string): Promi
     }
 }
 
-// A folder URI can come from anywhere, a shared .code-workspace included, and it now decides which
-// host the window talks to and offers credentials to. Pin without asking only for an instance the
-// user has opened a namespace on before.
+// A folder URI can come from anywhere, and decides which host gets our requests and credentials.
 async function confirmInstance(globalState: vscode.Memento, url: string): Promise<boolean> {
     if ((globalState.get<string[]>(knownInstancesKey) ?? []).includes(url)) {
         return true;
@@ -104,11 +102,8 @@ function openNamespaceCommand(globalState: vscode.Memento, apiClient: ApiClient)
             return;
         }
         const instance = ApiClient.currentInstance();
-        // Opening from settings is the act that makes an instance known to the new window.
+        // Opening from settings is what makes an instance known.
         await rememberInstance(globalState, instance.url);
-        // The new window is a virtual folder with no settings of its own, so the instance travels
-        // on the folder URI. Without it the window falls back to User settings and can miss, or
-        // pick the wrong, kestra.api.url.
         const folder = vscode.Uri.from({
             scheme: kestraScheme,
             authority: encodeInstanceAuthority(instance),
@@ -142,9 +137,7 @@ export async function activate(context: vscode.ExtensionContext) {
             // Output channels end up pasted into bug reports.
             logInfo(`Namespace window pinned to ${instance.url.replace(urlUserinfo, "//")}${instance.tenant ? ` (tenant ${instance.tenant})` : ""}`);
         } else if (root.authority) {
-            // Falling back to settings means the files below may belong to a different instance,
-            // which is worth interrupting for. A legacy kestra:///namespace folder has no authority
-            // and never reaches this.
+            // A legacy kestra:///namespace folder has no authority and never reaches this.
             vscode.window.showWarningMessage(`This namespace is not connected to the instance it was opened from, so it uses kestra.api.url instead. Reopen it with "Kestra: Open namespace" to be sure of the instance.`);
         }
         const namespace = root.path.split("/").filter(Boolean).join("/") || openedWs.name;

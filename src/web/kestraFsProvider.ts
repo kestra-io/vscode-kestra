@@ -53,8 +53,7 @@ export class KestraFS implements vscode.FileSystemProvider {
 		this.authority = authority;
 	}
 
-	// Builds a URI for a namespace-relative path. Child URIs keep the opened folder's authority,
-	// which is what pins the window to its instance.
+	// Keeps the folder's authority, which pins the window to its instance.
 	public uriFor(relativePath: string): vscode.Uri {
 		return vscode.Uri.from({scheme: kestraScheme, authority: this.authority, path: `/${this.namespace}${relativePath}`});
 	}

@@ -1,14 +1,12 @@
-// A kestra:// folder is virtual, so it carries no .vscode/settings.json. Without the instance
-// encoded on the folder URI, a namespace window falls back to User settings and loses a
-// kestra.api.url that was set per workspace.
+// A kestra:// folder carries no settings of its own, so the instance rides on the folder URI.
 
 export type KestraInstance = {url: string; tenant: string};
 
-// Splits the two hex runs, so it must be a character hex never produces and a URI authority allows.
+// Must be a character hex never produces and a URI authority allows.
 const fieldSeparator = "-";
 const hexPattern = /^[0-9a-f]*$/i;
 
-// URI authorities are not guaranteed to keep their case, so the payload is hex, which survives it.
+// Hex because URI authorities are not guaranteed to keep their case.
 function toHex(text: string): string {
     return Array.from(new TextEncoder().encode(text), byte => byte.toString(16).padStart(2, "0")).join("");
 }
@@ -22,23 +20,20 @@ function fromHex(hex: string): string | undefined {
         bytes[i] = parseInt(hex.slice(i * 2, i * 2 + 2), 16);
     }
     try {
-        // Decoding strictly rejects hex that is not something this extension wrote, rather than
-        // turning it into replacement characters and pinning the window to a garbage instance.
+        // Strict, so foreign hex is rejected instead of decoding to replacement characters.
         return new TextDecoder("utf-8", {fatal: true}).decode(bytes);
     } catch {
         return undefined;
     }
 }
 
-// The url and the tenant are separate hex runs, so neither has to avoid a separator character. The
-// url is kept exactly as configured, not normalized, so credentials scoped per url still match.
+// Separate hex runs, so neither field has to avoid the separator.
 export function encodeInstanceAuthority(instance: KestraInstance): string {
-    // An empty url pins nothing, and would encode to an authority that decodes back as corrupt.
+    // An empty url would encode to an authority that decodes back as corrupt.
     return instance.url ? `${toHex(instance.url)}${fieldSeparator}${toHex(instance.tenant)}` : "";
 }
 
-// Undefined for anything this extension did not write, so older kestra:///namespace folders and the
-// ones the Kestra UI opens in the browser keep reading the instance from settings.
+// Undefined for anything this extension did not write, so legacy folders fall back to settings.
 export function decodeInstanceAuthority(authority: string): KestraInstance | undefined {
     const parts = authority.split(fieldSeparator);
     if (parts.length !== 2) {

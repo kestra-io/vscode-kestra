@@ -9,8 +9,7 @@ import type { KestraInstance } from "./instanceUri";
 export default class ApiClient {
     private readonly _secretStorage: vscode.SecretStorage;
 
-    // A namespace folder is virtual and has no settings of its own, so the window is pinned to the
-    // instance it was opened from. The pin wins over settings for the whole window.
+    // A namespace folder has no settings of its own, so its window pins the instance instead.
     private static pinnedInstance: KestraInstance | undefined;
 
     public constructor(secretStorage: vscode.SecretStorage) {
@@ -21,7 +20,7 @@ export default class ApiClient {
         ApiClient.pinnedInstance = instance;
     }
 
-    // The instance this window talks to, with the url exactly as configured (not normalized).
+    // Url as configured, not normalized: secret keys are built from it.
     public static currentInstance(): KestraInstance {
         if (ApiClient.pinnedInstance) {
             return ApiClient.pinnedInstance;
@@ -106,7 +105,7 @@ export default class ApiClient {
         const kestraConfigUrl = ApiClient.currentInstance().url;
         let finalUrl = this.formatApiUrl(kestraConfigUrl);
 
-        // A pinned window is bound to one instance, so asking for a url there would be a no-op.
+        // A pinned window is bound to one instance, so a prompt there would be a no-op.
         if (vscode.env.uiKind !== vscode.UIKind.Web && !ApiClient.pinnedInstance && (!kestraConfigUrl || forceInput)) {
             const kestraInputUrl = await vscode.window.showInputBox({
                 prompt: "Kestra instance URL",
@@ -120,8 +119,7 @@ export default class ApiClient {
 
             finalUrl = this.formatApiUrl(kestraInputUrl.trim());
 
-            // url was updated, we must save it to config. A settings file that cannot be written is
-            // worth reporting, but the caller still has the url it asked for, so it is not fatal.
+            // url was updated, we must save it to config
             if (kestraConfigUrl !== finalUrl) {
                 try {
                     await vscode.workspace.getConfiguration('kestra.api').update('url', finalUrl, this.urlTarget());
@@ -134,8 +132,7 @@ export default class ApiClient {
         return includeTenant ? this.withTenant(finalUrl) : finalUrl;
     }
 
-    // The answer goes back to the scope the url already lives in, so replying to the prompt in a
-    // folder that configures its own instance does not change every other workspace.
+    // Write back to the scope the url already lives in, not always User settings.
     private static urlTarget(): vscode.ConfigurationTarget {
         const scopes = vscode.workspace.getConfiguration("kestra.api").inspect<string>("url");
         return scopes?.workspaceValue !== undefined
