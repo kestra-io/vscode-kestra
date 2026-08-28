@@ -15,6 +15,7 @@ import {
 	Uri
 } from 'vscode';
 import ApiClient from "./apiClient";
+import { kestraScheme } from "./constants";
 
 type KestraFileAttributes = {
 	fileName: string;
@@ -54,7 +55,7 @@ export class KestraFS implements vscode.FileSystemProvider {
 	// Builds a URI for a namespace-relative path. Child URIs keep the opened folder's authority,
 	// which is what pins the window to its instance.
 	public uriFor(relativePath: string): vscode.Uri {
-		return vscode.Uri.from({scheme: "kestra", authority: this.authority, path: `/${this.namespace}${relativePath}`});
+		return vscode.Uri.from({scheme: kestraScheme, authority: this.authority, path: `/${this.namespace}${relativePath}`});
 	}
 
 

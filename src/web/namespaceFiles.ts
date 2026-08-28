@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import ApiClient from './apiClient';
 import {SyncOutcome, basename, namespacePath, isIgnored, reachabilityError, uploadNotice} from './namespaceFilesHelpers';
 import {logWarn} from './log';
+import {kestraScheme} from './constants';
 
 type LocalFile = {uri: vscode.Uri; relative: string};
 
@@ -277,7 +278,7 @@ export async function uploadFileToNamespace(apiClient: ApiClient, resource?: vsc
         showNotice('error', "Open or select a file to upload.");
         return;
     }
-    if (uris.some(uri => uri.scheme === 'kestra')) {
+    if (uris.some(uri => uri.scheme === kestraScheme)) {
         showNotice('error', "That file already lives on a Kestra namespace.");
         return;
     }
@@ -315,7 +316,7 @@ export async function syncFolderToNamespace(apiClient: ApiClient, resource?: vsc
     if (uris.length === 0) {
         return;
     }
-    if (uris.some(uri => uri.scheme === 'kestra')) {
+    if (uris.some(uri => uri.scheme === kestraScheme)) {
         showNotice('error', "That folder already lives on a Kestra namespace.");
         return;
     }

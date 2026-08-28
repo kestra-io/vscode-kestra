@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import {KestraFileSearchProvider, KestraFS} from './kestraFsProvider';
 import DocumentationPanel from "./documentation/documentation";
 import ApiClient from './apiClient';
-import {schemaStateKey, flowSchemaUri} from './constants';
+import {schemaStateKey, flowSchemaUri, kestraScheme} from './constants';
 import {registerFlowValidation, isFlowDocument} from './flowValidation';
 import {registerPebbleCompletion, resetPebbleCache} from './pebbleCompletion';
 import TopologyPanel, {registerTopologyRefresh} from './topologyPanel';
@@ -12,6 +12,9 @@ import {disposeRunLogs} from './runOutput';
 import {resolveConfiguredNamespace, uploadFileToNamespace, syncFolderToNamespace} from './namespaceFiles';
 import {initLog, logInfo, logWarn} from './log';
 import {decodeInstanceAuthority, encodeInstanceAuthority} from './instanceUri';
+
+// user:password@ in a url, which must never reach the output channel.
+const urlUserinfo = /\/\/[^/@]*@/;
 
 async function downloadSchema(globalState: vscode.Memento, apiClient: ApiClient, opts: {silent: boolean, forceInput?: boolean}): Promise<boolean> {
     // The plugin schema endpoint is global, not tenant-scoped.
@@ -74,7 +77,7 @@ function openNamespaceCommand(apiClient: ApiClient) {
         // on the folder URI. Without it the window falls back to User settings and can miss, or
         // pick the wrong, kestra.api.url.
         const folder = vscode.Uri.from({
-            scheme: 'kestra',
+            scheme: kestraScheme,
             authority: encodeInstanceAuthority(ApiClient.currentInstance()),
             path: `/${namespace}`
         });
@@ -98,24 +101,24 @@ export async function activate(context: vscode.ExtensionContext) {
     initLog(context);
     const openedWs = vscode.workspace.workspaceFolders?.[0];
     const apiClient = new ApiClient(context.secrets);
-    if (openedWs?.uri?.scheme === "kestra") {
+    if (openedWs?.uri?.scheme === kestraScheme) {
         const root = openedWs.uri;
         const instance = decodeInstanceAuthority(root.authority);
         if (instance) {
             ApiClient.pinInstance(instance);
-            // Output channels end up pasted into bug reports, so drop any user:password@ in the url.
-            const shown = instance.url.replace(/\/\/[^/@]*@/, "//");
+            // Output channels end up pasted into bug reports.
+            const shown = instance.url.replace(urlUserinfo, "//");
             logInfo(`Namespace window pinned to ${shown}${instance.tenant ? ` (tenant ${instance.tenant})` : ""}`);
         } else if (root.authority) {
             // Silence is right for a legacy kestra:///namespace folder, but an authority we cannot
             // read means the window is about to fall back to settings and may hit another instance.
             logWarn(`Ignored an unreadable instance on the folder URI, falling back to kestra.api.url. Reopen the namespace with "Kestra: Open namespace" if it targets the wrong instance.`);
         }
-        const namespace = root.path.replace(/^\/+/, "").replace(/\/+$/, "") || openedWs.name;
+        const namespace = root.path.split("/").filter(Boolean).join("/") || openedWs.name;
         const kestraFs = new KestraFS(namespace, apiClient, root.authority);
 
-        context.subscriptions.push(vscode.workspace.registerFileSystemProvider('kestra', kestraFs));
-        context.subscriptions.push(vscode.workspace.registerFileSearchProvider('kestra', new KestraFileSearchProvider(namespace, kestraFs, apiClient)));
+        context.subscriptions.push(vscode.workspace.registerFileSystemProvider(kestraScheme, kestraFs));
+        context.subscriptions.push(vscode.workspace.registerFileSearchProvider(kestraScheme, new KestraFileSearchProvider(namespace, kestraFs, apiClient)));
 
         await kestraFs.start().catch(() => undefined);
     }

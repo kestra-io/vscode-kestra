@@ -1,5 +1,8 @@
 export const kestraBaseUrl = "https://api.kestra.io/v1";
 
+// URI scheme of a mounted namespace folder.
+export const kestraScheme = "kestra";
+
 export const yamlContentType = "application/x-yaml";
 
 export const flowSchemaUri = "kestra:/flow-schema.json";
