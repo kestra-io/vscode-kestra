@@ -12,6 +12,9 @@ export interface PebbleFunctionDef {
     arguments: Array<{name: string; defaultValue: string | null}>;
 }
 
+// Instances the user has opened a namespace on, which a folder URI may pin to without asking.
+export const knownInstancesKey = "kestra.instances.known";
+
 export const schemaStateKey = {
     schema: "kestra.yaml.schema",
     source: "kestra.yaml.schema.source"

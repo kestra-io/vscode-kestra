@@ -32,3 +32,9 @@ describe("instance authority", () => {
         }
     });
 });
+
+describe("instance authority with no url", () => {
+    it("encodes to nothing rather than to a corrupt authority", () => {
+        assert.strictEqual(encodeInstanceAuthority({url: "", tenant: "main"}), "");
+    });
+});

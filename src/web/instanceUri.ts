@@ -33,7 +33,8 @@ function fromHex(hex: string): string | undefined {
 // The url and the tenant are separate hex runs, so neither has to avoid a separator character. The
 // url is kept exactly as configured, not normalized, so credentials scoped per url still match.
 export function encodeInstanceAuthority(instance: KestraInstance): string {
-    return `${toHex(instance.url)}${fieldSeparator}${toHex(instance.tenant)}`;
+    // An empty url pins nothing, and would encode to an authority that decodes back as corrupt.
+    return instance.url ? `${toHex(instance.url)}${fieldSeparator}${toHex(instance.tenant)}` : "";
 }
 
 // Undefined for anything this extension did not write, so older kestra:///namespace folders and the

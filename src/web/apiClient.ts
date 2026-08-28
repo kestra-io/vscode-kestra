@@ -113,12 +113,12 @@ export default class ApiClient {
                 value: kestraConfigUrl || kestraBaseUrl
             });
 
-            if (kestraInputUrl === undefined) {
+            if (!kestraInputUrl?.trim()) {
                 vscode.window.showErrorMessage("A Kestra instance URL is required.");
                 return "";
             }
 
-            finalUrl = this.formatApiUrl(kestraInputUrl);
+            finalUrl = this.formatApiUrl(kestraInputUrl.trim());
 
             // url was updated, we must save it to config. A settings file that cannot be written is
             // worth reporting, but the caller still has the url it asked for, so it is not fatal.
@@ -475,9 +475,17 @@ export default class ApiClient {
         return updated;
     }
 
+    private static originOf(url: string): string {
+        try {
+            return new URL(url).origin;
+        } catch {
+            return url;
+        }
+    }
+
     private async handleFetchError(response: Response, url: string, errorMessage: string, ignoreCodes: number[] = [], options?: RequestInit) {
         if (response.status === 401) {
-            vscode.window.showInformationMessage("This Kestra instance requires authentication.");
+            vscode.window.showInformationMessage(`${ApiClient.originOf(url)} requires authentication.`);
             try {
                 let newResponse = await this.askCredentialsAndFetch(url, options);
 
@@ -517,7 +525,7 @@ export default class ApiClient {
 
             if (!storedUsername || !storedPassword) {
                 username = await vscode.window.showInputBox({
-                    prompt: "Username (press Escape to use a token instead)",
+                    prompt: `Username for ${ApiClient.originOf(url)} (press Escape to use a token instead)`,
                     value: storedUsername || ""
                 });
 
@@ -567,7 +575,7 @@ export default class ApiClient {
         const isApiToken = choice === apiToken;
 
         const token = await vscode.window.showInputBox({
-            prompt: isApiToken ? "Kestra API token" : "JWT token (copy it from the Kestra UI)",
+            prompt: `${isApiToken ? "Kestra API token" : "JWT token (copy it from the Kestra UI)"} for ${ApiClient.originOf(url)}`,
             password: true,
             placeHolder: "Paste your token here"
         });

@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import {KestraFileSearchProvider, KestraFS} from './kestraFsProvider';
 import DocumentationPanel from "./documentation/documentation";
 import ApiClient from './apiClient';
-import {schemaStateKey, flowSchemaUri, kestraScheme} from './constants';
+import {schemaStateKey, flowSchemaUri, kestraScheme, knownInstancesKey} from './constants';
 import {registerFlowValidation, isFlowDocument} from './flowValidation';
 import {registerPebbleCompletion, resetPebbleCache} from './pebbleCompletion';
 import TopologyPanel, {registerTopologyRefresh} from './topologyPanel';
@@ -10,11 +10,41 @@ import {registerRequiredFieldsCompletion} from './requiredFieldsCompletion';
 import {runFlowFromEditor, saveFlowFromEditor} from './flowRunner';
 import {disposeRunLogs} from './runOutput';
 import {resolveConfiguredNamespace, uploadFileToNamespace, syncFolderToNamespace} from './namespaceFiles';
-import {initLog, logInfo, logWarn} from './log';
+import {initLog, logInfo} from './log';
 import {decodeInstanceAuthority, encodeInstanceAuthority} from './instanceUri';
 
 // user:password@ in a url, which must never reach the output channel.
 const urlUserinfo = /\/\/[^/@]*@/;
+
+function hostOf(url: string): string {
+    try {
+        return new URL(url).host;
+    } catch {
+        return url.replace(urlUserinfo, "//");
+    }
+}
+
+async function rememberInstance(globalState: vscode.Memento, url: string): Promise<void> {
+    const known = globalState.get<string[]>(knownInstancesKey) ?? [];
+    if (!known.includes(url)) {
+        await globalState.update(knownInstancesKey, [...known, url]);
+    }
+}
+
+// A folder URI can come from anywhere, a shared .code-workspace included, and it now decides which
+// host the window talks to and offers credentials to. Pin without asking only for an instance the
+// user has opened a namespace on before.
+async function confirmInstance(globalState: vscode.Memento, url: string): Promise<boolean> {
+    if ((globalState.get<string[]>(knownInstancesKey) ?? []).includes(url)) {
+        return true;
+    }
+    const connect = await vscode.window.showWarningMessage(
+        `This folder points at ${hostOf(url)}, which you have not opened a namespace on before.`,
+        {modal: true, detail: "Connect only if you trust this Kestra instance. It receives the files you open and any credentials you enter."},
+        "Connect"
+    );
+    return connect === "Connect";
+}
 
 async function downloadSchema(globalState: vscode.Memento, apiClient: ApiClient, opts: {silent: boolean, forceInput?: boolean}): Promise<boolean> {
     // The plugin schema endpoint is global, not tenant-scoped.
@@ -67,18 +97,21 @@ function signInCommand(apiClient: ApiClient) {
     return vscode.commands.registerCommand('kestra.auth.signIn', () => apiClient.signIn());
 }
 
-function openNamespaceCommand(apiClient: ApiClient) {
+function openNamespaceCommand(globalState: vscode.Memento, apiClient: ApiClient) {
     return vscode.commands.registerCommand('kestra.namespace.open', async () => {
         const namespace = await resolveConfiguredNamespace(apiClient, true);
         if (!namespace) {
             return;
         }
+        const instance = ApiClient.currentInstance();
+        // Opening from settings is the act that makes an instance known to the new window.
+        await rememberInstance(globalState, instance.url);
         // The new window is a virtual folder with no settings of its own, so the instance travels
         // on the folder URI. Without it the window falls back to User settings and can miss, or
         // pick the wrong, kestra.api.url.
         const folder = vscode.Uri.from({
             scheme: kestraScheme,
-            authority: encodeInstanceAuthority(ApiClient.currentInstance()),
+            authority: encodeInstanceAuthority(instance),
             path: `/${namespace}`
         });
         await vscode.commands.executeCommand('vscode.openFolder', folder, {forceNewWindow: true});
@@ -104,21 +137,21 @@ export async function activate(context: vscode.ExtensionContext) {
     if (openedWs?.uri?.scheme === kestraScheme) {
         const root = openedWs.uri;
         const instance = decodeInstanceAuthority(root.authority);
-        if (instance) {
+        if (instance && await confirmInstance(context.globalState, instance.url)) {
             ApiClient.pinInstance(instance);
             // Output channels end up pasted into bug reports.
-            const shown = instance.url.replace(urlUserinfo, "//");
-            logInfo(`Namespace window pinned to ${shown}${instance.tenant ? ` (tenant ${instance.tenant})` : ""}`);
+            logInfo(`Namespace window pinned to ${instance.url.replace(urlUserinfo, "//")}${instance.tenant ? ` (tenant ${instance.tenant})` : ""}`);
         } else if (root.authority) {
-            // Silence is right for a legacy kestra:///namespace folder, but an authority we cannot
-            // read means the window is about to fall back to settings and may hit another instance.
-            logWarn(`Ignored an unreadable instance on the folder URI, falling back to kestra.api.url. Reopen the namespace with "Kestra: Open namespace" if it targets the wrong instance.`);
+            // Falling back to settings means the files below may belong to a different instance,
+            // which is worth interrupting for. A legacy kestra:///namespace folder has no authority
+            // and never reaches this.
+            vscode.window.showWarningMessage(`This namespace is not connected to the instance it was opened from, so it uses kestra.api.url instead. Reopen it with "Kestra: Open namespace" to be sure of the instance.`);
         }
         const namespace = root.path.split("/").filter(Boolean).join("/") || openedWs.name;
         const kestraFs = new KestraFS(namespace, apiClient, root.authority);
 
         context.subscriptions.push(vscode.workspace.registerFileSystemProvider(kestraScheme, kestraFs));
-        context.subscriptions.push(vscode.workspace.registerFileSearchProvider(kestraScheme, new KestraFileSearchProvider(namespace, kestraFs, apiClient)));
+        context.subscriptions.push(vscode.workspace.registerFileSearchProvider(kestraScheme, new KestraFileSearchProvider(kestraFs)));
 
         await kestraFs.start().catch(() => undefined);
     }
@@ -126,7 +159,7 @@ export async function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(showDocumentation(context, apiClient));
     context.subscriptions.push(signInCommand(apiClient));
     context.subscriptions.push(signOutCommand(apiClient));
-    context.subscriptions.push(openNamespaceCommand(apiClient));
+    context.subscriptions.push(openNamespaceCommand(context.globalState, apiClient));
     context.subscriptions.push(uploadFileCommand(apiClient));
     context.subscriptions.push(syncFolderCommand(apiClient));
     context.subscriptions.push(runFlowCommand(apiClient, context.extensionUri));
