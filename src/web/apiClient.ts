@@ -250,7 +250,7 @@ export default class ApiClient {
     }
 
     public async fileApi(namespace: string, suffix?: string, options?: RequestInit): Promise<Response> {
-        const fetchResponse = await this.apiCall(`${await ApiClient.getKestraApiUrl()}/namespaces/${namespace}/files${suffix ?? ""}`, "Error while fetching Kestra's file API:", [404], options);
+        const fetchResponse = await this.apiCall(`${await ApiClient.getKestraApiUrl()}/namespaces/${encodeURIComponent(namespace)}/files${suffix ?? ""}`, "Error while fetching Kestra's file API:", [404], options);
         if (fetchResponse.status === 404) {
             throw vscode.FileSystemError.FileNotFound(suffix);
         }

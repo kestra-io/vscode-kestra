@@ -1,5 +1,5 @@
 import * as assert from "assert";
-import {basename, namespacePath, matchesPattern, isIgnored, reachabilityError, uploadNotice} from "../web/namespaceFilesHelpers";
+import {basename, namespacePath, matchesPattern, isIgnored, reachabilityError, uploadNotice, namespaceRelativePath, hasExcludedSegment, isNamespaceRoot, encodePathSegments} from "../web/namespaceFilesHelpers";
 
 describe("basename", () => {
     it("returns the last path segment", () => {
@@ -98,5 +98,65 @@ describe("uploadNotice", () => {
         const notice = uploadNotice("ns", 5, {uploaded: 5, failed: [], stoppedByAuth: false, cancelled: false});
         assert.strictEqual(notice.kind, "info");
         assert.match(notice.text, /Uploaded 5/);
+    });
+});
+
+describe("namespaceRelativePath", () => {
+    it("returns the path below the namespace folder", () => {
+        assert.strictEqual(namespaceRelativePath("company.team", "/company.team/notes.txt"), "/notes.txt");
+    });
+    it("returns empty for the namespace folder itself, which reads as its root", () => {
+        assert.strictEqual(namespaceRelativePath("company.team", "/company.team"), "");
+    });
+    // Issue #51: these sliced into "" and "ings.json", and an empty DELETE path wiped the namespace.
+    it("refuses a path that is not under the namespace", () => {
+        for (const path of ["/.vscode", "/.git", "/.vscode/settings.json", "/other/notes.txt", "/"]) {
+            assert.strictEqual(namespaceRelativePath("company.team", path), undefined, `accepted "${path}"`);
+        }
+    });
+    it("does not treat a namespace that only shares a prefix as a parent", () => {
+        assert.strictEqual(namespaceRelativePath("team", "/team-other/notes.txt"), undefined);
+    });
+    it("refuses a path that climbs out of the namespace", () => {
+        assert.strictEqual(namespaceRelativePath("company.team", "/company.team/../other/x"), undefined);
+    });
+});
+
+describe("isNamespaceRoot", () => {
+    // A trailing slash yields "/", which is truthy and slipped past the first root guard.
+    it("catches every spelling of the root", () => {
+        for (const path of ["", "/", "//"]) {
+            assert.strictEqual(isNamespaceRoot(path), true, `missed "${path}"`);
+        }
+    });
+    it("leaves a real path alone", () => {
+        for (const path of ["/notes.txt", "/dir/a.txt"]) {
+            assert.strictEqual(isNamespaceRoot(path), false, `rejected "${path}"`);
+        }
+    });
+});
+
+describe("encodePathSegments", () => {
+    // Unencoded, "/#notes.md" reached the server as "/", deleting the whole namespace.
+    it("encodes a fragment so it cannot truncate the query", () => {
+        assert.strictEqual(encodePathSegments("/#notes.md"), "/%23notes.md");
+    });
+    it("encodes characters that would add or split query parameters", () => {
+        assert.strictEqual(encodePathSegments("/a&b=c.txt"), "/a%26b%3Dc.txt");
+    });
+    it("keeps the separators and the root", () => {
+        assert.strictEqual(encodePathSegments("/dir/a b.txt"), "/dir/a%20b.txt");
+        assert.strictEqual(encodePathSegments(""), "");
+    });
+});
+
+describe("hasExcludedSegment", () => {
+    it("matches a whole segment", () => {
+        assert.strictEqual(hasExcludedSegment("/ns/.vscode/settings.json", [".git", ".vscode"]), true);
+    });
+    it("does not match a name that merely contains one", () => {
+        for (const path of ["/ns/.gitignore", "/ns/my.github.notes", "/ns/legit.vscoded"]) {
+            assert.strictEqual(hasExcludedSegment(path, [".git", ".vscode"]), false, `excluded "${path}"`);
+        }
     });
 });
