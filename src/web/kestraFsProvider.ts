@@ -16,7 +16,7 @@ import {
 } from 'vscode';
 import ApiClient from "./apiClient";
 import { kestraScheme } from "./constants";
-import { namespaceRelativePath, hasExcludedSegment } from "./namespaceFilesHelpers";
+import { namespaceRelativePath, hasExcludedSegment, isNamespaceRoot, encodePathSegments } from "./namespaceFilesHelpers";
 import { logWarn } from "./log";
 
 type KestraFileAttributes = {
@@ -65,14 +65,22 @@ export class KestraFS implements vscode.FileSystemProvider {
 		return hasExcludedSegment(uri.path, EXCLUDED_FOLDERS);
 	}
 
-	// Throws rather than guessing. A path outside the namespace used to slice into nonsense, and an
-	// empty result on the delete endpoint wipes the whole namespace.
-	private trimNamespace(path: string) {
-		const relative = namespaceRelativePath(this.namespace, path);
+	// Encoded value for ?path=. Throws rather than guessing at a path outside the namespace.
+	private filePath(uri: vscode.Uri): string {
+		const relative = namespaceRelativePath(this.namespace, uri.path);
 		if (relative === undefined) {
-			throw vscode.FileSystemError.FileNotFound(path);
+			throw vscode.FileSystemError.FileNotFound(uri);
 		}
-		return relative;
+		return encodePathSegments(relative);
+	}
+
+	// The root addresses every file, so only reads may name it.
+	private writablePath(uri: vscode.Uri): string {
+		const path = this.filePath(uri);
+		if (isNamespaceRoot(path)) {
+			throw vscode.FileSystemError.NoPermissions("Refusing to change the namespace root");
+		}
+		return path;
 	}
 
 	private isFlow(uri: vscode.Uri) {
@@ -120,13 +128,13 @@ export class KestraFS implements vscode.FileSystemProvider {
 			};
 		}
 		
-		const response = await this.apiClient.fileApi(this.namespace, `/stats?path=${this.trimNamespace(uri.path)}`);
+		const response = await this.apiClient.fileApi(this.namespace, `/stats?path=${this.filePath(uri)}`);
 
 		try {
 			this.checkExcludedFolderOrThrow(uri);
 		} catch (e) {
 			// If the file is in an excluded folder, we delete it to purge bad files from storage
-			await this.callDeleteApi(uri);
+			await this.callDeleteApi(uri).catch(() => logWarn(`Could not purge ${uri.path}`));
 			throw vscode.FileSystemError.FileNotFound(uri);
 		}
 
@@ -142,7 +150,7 @@ export class KestraFS implements vscode.FileSystemProvider {
 				.map(r => [`${r.id}.yml`, vscode.FileType.File]);
 		}
 
-		const response = await this.apiClient.fileApi(this.namespace, "/directory" + (uri ? `?path=${this.trimNamespace(uri.path)}` : ""));
+		const response = await this.apiClient.fileApi(this.namespace, `/directory?path=${this.filePath(uri)}`);
 
 		let directoryEntries: [string, vscode.FileType][] = (await response.json() as Array<KestraFileAttributes>)
 			.map(attr => [attr.fileName, vscode.FileType[attr.type]]);
@@ -161,7 +169,7 @@ export class KestraFS implements vscode.FileSystemProvider {
 			return new TextEncoder().encode(await this.getFlowSource(uri));
 		}
 
-		const response = await this.apiClient.fileApi(this.namespace, "?path=" + this.trimNamespace(uri.path));
+		const response = await this.apiClient.fileApi(this.namespace, `?path=${this.filePath(uri)}`);
 
 		return new Uint8Array(await response.arrayBuffer());
 	}
@@ -208,7 +216,7 @@ export class KestraFS implements vscode.FileSystemProvider {
 
 		formData.append('fileContent', new Blob([content]));
 		
-		await this.apiClient.fileApi(this.namespace, "?path=" + this.trimNamespace(uri.path), {
+		await this.apiClient.fileApi(this.namespace, `?path=${this.writablePath(uri)}`, {
 			method: "POST",
 			body: formData
 		});
@@ -220,7 +228,7 @@ export class KestraFS implements vscode.FileSystemProvider {
 		if(this.impactsFlowsDirectory(oldUri) || this.impactsFlowsDirectory(newUri)) {
 			throw vscode.FileSystemError.NoPermissions("Cannot rename flows or parent directory as their metadata are read-only");
 		}
-		await this.apiClient.fileApi(this.namespace, `?from=${this.trimNamespace(oldUri.path)}&to=${this.trimNamespace(newUri.path)}`, { method: "PUT" });
+		await this.apiClient.fileApi(this.namespace, `?from=${this.writablePath(oldUri)}&to=${this.writablePath(newUri)}`, { method: "PUT" });
 	}
 
 	delete(uri: vscode.Uri) {
@@ -237,11 +245,7 @@ export class KestraFS implements vscode.FileSystemProvider {
 			return;
 		}
 
-		const path = this.trimNamespace(uri.path);
-		if (!path) {
-			throw vscode.FileSystemError.NoPermissions("Refusing to delete the namespace root");
-		}
-		await this.apiClient.fileApi(this.namespace, `?path=${path}`, { method: "DELETE" });
+		await this.apiClient.fileApi(this.namespace, `?path=${this.writablePath(uri)}`, { method: "DELETE" });
 	}
 
 	async createDirectory(uri?: vscode.Uri): Promise<void> {
@@ -251,7 +255,7 @@ export class KestraFS implements vscode.FileSystemProvider {
 			throw vscode.FileSystemError.NoPermissions("'flows' is a reserved directory name");
 		}
 
-		await this.apiClient.fileApi(this.namespace, "/directory" + (uri ? `?path=${this.trimNamespace(uri.path)}` : ""), { method: "POST" });
+		await this.apiClient.fileApi(this.namespace, "/directory" + (uri ? `?path=${this.writablePath(uri)}` : ""), { method: "POST" });
 	}
 
 	// Open a landing doc if the namespace ships one, but never fail activation when none exists.
@@ -274,8 +278,9 @@ export class KestraFS implements vscode.FileSystemProvider {
 		}
 
 		if (this.isExcludedFolder(uri)) {
+			const matched = uri.path.split("/").find(segment => EXCLUDED_FOLDERS.includes(segment));
 			throw vscode.FileSystemError.NoPermissions(
-				`Using ${uri.path} is forbidden because it cannot include ${EXCLUDED_FOLDERS.filter(f => uri.path.includes(f))[0]} in its path`
+				`Using ${uri.path} is forbidden because it cannot include ${matched} in its path`
 			);
 		}
 	}

@@ -72,14 +72,27 @@ export function uploadNotice(namespace: string, total: number, outcome: SyncOutc
     return {kind: 'info', text: `Uploaded ${outcome.uploaded} file(s) to ${namespace}.`};
 }
 
-// Path inside the namespace folder, "" for the folder itself, undefined when the uri is not under
-// it at all. Never guess: the result reaches the file API, where an empty path means the root.
+// Path inside the namespace folder, "" for the folder itself, undefined for anything outside it.
 export function namespaceRelativePath(namespace: string, path: string): string | undefined {
     const prefix = `/${namespace}`;
     if (path === prefix) {
         return "";
     }
-    return path.startsWith(`${prefix}/`) ? path.slice(prefix.length) : undefined;
+    if (!path.startsWith(`${prefix}/`)) {
+        return undefined;
+    }
+    const relative = path.slice(prefix.length);
+    return relative.split("/").includes("..") ? undefined : relative;
+}
+
+// The file API reads an empty or root path as the whole namespace, so writes must never send one.
+export function isNamespaceRoot(relativePath: string): boolean {
+    return relativePath.split("/").every(segment => segment === "");
+}
+
+// Per segment, so a # truncating the query or an & adding a parameter cannot retarget the call.
+export function encodePathSegments(path: string): string {
+    return path.split("/").map(encodeURIComponent).join("/");
 }
 
 // Matches whole segments. `includes` also matched .gitignore, and any name containing ".git".
