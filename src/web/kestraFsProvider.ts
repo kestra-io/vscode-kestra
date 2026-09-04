@@ -16,6 +16,7 @@ import {
 } from 'vscode';
 import ApiClient from "./apiClient";
 import { kestraScheme } from "./constants";
+import { namespaceRelativePath, hasExcludedSegment } from "./namespaceFilesHelpers";
 import { logWarn } from "./log";
 
 type KestraFileAttributes = {
@@ -61,11 +62,17 @@ export class KestraFS implements vscode.FileSystemProvider {
 
 
 	private isExcludedFolder(uri: vscode.Uri) {
-		return EXCLUDED_FOLDERS.some(f => uri.path.includes(f));
+		return hasExcludedSegment(uri.path, EXCLUDED_FOLDERS);
 	}
 
+	// Throws rather than guessing. A path outside the namespace used to slice into nonsense, and an
+	// empty result on the delete endpoint wipes the whole namespace.
 	private trimNamespace(path: string) {
-		return path.substring(this.namespace.length + 1);
+		const relative = namespaceRelativePath(this.namespace, path);
+		if (relative === undefined) {
+			throw vscode.FileSystemError.FileNotFound(path);
+		}
+		return relative;
 	}
 
 	private isFlow(uri: vscode.Uri) {
@@ -230,7 +237,11 @@ export class KestraFS implements vscode.FileSystemProvider {
 			return;
 		}
 
-		await this.apiClient.fileApi(this.namespace, `?path=${this.trimNamespace(uri.path)}`, { method: "DELETE" });
+		const path = this.trimNamespace(uri.path);
+		if (!path) {
+			throw vscode.FileSystemError.NoPermissions("Refusing to delete the namespace root");
+		}
+		await this.apiClient.fileApi(this.namespace, `?path=${path}`, { method: "DELETE" });
 	}
 
 	async createDirectory(uri?: vscode.Uri): Promise<void> {

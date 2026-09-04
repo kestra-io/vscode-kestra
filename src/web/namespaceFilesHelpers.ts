@@ -71,3 +71,18 @@ export function uploadNotice(namespace: string, total: number, outcome: SyncOutc
     }
     return {kind: 'info', text: `Uploaded ${outcome.uploaded} file(s) to ${namespace}.`};
 }
+
+// Path inside the namespace folder, "" for the folder itself, undefined when the uri is not under
+// it at all. Never guess: the result reaches the file API, where an empty path means the root.
+export function namespaceRelativePath(namespace: string, path: string): string | undefined {
+    const prefix = `/${namespace}`;
+    if (path === prefix) {
+        return "";
+    }
+    return path.startsWith(`${prefix}/`) ? path.slice(prefix.length) : undefined;
+}
+
+// Matches whole segments. `includes` also matched .gitignore, and any name containing ".git".
+export function hasExcludedSegment(path: string, excluded: string[]): boolean {
+    return path.split("/").some(segment => excluded.includes(segment));
+}

@@ -1,5 +1,5 @@
 import * as assert from "assert";
-import {basename, namespacePath, matchesPattern, isIgnored, reachabilityError, uploadNotice} from "../web/namespaceFilesHelpers";
+import {basename, namespacePath, matchesPattern, isIgnored, reachabilityError, uploadNotice, namespaceRelativePath, hasExcludedSegment} from "../web/namespaceFilesHelpers";
 
 describe("basename", () => {
     it("returns the last path segment", () => {
@@ -98,5 +98,34 @@ describe("uploadNotice", () => {
         const notice = uploadNotice("ns", 5, {uploaded: 5, failed: [], stoppedByAuth: false, cancelled: false});
         assert.strictEqual(notice.kind, "info");
         assert.match(notice.text, /Uploaded 5/);
+    });
+});
+
+describe("namespaceRelativePath", () => {
+    it("returns the path below the namespace folder", () => {
+        assert.strictEqual(namespaceRelativePath("company.team", "/company.team/notes.txt"), "/notes.txt");
+    });
+    it("returns empty for the namespace folder itself, which reads as its root", () => {
+        assert.strictEqual(namespaceRelativePath("company.team", "/company.team"), "");
+    });
+    // Issue #51: these sliced into "" and "ings.json", and an empty DELETE path wiped the namespace.
+    it("refuses a path that is not under the namespace", () => {
+        for (const path of ["/.vscode", "/.git", "/.vscode/settings.json", "/other/notes.txt", "/"]) {
+            assert.strictEqual(namespaceRelativePath("company.team", path), undefined, `accepted "${path}"`);
+        }
+    });
+    it("does not treat a namespace that only shares a prefix as a parent", () => {
+        assert.strictEqual(namespaceRelativePath("team", "/team-other/notes.txt"), undefined);
+    });
+});
+
+describe("hasExcludedSegment", () => {
+    it("matches a whole segment", () => {
+        assert.strictEqual(hasExcludedSegment("/ns/.vscode/settings.json", [".git", ".vscode"]), true);
+    });
+    it("does not match a name that merely contains one", () => {
+        for (const path of ["/ns/.gitignore", "/ns/my.github.notes", "/ns/legit.vscoded"]) {
+            assert.strictEqual(hasExcludedSegment(path, [".git", ".vscode"]), false, `excluded "${path}"`);
+        }
     });
 });
