@@ -101,7 +101,11 @@ export class KestraFS implements vscode.FileSystemProvider {
 
 	private extractFlowId(uri: vscode.Uri): string {
 		const extensionIdx = uri.path.lastIndexOf(".");
-		return uri.path.substring(uri.path.lastIndexOf("/") + 1, extensionIdx === -1 ? uri.path.length : extensionIdx);
+		const id = uri.path.substring(uri.path.lastIndexOf("/") + 1, extensionIdx === -1 ? uri.path.length : extensionIdx);
+		if (!id) {
+			throw vscode.FileSystemError.FileNotFound(uri);
+		}
+		return id;
 	}
 
 	private async getFlowSource(uri: vscode.Uri): Promise<string> {
@@ -128,16 +132,13 @@ export class KestraFS implements vscode.FileSystemProvider {
 			};
 		}
 		
-		const response = await this.apiClient.fileApi(this.namespace, `/stats?path=${this.filePath(uri)}`);
-
-		try {
-			this.checkExcludedFolderOrThrow(uri);
-		} catch (e) {
-			// If the file is in an excluded folder, we delete it to purge bad files from storage
-			await this.callDeleteApi(uri).catch(() => logWarn(`Could not purge ${uri.path}`));
+		// Hidden, not deleted: reading a file is not consent to remove it from the instance.
+		if (this.isExcludedFolder(uri)) {
+			logWarn(`Hiding ${uri.path}, ${EXCLUDED_FOLDERS.join(" and ")} cannot be used inside a namespace`);
 			throw vscode.FileSystemError.FileNotFound(uri);
 		}
 
+		const response = await this.apiClient.fileApi(this.namespace, `/stats?path=${this.filePath(uri)}`);
 		return fileStatFromKestraFileAttrs(await response.json() as KestraFileAttributes);
 	}
 
@@ -238,7 +239,11 @@ export class KestraFS implements vscode.FileSystemProvider {
 	}
 
 	private async callDeleteApi(uri: vscode.Uri){
-		if(this.impactsFlowsDirectory(uri)) {
+		if(this.isFlowsDirectory(uri)) {
+			throw vscode.FileSystemError.NoPermissions(`'${this.FLOWS_DIRECTORY}' is a reserved directory name`);
+		}
+
+		if(this.isFlow(uri)) {
 			await this.apiClient.flowsApi(`/${this.namespace}/${this.extractFlowId(uri)}`, {
 				method: "DELETE"
 			});

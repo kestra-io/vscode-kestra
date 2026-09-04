@@ -1,4 +1,7 @@
 {
-    "require": "ts-node/register",
+    "require": [
+        "ts-node/register",
+        "./src/test/stubs/register.js"
+    ],
     "spec": "src/test/**/*.test.ts"
 }
