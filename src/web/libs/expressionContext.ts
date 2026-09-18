@@ -44,6 +44,13 @@ export function childrenOf(context: ExpressionContext, base: string): string[] {
         .map(path => head(path.slice(prefix.length))));
 }
 
+// The endpoint only reports tasks that declare outputs, so task ids are merged back in: a task
+// with dynamic outputs still completes after `outputs.`.
+export function membersOf(context: ExpressionContext, base: string, taskIds: string[]): string[] {
+    const fields = childrenOf(context, base);
+    return base === "outputs" ? unique([...fields, ...taskIds]) : fields;
+}
+
 // 1.x has no such route, so the POST matches its "replace every flow in {namespace}" route and
 // prunes a namespace called "expressions". An unknown version counts as unsupported.
 export function supportsExpressionsEndpoint(version: string | null): boolean {

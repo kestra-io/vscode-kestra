@@ -1,5 +1,5 @@
 import * as assert from "assert";
-import {ExpressionContext, childrenOf, rootNames, supportsExpressionsEndpoint} from "../web/libs/expressionContext";
+import {ExpressionContext, childrenOf, membersOf, rootNames, supportsExpressionsEndpoint} from "../web/libs/expressionContext";
 
 // Shape as returned by POST /flows/expressions on Kestra 2.0.
 const context: ExpressionContext = {
@@ -62,5 +62,24 @@ describe("supportsExpressionsEndpoint", () => {
         for (const version of ["1.3.39", "1.0.60", "0.18.0", "", "LATEST", null]) {
             assert.ok(!supportsExpressionsEndpoint(version), String(version));
         }
+    });
+});
+
+describe("membersOf", () => {
+    // The endpoint omits tasks with no declared outputs, which would drop them from `outputs.`.
+    it("keeps task ids the endpoint does not report", () => {
+        assert.deepStrictEqual(
+            membersOf(context, "outputs", ["download", "log-it", "pause"]),
+            ["download", "log-it", "pause"]
+        );
+    });
+
+    it("does not duplicate a task the endpoint already reports", () => {
+        assert.deepStrictEqual(membersOf(context, "outputs", ["download"]), ["download"]);
+    });
+
+    it("merges task ids only under outputs", () => {
+        assert.deepStrictEqual(membersOf(context, "execution", ["download"]), ["id", "state"]);
+        assert.deepStrictEqual(membersOf(context, "outputs.download", ["download"]), ["uri", "headers"]);
     });
 });

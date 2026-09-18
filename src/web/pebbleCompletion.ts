@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import ApiClient from './apiClient';
 import YamlUtils from './libs/yamlUtils';
 import {PebbleFunctionDef} from './constants';
-import {ExpressionContext, childrenOf, rootNames, supportsExpressionsEndpoint} from './libs/expressionContext';
+import {ExpressionContext, membersOf, rootNames, supportsExpressionsEndpoint} from './libs/expressionContext';
 
 // Used on 1.x, and on 2.0+ until the flow first parses (a task with no type yet answers 422).
 const VARIABLES = ['outputs', 'inputs', 'vars', 'flow', 'execution', 'trigger', 'task', 'taskrun',
@@ -136,7 +136,7 @@ export function registerPebbleCompletion(context: vscode.ExtensionContext, apiCl
                 const member = expression.match(/([\w.]+)\.([\w]*)$/);
                 if (member) {
                     const fields = context
-                        ? childrenOf(context, member[1])
+                        ? membersOf(context, member[1], YamlUtils.taskIds(document.getText()))
                         : await membersForPath(member[1], document, apiClient);
                     if (!fields?.length) {
                         return undefined;
