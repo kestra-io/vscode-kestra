@@ -2,9 +2,9 @@ import * as vscode from 'vscode';
 import ApiClient from './apiClient';
 import YamlUtils from './libs/yamlUtils';
 import {PebbleFunctionDef} from './constants';
+import {ExpressionContext, membersOf, rootVariables, structureKey, supportsExpressionsEndpoint} from './libs/expressionContext';
 
-// Manual Pebble completion for Kestra 1.x. From 2.0, prefer the version-accurate POST /flows/expressions
-// endpoint and fall back to these lists. Follow-up: https://github.com/kestra-io/vscode-kestra/issues/33
+// Used on 1.x, and on 2.0+ until the flow first parses (a task with no type yet answers 422).
 const VARIABLES = ['outputs', 'inputs', 'vars', 'flow', 'execution', 'trigger', 'task', 'taskrun',
     'labels', 'envs', 'globals', 'parent', 'parents', 'error', 'kestra'];
 
@@ -17,14 +17,55 @@ const NESTED_FIELDS: Record<string, string[]> = {
     kestra: ['environment', 'url']
 };
 
+const CONTEXT_TTL_MS = 30_000;
+// Holds off re-probing an unreachable instance on every completion.
+const VERSION_RETRY_MS = 30_000;
+
 let cachedFilters: string[] | null = null;
 let cachedFunctions: Array<string | PebbleFunctionDef> | null = null;
 const cachedOutputs = new Map<string, string[]>();
+let expressionsSupported: boolean | null = null;
+let versionProbedAt = 0;
+let versionProbe: Promise<boolean> | null = null;
+let cachedContext: {uri: string, structure: string, at: number, context: ExpressionContext} | null = null;
 
 export function resetPebbleCache() {
     cachedFilters = null;
     cachedFunctions = null;
     cachedOutputs.clear();
+    expressionsSupported = null;
+    versionProbedAt = 0;
+    versionProbe = null;
+    cachedContext = null;
+}
+
+// Probed once, concurrent completions awaiting the in-flight probe instead of falling back.
+async function supportsExpressions(apiClient: ApiClient): Promise<boolean> {
+    if (expressionsSupported !== null) {
+        return expressionsSupported;
+    }
+    if (versionProbe) {
+        return versionProbe;
+    }
+    if (Date.now() - versionProbedAt < VERSION_RETRY_MS) {
+        return false;
+    }
+    versionProbedAt = Date.now();
+    versionProbe = probeVersion(apiClient);
+    try {
+        return await versionProbe;
+    } finally {
+        versionProbe = null;
+    }
+}
+
+async function probeVersion(apiClient: ApiClient): Promise<boolean> {
+    const version = await apiClient.instanceVersion();
+    if (version === null) {
+        return false;
+    }
+    expressionsSupported = supportsExpressionsEndpoint(version);
+    return expressionsSupported;
 }
 
 async function filtersFor(apiClient: ApiClient): Promise<string[]> {
@@ -41,6 +82,54 @@ async function functionsFor(apiClient: ApiClient): Promise<Array<string | Pebble
     return cachedFunctions ?? [];
 }
 
+function structureOf(source: string): string {
+    return structureKey({
+        namespace: YamlUtils.toObject(source)?.namespace,
+        taskIds: YamlUtils.taskIds(source),
+        taskTypes: YamlUtils.extractAllTypes(source).map(entry => entry.type),
+        inputIds: YamlUtils.inputIds(source),
+        variables: YamlUtils.sectionKeys(source, 'variables'),
+        labels: YamlUtils.sectionKeys(source, 'labels')
+    });
+}
+
+function isFresh(entry: {structure: string, at: number}, structure: string): boolean {
+    return entry.structure === structure && Date.now() - entry.at < CONTEXT_TTL_MS;
+}
+
+// Null on 1.x, or before the flow first parses, so the caller falls back to the lists above.
+async function contextFor(document: vscode.TextDocument, apiClient: ApiClient, token: vscode.CancellationToken): Promise<ExpressionContext | null> {
+    if (!await supportsExpressions(apiClient)) {
+        return null;
+    }
+    const uri = document.uri.toString();
+    const source = document.getText();
+    const structure = structureOf(source);
+    if (cachedContext?.uri === uri && isFresh(cachedContext, structure)) {
+        return cachedContext.context;
+    }
+
+    const controller = new AbortController();
+    const cancellation = token.onCancellationRequested(() => controller.abort());
+    try {
+        const result = await apiClient.flowExpressions(source, controller.signal);
+        if (result.status === 'unsupported') {
+            // A proxy can 404 a route the instance has, so re-probe later instead of latching.
+            expressionsSupported = null;
+            versionProbedAt = Date.now();
+            return null;
+        }
+        if (result.status === 'ok') {
+            cachedContext = {uri, structure, at: Date.now(), context: result.expressions};
+            return result.expressions;
+        }
+        // Keep the last good context rather than blanking completion mid-edit.
+        return cachedContext?.uri === uri ? cachedContext.context : null;
+    } finally {
+        cancellation.dispose();
+    }
+}
+
 function functionToSnippet(fn: PebbleFunctionDef): string {
     const args = fn.arguments.filter(arg => arg.defaultValue !== null);
     if (args.length === 0) {
@@ -54,7 +143,7 @@ export function registerPebbleCompletion(context: vscode.ExtensionContext, apiCl
     const provider = vscode.languages.registerCompletionItemProvider(
         {language: 'yaml'},
         {
-            async provideCompletionItems(document, position) {
+            async provideCompletionItems(document, position, token) {
                 const before = document.lineAt(position).text.substring(0, position.character);
                 const open = before.lastIndexOf('{{');
                 if (open === -1 || open < before.lastIndexOf('}}')) {
@@ -62,14 +151,17 @@ export function registerPebbleCompletion(context: vscode.ExtensionContext, apiCl
                 }
                 const expression = before.substring(open + 2);
 
+                // The /pebble endpoints keep working while the source does not parse.
                 if (/\|\s*[\w]*$/.test(expression)) {
                     return (await filtersFor(apiClient)).map(filterItem);
                 }
 
+                const context = await contextFor(document, apiClient, token);
+
                 const member = expression.match(/([\w.]+)\.([\w]*)$/);
                 if (member) {
-                    const fields = await membersForPath(member[1], document, apiClient);
-                    if (!fields) {
+                    const fields = await membersForBase(member[1], context, document, apiClient);
+                    if (!fields?.length) {
                         return undefined;
                     }
                     // Replace only the text after the dot so VS Code filters against it, not "base.xyz".
@@ -83,7 +175,16 @@ export function registerPebbleCompletion(context: vscode.ExtensionContext, apiCl
                 }
 
                 const functions = (await functionsFor(apiClient)).map(functionItem);
-                return [...VARIABLES.map(variableItem), ...functions];
+                if (!context) {
+                    return [...VARIABLES.map(variableItem), ...functions];
+                }
+                return [
+                    ...rootVariables(context, VARIABLES).map(variableItem),
+                    ...(context.secrets ?? []).map(call => callItem(call, 'Kestra secret')),
+                    ...(context.kvPairs ?? []).map(call => callItem(call, 'KV pair')),
+                    ...(context.namespaceFiles ?? []).map(call => callItem(call, 'Namespace file')),
+                    ...functions
+                ];
             }
         },
         '{', '.', '|'
@@ -105,12 +206,26 @@ function functionItem(fn: string | PebbleFunctionDef): vscode.CompletionItem {
     return item;
 }
 
+// Secrets, KV pairs and namespace files arrive as complete calls, e.g. secret('MY_KEY').
+function callItem(expression: string, detail: string): vscode.CompletionItem {
+    const item = new vscode.CompletionItem(expression, vscode.CompletionItemKind.Value);
+    item.detail = detail;
+    return item;
+}
+
 function filterItem(name: string): vscode.CompletionItem {
     const item = new vscode.CompletionItem(name, vscode.CompletionItemKind.Function);
     item.detail = 'Pebble filter';
     return item;
 }
 
+// The endpoint first, then the 1.x resolution for whatever it does not report.
+async function membersForBase(base: string, context: ExpressionContext | null, document: vscode.TextDocument, apiClient: ApiClient): Promise<string[] | undefined> {
+    const reported = context ? membersOf(context, base, YamlUtils.taskIds(document.getText())) : [];
+    return reported.length ? reported : membersForPath(base, document, apiClient);
+}
+
+// Fallback: resolve from the document plus the plugin schema, one level deep.
 async function membersForPath(path: string, document: vscode.TextDocument, apiClient: ApiClient): Promise<string[] | undefined> {
     const segments = path.split('.');
     // outputs.<taskId>. resolves to that task's output properties, from its type (as the Kestra UI does).
