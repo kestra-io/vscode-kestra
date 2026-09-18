@@ -1,5 +1,5 @@
 import * as assert from "assert";
-import {ExpressionContext, childrenOf, membersOf, rootNames, supportsExpressionsEndpoint} from "../web/libs/expressionContext";
+import {ExpressionContext, childrenOf, membersOf, rootNames, structureKey, supportsExpressionsEndpoint} from "../web/libs/expressionContext";
 
 // Shape as returned by POST /flows/expressions on Kestra 2.0.
 const context: ExpressionContext = {
@@ -81,5 +81,27 @@ describe("membersOf", () => {
     it("merges task ids only under outputs", () => {
         assert.deepStrictEqual(membersOf(context, "execution", ["download"]), ["id", "state"]);
         assert.deepStrictEqual(membersOf(context, "outputs.download", ["download"]), ["uri", "headers"]);
+    });
+});
+
+describe("structureKey", () => {
+    const parts = {
+        namespace: "c.t", taskIds: ["download"], taskTypes: ["io.kestra.plugin.core.http.Download"],
+        inputIds: ["url"], variables: ["region"], labels: ["env"]
+    };
+
+    // Typing inside an expression must not refetch, every context-changing edit must.
+    it("is stable when nothing the endpoint reads changed", () => {
+        assert.strictEqual(structureKey(parts), structureKey({...parts}));
+    });
+
+    it("changes when a task, input, variable, label or namespace changes", () => {
+        const base = structureKey(parts);
+        assert.notStrictEqual(base, structureKey({...parts, taskIds: ["fetch"]}));
+        assert.notStrictEqual(base, structureKey({...parts, taskTypes: ["io.kestra.plugin.core.log.Log"]}));
+        assert.notStrictEqual(base, structureKey({...parts, inputIds: ["url", "count"]}));
+        assert.notStrictEqual(base, structureKey({...parts, variables: []}));
+        assert.notStrictEqual(base, structureKey({...parts, labels: ["env", "team"]}));
+        assert.notStrictEqual(base, structureKey({...parts, namespace: "other.ns"}));
     });
 });

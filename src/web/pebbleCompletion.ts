@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import ApiClient from './apiClient';
 import YamlUtils from './libs/yamlUtils';
 import {PebbleFunctionDef} from './constants';
-import {ExpressionContext, membersOf, rootNames, supportsExpressionsEndpoint} from './libs/expressionContext';
+import {ExpressionContext, membersOf, rootNames, structureKey, supportsExpressionsEndpoint} from './libs/expressionContext';
 
 // Used on 1.x, and on 2.0+ until the flow first parses (a task with no type yet answers 422).
 const VARIABLES = ['outputs', 'inputs', 'vars', 'flow', 'execution', 'trigger', 'task', 'taskrun',
@@ -17,9 +17,7 @@ const NESTED_FIELDS: Record<string, string[]> = {
     kestra: ['environment', 'url']
 };
 
-// Refetched when the source changes, the minimum interval keeps typing from posting every time.
 const CONTEXT_TTL_MS = 30_000;
-const CONTEXT_MIN_INTERVAL_MS = 2_000;
 // Holds off re-probing an unreachable instance on every completion.
 const VERSION_RETRY_MS = 30_000;
 
@@ -28,7 +26,8 @@ let cachedFunctions: Array<string | PebbleFunctionDef> | null = null;
 const cachedOutputs = new Map<string, string[]>();
 let expressionsSupported: boolean | null = null;
 let versionProbedAt = 0;
-let cachedContext: {uri: string, source: string, at: number, context: ExpressionContext} | null = null;
+let versionProbe: Promise<boolean> | null = null;
+let cachedContext: {uri: string, structure: string, at: number, context: ExpressionContext} | null = null;
 
 export function resetPebbleCache() {
     cachedFilters = null;
@@ -36,18 +35,31 @@ export function resetPebbleCache() {
     cachedOutputs.clear();
     expressionsSupported = null;
     versionProbedAt = 0;
+    versionProbe = null;
     cachedContext = null;
 }
 
-// Probed once. An unreachable instance is retried rather than latched as unsupported.
+// Probed once, concurrent completions awaiting the in-flight probe instead of falling back.
 async function supportsExpressions(apiClient: ApiClient): Promise<boolean> {
     if (expressionsSupported !== null) {
         return expressionsSupported;
+    }
+    if (versionProbe) {
+        return versionProbe;
     }
     if (Date.now() - versionProbedAt < VERSION_RETRY_MS) {
         return false;
     }
     versionProbedAt = Date.now();
+    versionProbe = probeVersion(apiClient);
+    try {
+        return await versionProbe;
+    } finally {
+        versionProbe = null;
+    }
+}
+
+async function probeVersion(apiClient: ApiClient): Promise<boolean> {
     const version = await apiClient.instanceVersion();
     if (version === null) {
         return false;
@@ -70,9 +82,19 @@ async function functionsFor(apiClient: ApiClient): Promise<Array<string | Pebble
     return cachedFunctions ?? [];
 }
 
-function isFresh(entry: {source: string, at: number}, source: string): boolean {
-    const age = Date.now() - entry.at;
-    return age < CONTEXT_MIN_INTERVAL_MS || (entry.source === source && age < CONTEXT_TTL_MS);
+function structureOf(source: string): string {
+    return structureKey({
+        namespace: YamlUtils.toObject(source)?.namespace,
+        taskIds: YamlUtils.taskIds(source),
+        taskTypes: YamlUtils.extractAllTypes(source).map(entry => entry.type),
+        inputIds: YamlUtils.inputIds(source),
+        variables: YamlUtils.sectionKeys(source, 'variables'),
+        labels: YamlUtils.sectionKeys(source, 'labels')
+    });
+}
+
+function isFresh(entry: {structure: string, at: number}, structure: string): boolean {
+    return entry.structure === structure && Date.now() - entry.at < CONTEXT_TTL_MS;
 }
 
 // Null on 1.x, or before the flow first parses, so the caller falls back to the lists above.
@@ -82,7 +104,8 @@ async function contextFor(document: vscode.TextDocument, apiClient: ApiClient, t
     }
     const uri = document.uri.toString();
     const source = document.getText();
-    if (cachedContext?.uri === uri && isFresh(cachedContext, source)) {
+    const structure = structureOf(source);
+    if (cachedContext?.uri === uri && isFresh(cachedContext, structure)) {
         return cachedContext.context;
     }
 
@@ -91,11 +114,13 @@ async function contextFor(document: vscode.TextDocument, apiClient: ApiClient, t
     try {
         const result = await apiClient.flowExpressions(source, controller.signal);
         if (result.status === 'unsupported') {
-            expressionsSupported = false;
+            // A proxy can 404 a route the instance has, so re-probe later instead of latching.
+            expressionsSupported = null;
+            versionProbedAt = Date.now();
             return null;
         }
         if (result.status === 'ok') {
-            cachedContext = {uri, source, at: Date.now(), context: result.expressions};
+            cachedContext = {uri, structure, at: Date.now(), context: result.expressions};
             return result.expressions;
         }
         // Keep the last good context rather than blanking completion mid-edit.

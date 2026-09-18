@@ -44,6 +44,16 @@ export function childrenOf(context: ExpressionContext, base: string): string[] {
         .map(path => head(path.slice(prefix.length))));
 }
 
+// Only what the endpoint derives expressions from, so typing inside a string reuses the cached
+// context while adding an input or renaming a task refetches immediately.
+export function structureKey(parts: {
+    namespace?: unknown, taskIds: string[], taskTypes: string[],
+    inputIds: string[], variables: string[], labels: string[]
+}): string {
+    return JSON.stringify([parts.namespace, parts.taskIds, parts.taskTypes,
+        parts.inputIds, parts.variables, parts.labels]);
+}
+
 // The endpoint only reports tasks that declare outputs, so task ids are merged back in: a task
 // with dynamic outputs still completes after `outputs.`.
 export function membersOf(context: ExpressionContext, base: string, taskIds: string[]): string[] {
