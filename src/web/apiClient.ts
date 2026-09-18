@@ -304,8 +304,6 @@ export default class ApiClient {
         return response?.ok ? (await response.json().catch(() => null)) as Array<string | PebbleFunctionDef> | null : null;
     }
 
-    // The expressions the instance itself reports for this flow source (Kestra 2.0+), so completion
-    // matches the target version instead of a list maintained here.
     public async flowExpressions(source: string, signal?: AbortSignal): Promise<FlowExpressionsResult> {
         const response = await this.silentFetch("/flows/expressions", {
             method: "POST",

@@ -1,5 +1,4 @@
-// Categorized Pebble expressions from POST /flows/expressions (Kestra 2.0+). Keys mirror core's
-// ExpressionCategory, values carry no {{ }} delimiters.
+// POST /flows/expressions response (Kestra 2.0+). Values carry no {{ }} delimiters.
 export interface ExpressionContext {
     taskOutputs?: string[];
     executionContext?: string[];
@@ -12,15 +11,13 @@ export interface ExpressionContext {
     functions?: string[];
 }
 
-// "unsupported" means the endpoint is absent (Kestra 1.x), "invalid" that the source was rejected
-// or the instance could not be reached.
+// "unsupported": the instance predates the endpoint. "invalid": source rejected, or unreachable.
 export type FlowExpressionsResult =
     | {status: "ok"; expressions: ExpressionContext}
     | {status: "invalid"}
     | {status: "unsupported"};
 
-// Categories holding dotted variable paths. The others are ready-to-insert call forms
-// (secret('KEY')) or bare filter names, which complete differently.
+// The dotted-path categories. The rest are call forms or filter names, completed differently.
 const PATH_CATEGORIES: Array<keyof ExpressionContext> = ["taskOutputs", "executionContext", "inputs", "variables"];
 
 function paths(context: ExpressionContext): string[] {
@@ -36,12 +33,10 @@ function unique(values: string[]): string[] {
     return [...new Set(values.filter(value => value.length > 0))];
 }
 
-// Root variable names, e.g. outputs, execution, inputs, vars.
 export function rootNames(context: ExpressionContext): string[] {
     return unique(paths(context).map(head));
 }
 
-// Next segment under `base`, so "outputs.myTask" resolves to that task's output property names.
 export function childrenOf(context: ExpressionContext, base: string): string[] {
     const prefix = `${base}.`;
     return unique(paths(context)
@@ -49,9 +44,8 @@ export function childrenOf(context: ExpressionContext, base: string): string[] {
         .map(path => head(path.slice(prefix.length))));
 }
 
-// Kestra 1.x has no /flows/expressions: a POST there matches its "update every flow in namespace
-// {namespace}" route instead, which would rewrite and prune a namespace called "expressions".
-// An unreported or unparseable version is treated as unsupported.
+// 1.x has no such route, so the POST matches its "replace every flow in {namespace}" route and
+// prunes a namespace called "expressions". An unknown version counts as unsupported.
 export function supportsExpressionsEndpoint(version: string | null): boolean {
     const major = Number.parseInt(version?.split(".")[0] ?? "", 10);
     return Number.isInteger(major) && major >= 2;

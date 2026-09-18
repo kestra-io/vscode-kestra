@@ -4,9 +4,7 @@ import YamlUtils from './libs/yamlUtils';
 import {PebbleFunctionDef} from './constants';
 import {ExpressionContext, childrenOf, rootNames, supportsExpressionsEndpoint} from './libs/expressionContext';
 
-// Fallback lists. Used on Kestra 1.x, and on 2.0+ whenever the flow has not parsed yet: a task
-// added but not yet given a type makes /flows/expressions answer 422, which is a normal state while
-// typing. So these outlive 1.x support, they are what a flow being written top-down completes from.
+// Used on 1.x, and on 2.0+ until the flow first parses (a task with no type yet answers 422).
 const VARIABLES = ['outputs', 'inputs', 'vars', 'flow', 'execution', 'trigger', 'task', 'taskrun',
     'labels', 'envs', 'globals', 'parent', 'parents', 'error', 'kestra'];
 
@@ -19,12 +17,10 @@ const NESTED_FIELDS: Record<string, string[]> = {
     kestra: ['environment', 'url']
 };
 
-// The expression context is flow-scoped, so it is refetched when the source changes. The minimum
-// interval keeps typing inside an expression from posting the whole flow on every trigger character.
+// Refetched when the source changes, the minimum interval keeps typing from posting every time.
 const CONTEXT_TTL_MS = 30_000;
 const CONTEXT_MIN_INTERVAL_MS = 2_000;
-// How long an unanswered version probe holds before being retried, so completion on an unreachable
-// instance does not wait out a fresh request timeout every time.
+// Holds off re-probing an unreachable instance on every completion.
 const VERSION_RETRY_MS = 30_000;
 
 let cachedFilters: string[] | null = null;
@@ -43,8 +39,7 @@ export function resetPebbleCache() {
     cachedContext = null;
 }
 
-// The endpoint is only ever called once the instance reports a version that has it, so a 1.x
-// instance is never posted to. An unreachable instance is retried rather than latched.
+// Probed once. An unreachable instance is retried rather than latched as unsupported.
 async function supportsExpressions(apiClient: ApiClient): Promise<boolean> {
     if (expressionsSupported !== null) {
         return expressionsSupported;
@@ -80,8 +75,7 @@ function isFresh(entry: {source: string, at: number}, source: string): boolean {
     return age < CONTEXT_MIN_INTERVAL_MS || (entry.source === source && age < CONTEXT_TTL_MS);
 }
 
-// What the instance reports as available for this flow. Null on Kestra 1.x, or before the flow has
-// ever parsed, so the caller falls back to the manual lists.
+// Null on 1.x, or before the flow first parses, so the caller falls back to the lists above.
 async function contextFor(document: vscode.TextDocument, apiClient: ApiClient, token: vscode.CancellationToken): Promise<ExpressionContext | null> {
     if (!await supportsExpressions(apiClient)) {
         return null;
@@ -104,8 +98,7 @@ async function contextFor(document: vscode.TextDocument, apiClient: ApiClient, t
             cachedContext = {uri, source, at: Date.now(), context: result.expressions};
             return result.expressions;
         }
-        // The flow does not parse yet, or the call failed: keep the last good context for this
-        // document rather than blanking completion mid-edit.
+        // Keep the last good context rather than blanking completion mid-edit.
         return cachedContext?.uri === uri ? cachedContext.context : null;
     } finally {
         cancellation.dispose();
@@ -133,8 +126,7 @@ export function registerPebbleCompletion(context: vscode.ExtensionContext, apiCl
                 }
                 const expression = before.substring(open + 2);
 
-                // Filters and functions come from the always-available /pebble endpoints, so they
-                // keep working while the flow source is mid-edit and does not parse.
+                // The /pebble endpoints keep working while the source does not parse.
                 if (/\|\s*[\w]*$/.test(expression)) {
                     return (await filtersFor(apiClient)).map(filterItem);
                 }
@@ -204,7 +196,7 @@ function filterItem(name: string): vscode.CompletionItem {
     return item;
 }
 
-// Kestra 1.x fallback: resolve a path from the document plus the plugin schema, one level deep.
+// Fallback: resolve from the document plus the plugin schema, one level deep.
 async function membersForPath(path: string, document: vscode.TextDocument, apiClient: ApiClient): Promise<string[] | undefined> {
     const segments = path.split('.');
     // outputs.<taskId>. resolves to that task's output properties, from its type (as the Kestra UI does).
