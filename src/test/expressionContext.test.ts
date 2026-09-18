@@ -1,5 +1,5 @@
 import * as assert from "assert";
-import {ExpressionContext, childrenOf, membersOf, rootNames, structureKey, supportsExpressionsEndpoint} from "../web/libs/expressionContext";
+import {ExpressionContext, childrenOf, membersOf, rootNames, rootVariables, structureKey, supportsExpressionsEndpoint} from "../web/libs/expressionContext";
 
 // Trimmed shape, for the tree logic below. The real executionContext is REAL_EXECUTION_CONTEXT.
 const context: ExpressionContext = {
@@ -139,6 +139,13 @@ describe("coverage of the fallback lists by a real 2.0 context", () => {
         const roots = rootNames(real);
         const missing = FALLBACK_VARIABLES.filter(name => !roots.includes(name));
         assert.deepStrictEqual(missing, ["error"]);
+    });
+
+    it("merging the fallback list back in loses nothing", () => {
+        const merged = rootVariables(real, FALLBACK_VARIABLES);
+        assert.deepStrictEqual(FALLBACK_VARIABLES.filter(name => !merged.includes(name)), []);
+        assert.deepStrictEqual(rootNames(real).filter(name => !merged.includes(name)), []);
+        assert.strictEqual(merged.length, new Set(merged).size, "no duplicates");
     });
 
     it("offers roots the fallback list never had", () => {

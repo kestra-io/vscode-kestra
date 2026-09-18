@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import ApiClient from './apiClient';
 import YamlUtils from './libs/yamlUtils';
 import {PebbleFunctionDef} from './constants';
-import {ExpressionContext, membersOf, rootNames, structureKey, supportsExpressionsEndpoint} from './libs/expressionContext';
+import {ExpressionContext, membersOf, rootVariables, structureKey, supportsExpressionsEndpoint} from './libs/expressionContext';
 
 // Used on 1.x, and on 2.0+ until the flow first parses (a task with no type yet answers 422).
 const VARIABLES = ['outputs', 'inputs', 'vars', 'flow', 'execution', 'trigger', 'task', 'taskrun',
@@ -160,9 +160,7 @@ export function registerPebbleCompletion(context: vscode.ExtensionContext, apiCl
 
                 const member = expression.match(/([\w.]+)\.([\w]*)$/);
                 if (member) {
-                    const fields = context
-                        ? membersOf(context, member[1], YamlUtils.taskIds(document.getText()))
-                        : await membersForPath(member[1], document, apiClient);
+                    const fields = await membersForBase(member[1], context, document, apiClient);
                     if (!fields?.length) {
                         return undefined;
                     }
@@ -181,7 +179,7 @@ export function registerPebbleCompletion(context: vscode.ExtensionContext, apiCl
                     return [...VARIABLES.map(variableItem), ...functions];
                 }
                 return [
-                    ...rootNames(context).map(variableItem),
+                    ...rootVariables(context, VARIABLES).map(variableItem),
                     ...(context.secrets ?? []).map(call => callItem(call, 'Kestra secret')),
                     ...(context.kvPairs ?? []).map(call => callItem(call, 'KV pair')),
                     ...(context.namespaceFiles ?? []).map(call => callItem(call, 'Namespace file')),
@@ -219,6 +217,12 @@ function filterItem(name: string): vscode.CompletionItem {
     const item = new vscode.CompletionItem(name, vscode.CompletionItemKind.Function);
     item.detail = 'Pebble filter';
     return item;
+}
+
+// The endpoint first, then the 1.x resolution for whatever it does not report.
+async function membersForBase(base: string, context: ExpressionContext | null, document: vscode.TextDocument, apiClient: ApiClient): Promise<string[] | undefined> {
+    const reported = context ? membersOf(context, base, YamlUtils.taskIds(document.getText())) : [];
+    return reported.length ? reported : membersForPath(base, document, apiClient);
 }
 
 // Fallback: resolve from the document plus the plugin schema, one level deep.

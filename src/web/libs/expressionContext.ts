@@ -54,6 +54,12 @@ export function structureKey(parts: {
         parts.inputIds, parts.variables, parts.labels]);
 }
 
+// Endpoint roots first, then any fallback variable it does not report, so nothing the 1.x path
+// offered disappears on 2.0.
+export function rootVariables(context: ExpressionContext, fallback: string[]): string[] {
+    return unique([...rootNames(context), ...fallback]);
+}
+
 // The endpoint only reports tasks that declare outputs, so task ids are merged back in: a task
 // with dynamic outputs still completes after `outputs.`.
 export function membersOf(context: ExpressionContext, base: string, taskIds: string[]): string[] {
