@@ -4,8 +4,9 @@ import YamlUtils from './libs/yamlUtils';
 import {PebbleFunctionDef} from './constants';
 import {ExpressionContext, childrenOf, rootNames, supportsExpressionsEndpoint} from './libs/expressionContext';
 
-// Manual lists, used only when the instance predates POST /flows/expressions (Kestra 1.x).
-// Drop them once 1.x is no longer supported.
+// Fallback lists. Used on Kestra 1.x, and on 2.0+ whenever the flow has not parsed yet: a task
+// added but not yet given a type makes /flows/expressions answer 422, which is a normal state while
+// typing. So these outlive 1.x support, they are what a flow being written top-down completes from.
 const VARIABLES = ['outputs', 'inputs', 'vars', 'flow', 'execution', 'trigger', 'task', 'taskrun',
     'labels', 'envs', 'globals', 'parent', 'parents', 'error', 'kestra'];
 
