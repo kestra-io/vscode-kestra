@@ -1,7 +1,7 @@
 import * as assert from "assert";
 import {ExpressionContext, childrenOf, membersOf, rootNames, structureKey, supportsExpressionsEndpoint} from "../web/libs/expressionContext";
 
-// Shape as returned by POST /flows/expressions on Kestra 2.0.
+// Trimmed shape, for the tree logic below. The real executionContext is REAL_EXECUTION_CONTEXT.
 const context: ExpressionContext = {
     taskOutputs: ["outputs.download.uri", "outputs.download.headers.contentType", "outputs['my-task'].uri", "trigger.date"],
     executionContext: ["execution", "execution.id", "execution.state", "flow", "flow.id", "inputs", "outputs", "vars"],
@@ -103,5 +103,56 @@ describe("structureKey", () => {
         assert.notStrictEqual(base, structureKey({...parts, variables: []}));
         assert.notStrictEqual(base, structureKey({...parts, labels: ["env", "team"]}));
         assert.notStrictEqual(base, structureKey({...parts, namespace: "other.ns"}));
+    });
+});
+
+// Verbatim executionContext from POST /flows/expressions on Kestra 2.0.0, for a flow with one label.
+const REAL_EXECUTION_CONTEXT = [
+    "envs", "execution", "execution.endDate", "execution.id", "execution.originalId",
+    "execution.outputs", "execution.startDate", "execution.state", "files", "flow", "flow.id",
+    "flow.namespace", "flow.revision", "flow.tenantId", "globals", "inputs", "item", "item.index",
+    "item.key", "item.parent", "item.parent.index", "item.parent.key", "item.parent.value",
+    "item.parents", "item.value", "kestra", "kestra.environment", "kestra.url", "labels",
+    "labels.env", "outputs", "parent", "parent.task", "parent.task.id", "parent.taskrun",
+    "parent.taskrun.value", "parents", "task", "task.id", "task.type", "taskrun",
+    "taskrun.attemptsCount", "taskrun.id", "taskrun.iteration", "taskrun.parentId",
+    "taskrun.startDate", "taskrun.value", "tasks", "trigger", "vars"
+];
+
+// The fallback lists in pebbleCompletion.ts, copied so drift between them is caught here.
+const FALLBACK_VARIABLES = ["outputs", "inputs", "vars", "flow", "execution", "trigger", "task",
+    "taskrun", "labels", "envs", "globals", "parent", "parents", "error", "kestra"];
+const FALLBACK_NESTED: Record<string, string[]> = {
+    flow: ["id", "namespace", "revision", "tenantId"],
+    execution: ["id", "startDate", "state", "originalId", "outputs"],
+    task: ["id", "type"],
+    taskrun: ["id", "startDate", "attemptsCount", "parentId", "value", "iteration"],
+    error: ["taskId", "message", "stackTrace"],
+    kestra: ["environment", "url"]
+};
+
+describe("coverage of the fallback lists by a real 2.0 context", () => {
+    const real: ExpressionContext = {executionContext: REAL_EXECUTION_CONTEXT};
+
+    // `error` is not a Kestra 2.0 variable: core exposes error context through errorLogs().
+    it("offers every fallback root variable except error", () => {
+        const roots = rootNames(real);
+        const missing = FALLBACK_VARIABLES.filter(name => !roots.includes(name));
+        assert.deepStrictEqual(missing, ["error"]);
+    });
+
+    it("offers roots the fallback list never had", () => {
+        const roots = rootNames(real);
+        for (const name of ["files", "item", "tasks"]) {
+            assert.ok(roots.includes(name), name);
+        }
+    });
+
+    it("offers every nested field the fallback lists, except under error", () => {
+        for (const [base, fields] of Object.entries(FALLBACK_NESTED)) {
+            const live = childrenOf(real, base);
+            const missing = fields.filter(field => !live.includes(field));
+            assert.deepStrictEqual(missing, base === "error" ? fields : [], base);
+        }
     });
 });
