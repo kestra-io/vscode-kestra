@@ -2,9 +2,10 @@ import * as vscode from 'vscode';
 import ApiClient from './apiClient';
 import YamlUtils from './libs/yamlUtils';
 import {PebbleFunctionDef} from './constants';
+import {ExpressionContext, childrenOf, rootNames, supportsExpressionsEndpoint} from './libs/expressionContext';
 
-// Manual Pebble completion for Kestra 1.x. From 2.0, prefer the version-accurate POST /flows/expressions
-// endpoint and fall back to these lists. Follow-up: https://github.com/kestra-io/vscode-kestra/issues/33
+// Manual lists, used only when the instance predates POST /flows/expressions (Kestra 1.x).
+// Drop them once 1.x is no longer supported.
 const VARIABLES = ['outputs', 'inputs', 'vars', 'flow', 'execution', 'trigger', 'task', 'taskrun',
     'labels', 'envs', 'globals', 'parent', 'parents', 'error', 'kestra'];
 
@@ -17,14 +18,46 @@ const NESTED_FIELDS: Record<string, string[]> = {
     kestra: ['environment', 'url']
 };
 
+// The expression context is flow-scoped, so it is refetched when the source changes. The minimum
+// interval keeps typing inside an expression from posting the whole flow on every trigger character.
+const CONTEXT_TTL_MS = 30_000;
+const CONTEXT_MIN_INTERVAL_MS = 2_000;
+// How long an unanswered version probe holds before being retried, so completion on an unreachable
+// instance does not wait out a fresh request timeout every time.
+const VERSION_RETRY_MS = 30_000;
+
 let cachedFilters: string[] | null = null;
 let cachedFunctions: Array<string | PebbleFunctionDef> | null = null;
 const cachedOutputs = new Map<string, string[]>();
+let expressionsSupported: boolean | null = null;
+let versionProbedAt = 0;
+let cachedContext: {uri: string, source: string, at: number, context: ExpressionContext} | null = null;
 
 export function resetPebbleCache() {
     cachedFilters = null;
     cachedFunctions = null;
     cachedOutputs.clear();
+    expressionsSupported = null;
+    versionProbedAt = 0;
+    cachedContext = null;
+}
+
+// The endpoint is only ever called once the instance reports a version that has it, so a 1.x
+// instance is never posted to. An unreachable instance is retried rather than latched.
+async function supportsExpressions(apiClient: ApiClient): Promise<boolean> {
+    if (expressionsSupported !== null) {
+        return expressionsSupported;
+    }
+    if (Date.now() - versionProbedAt < VERSION_RETRY_MS) {
+        return false;
+    }
+    versionProbedAt = Date.now();
+    const version = await apiClient.instanceVersion();
+    if (version === null) {
+        return false;
+    }
+    expressionsSupported = supportsExpressionsEndpoint(version);
+    return expressionsSupported;
 }
 
 async function filtersFor(apiClient: ApiClient): Promise<string[]> {
@@ -41,6 +74,43 @@ async function functionsFor(apiClient: ApiClient): Promise<Array<string | Pebble
     return cachedFunctions ?? [];
 }
 
+function isFresh(entry: {source: string, at: number}, source: string): boolean {
+    const age = Date.now() - entry.at;
+    return age < CONTEXT_MIN_INTERVAL_MS || (entry.source === source && age < CONTEXT_TTL_MS);
+}
+
+// What the instance reports as available for this flow. Null on Kestra 1.x, or before the flow has
+// ever parsed, so the caller falls back to the manual lists.
+async function contextFor(document: vscode.TextDocument, apiClient: ApiClient, token: vscode.CancellationToken): Promise<ExpressionContext | null> {
+    if (!await supportsExpressions(apiClient)) {
+        return null;
+    }
+    const uri = document.uri.toString();
+    const source = document.getText();
+    if (cachedContext?.uri === uri && isFresh(cachedContext, source)) {
+        return cachedContext.context;
+    }
+
+    const controller = new AbortController();
+    const cancellation = token.onCancellationRequested(() => controller.abort());
+    try {
+        const result = await apiClient.flowExpressions(source, controller.signal);
+        if (result.status === 'unsupported') {
+            expressionsSupported = false;
+            return null;
+        }
+        if (result.status === 'ok') {
+            cachedContext = {uri, source, at: Date.now(), context: result.expressions};
+            return result.expressions;
+        }
+        // The flow does not parse yet, or the call failed: keep the last good context for this
+        // document rather than blanking completion mid-edit.
+        return cachedContext?.uri === uri ? cachedContext.context : null;
+    } finally {
+        cancellation.dispose();
+    }
+}
+
 function functionToSnippet(fn: PebbleFunctionDef): string {
     const args = fn.arguments.filter(arg => arg.defaultValue !== null);
     if (args.length === 0) {
@@ -54,7 +124,7 @@ export function registerPebbleCompletion(context: vscode.ExtensionContext, apiCl
     const provider = vscode.languages.registerCompletionItemProvider(
         {language: 'yaml'},
         {
-            async provideCompletionItems(document, position) {
+            async provideCompletionItems(document, position, token) {
                 const before = document.lineAt(position).text.substring(0, position.character);
                 const open = before.lastIndexOf('{{');
                 if (open === -1 || open < before.lastIndexOf('}}')) {
@@ -62,14 +132,20 @@ export function registerPebbleCompletion(context: vscode.ExtensionContext, apiCl
                 }
                 const expression = before.substring(open + 2);
 
+                // Filters and functions come from the always-available /pebble endpoints, so they
+                // keep working while the flow source is mid-edit and does not parse.
                 if (/\|\s*[\w]*$/.test(expression)) {
                     return (await filtersFor(apiClient)).map(filterItem);
                 }
 
+                const context = await contextFor(document, apiClient, token);
+
                 const member = expression.match(/([\w.]+)\.([\w]*)$/);
                 if (member) {
-                    const fields = await membersForPath(member[1], document, apiClient);
-                    if (!fields) {
+                    const fields = context
+                        ? childrenOf(context, member[1])
+                        : await membersForPath(member[1], document, apiClient);
+                    if (!fields?.length) {
                         return undefined;
                     }
                     // Replace only the text after the dot so VS Code filters against it, not "base.xyz".
@@ -83,7 +159,16 @@ export function registerPebbleCompletion(context: vscode.ExtensionContext, apiCl
                 }
 
                 const functions = (await functionsFor(apiClient)).map(functionItem);
-                return [...VARIABLES.map(variableItem), ...functions];
+                if (!context) {
+                    return [...VARIABLES.map(variableItem), ...functions];
+                }
+                return [
+                    ...rootNames(context).map(variableItem),
+                    ...(context.secrets ?? []).map(call => callItem(call, 'Kestra secret')),
+                    ...(context.kvPairs ?? []).map(call => callItem(call, 'KV pair')),
+                    ...(context.namespaceFiles ?? []).map(call => callItem(call, 'Namespace file')),
+                    ...functions
+                ];
             }
         },
         '{', '.', '|'
@@ -105,12 +190,20 @@ function functionItem(fn: string | PebbleFunctionDef): vscode.CompletionItem {
     return item;
 }
 
+// Secrets, KV pairs and namespace files arrive as complete calls, e.g. secret('MY_KEY').
+function callItem(expression: string, detail: string): vscode.CompletionItem {
+    const item = new vscode.CompletionItem(expression, vscode.CompletionItemKind.Value);
+    item.detail = detail;
+    return item;
+}
+
 function filterItem(name: string): vscode.CompletionItem {
     const item = new vscode.CompletionItem(name, vscode.CompletionItemKind.Function);
     item.detail = 'Pebble filter';
     return item;
 }
 
+// Kestra 1.x fallback: resolve a path from the document plus the plugin schema, one level deep.
 async function membersForPath(path: string, document: vscode.TextDocument, apiClient: ApiClient): Promise<string[] | undefined> {
     const segments = path.split('.');
     // outputs.<taskId>. resolves to that task's output properties, from its type (as the Kestra UI does).

@@ -33,7 +33,7 @@ Author, run, and inspect Kestra flows in VS Code: live validation, `{{ }}` autoc
 ## Features
 
 - **Live validation** as you type: the connected instance's validate endpoint runs on each edit and surfaces the same errors as `flow validate`.
-- **`{{ }}` autocompletion** for Pebble expressions: context variables, functions, filters, and the flow's own input and task ids.
+- **`{{ }}` autocompletion** for Pebble expressions: on Kestra 2.0+ the instance reports what this exact flow can reference, including nested task outputs, secrets, KV pairs, and namespace files. On 1.x it falls back to a built-in list.
 - **Instance-aware schema**: task and property autocompletion plus structural validation from your instance's installed plugin versions, not a generic all-plugins schema.
 - **Missing required fields**: inline suggestions for the required properties a task still needs.
 - **Run from the editor**: validate, deploy, and execute the open flow on the connected instance, with live logs and per-task status.

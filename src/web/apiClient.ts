@@ -2,6 +2,7 @@
 import * as vscode from 'vscode';
 import { kestraBaseUrl, secretStorageKey, yamlContentType, PebbleFunctionDef } from "./constants";
 import { FlowGraph } from "../shared/flow";
+import type { ExpressionContext, FlowExpressionsResult } from "./libs/expressionContext";
 import type { PluginDefinition, PluginEntry } from "./documentation/pluginDoc";
 import { logWarn } from "./log";
 import type { KestraInstance } from "./instanceUri";
@@ -301,6 +302,25 @@ export default class ApiClient {
     public async pebbleFunctions(): Promise<Array<string | PebbleFunctionDef> | null> {
         const response = await this.silentFetch("/pebble/functions", {}, false);
         return response?.ok ? (await response.json().catch(() => null)) as Array<string | PebbleFunctionDef> | null : null;
+    }
+
+    // The expressions the instance itself reports for this flow source (Kestra 2.0+), so completion
+    // matches the target version instead of a list maintained here.
+    public async flowExpressions(source: string, signal?: AbortSignal): Promise<FlowExpressionsResult> {
+        const response = await this.silentFetch("/flows/expressions", {
+            method: "POST",
+            body: source,
+            signal,
+            headers: {"Content-Type": yamlContentType}
+        });
+        if (response?.status === 404 || response?.status === 405) {
+            return {status: "unsupported"};
+        }
+        if (!response?.ok) {
+            return {status: "invalid"};
+        }
+        const expressions = (await response.json().catch(() => null)) as ExpressionContext | null;
+        return expressions ? {status: "ok", expressions} : {status: "invalid"};
     }
 
     // Generates the topology graph for a flow source, without saving the flow.
