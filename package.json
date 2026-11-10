@@ -261,7 +261,7 @@
     "@typescript-eslint/eslint-plugin": "^6.4.1",
     "@typescript-eslint/parser": "^6.4.1",
     "@vscode/codicons": "0.0.45",
-    "@vscode/test-web": "^0.0.68",
+    "@vscode/test-web": "^0.0.81",
     "assert": "^2.0.0",
     "eslint": "^8.47.0",
     "mocha": "^10.8.2",
