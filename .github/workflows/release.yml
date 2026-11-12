@@ -14,9 +14,9 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 20
 
@@ -30,14 +30,15 @@ jobs:
         run: npm install
 
       - name: Publish to Visual Studio Marketplace
-        uses: HaaLeo/publish-vscode-extension@v1
+        uses: HaaLeo/publish-vscode-extension@f4ece70f329f66686bd71c54b1671353fe320e49 # v1.7.0
         with:
           pat: ${{ secrets.AZURE_DEVOPS_TOKEN }}
           registryUrl: https://marketplace.visualstudio.com
 
       - name: Create GitHub release
-        run: gh release create "${{ github.ref_name }}" --generate-notes --verify-tag
+        run: gh release create "$TAG" --generate-notes --verify-tag
         env:
+          TAG: ${{ github.ref_name }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Slack notification
