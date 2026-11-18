@@ -13,6 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      id-token: write
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
@@ -37,11 +38,9 @@ jobs:
           registryUrl: https://marketplace.visualstudio.com
 
       - name: Publish to Open VSX
-        uses: HaaLeo/publish-vscode-extension@f4ece70f329f66686bd71c54b1671353fe320e49 # v1.7.0
-        with:
-          pat: ${{ secrets.OPEN_VSX_TOKEN }}
-          registryUrl: https://open-vsx.org
-          extensionFile: ${{ steps.marketplace.outputs.vsixPath }}
+        run: npx --yes ovsx@1.4.0 publish "$VSIX_PATH" --skip-duplicate
+        env:
+          VSIX_PATH: ${{ steps.marketplace.outputs.vsixPath }}
 
       - name: Create GitHub release
         run: gh release create "$TAG" --generate-notes --verify-tag
