@@ -30,10 +30,18 @@ jobs:
         run: npm install
 
       - name: Publish to Visual Studio Marketplace
+        id: marketplace
         uses: HaaLeo/publish-vscode-extension@f4ece70f329f66686bd71c54b1671353fe320e49 # v1.7.0
         with:
           pat: ${{ secrets.AZURE_DEVOPS_TOKEN }}
           registryUrl: https://marketplace.visualstudio.com
+
+      - name: Publish to Open VSX
+        uses: HaaLeo/publish-vscode-extension@f4ece70f329f66686bd71c54b1671353fe320e49 # v1.7.0
+        with:
+          pat: ${{ secrets.OPEN_VSX_TOKEN }}
+          registryUrl: https://open-vsx.org
+          extensionFile: ${{ steps.marketplace.outputs.vsixPath }}
 
       - name: Create GitHub release
         run: gh release create "$TAG" --generate-notes --verify-tag
