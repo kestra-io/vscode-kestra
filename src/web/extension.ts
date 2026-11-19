@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import {KestraFileSearchProvider, KestraFS} from './kestraFsProvider';
 import DocumentationPanel from "./documentation/documentation";
 import ApiClient from './apiClient';
-import {schemaStateKey, kestraScheme, knownInstancesKey} from './constants';
+import {schemaStateKey, flowSchemaUri, kestraScheme, knownInstancesKey} from './constants';
 import {registerFlowValidation, isFlowDocument} from './flowValidation';
 import {registerPebbleCompletion, resetPebbleCache} from './pebbleCompletion';
 import TopologyPanel, {registerTopologyRefresh} from './topologyPanel';
@@ -161,8 +161,6 @@ export async function activate(context: vscode.ExtensionContext) {
     const schemaStore = new FlowSchemaStore(vscode.workspace.fs, context.globalStorageUri);
     await schemaStore.migrateFrom(context.globalState, schemaStateKey.legacySchema)
         .catch(error => logWarn(`Could not move the stored flow schema out of global state: ${error}`));
-    // The YAML contributor asks for the schema URI synchronously, and the store only has one once it has read the file.
-    await schemaStore.read();
     context.subscriptions.push(downloadSchemaCommand(context.globalState, schemaStore, apiClient));
     context.subscriptions.push(showDocumentation(context, apiClient));
     context.subscriptions.push(signInCommand(apiClient));
@@ -248,16 +246,16 @@ export async function activate(context: vscode.ExtensionContext) {
         let kestraSchemaPathMatch = (vscode.workspace.getConfiguration("kestra.schema").get("match-path") as string);
 
         if (vscode.env.uiKind === vscode.UIKind.Desktop && kestraSchemaPathMatch && resource.match(kestraSchemaPathMatch)) {
-            return schemaStore.uri;
+            return flowSchemaUri;
         } else if (resource.includes("/_flows/")) {
-            return schemaStore.uri;
+            return flowSchemaUri;
         }
 
         const openDocument = vscode.workspace.textDocuments.find(
             d => d.uri.toString() === resource || d.uri.fsPath === resource || d.uri.path === resource
         );
         if (openDocument && isFlowDocument(openDocument)) {
-            return schemaStore.uri;
+            return flowSchemaUri;
         }
 
         return undefined;
