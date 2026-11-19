@@ -58,11 +58,23 @@ describe("FlowSchemaStore", () => {
         assert.strictEqual(await new FlowSchemaStore(fs, storageDir).read(), '{"definitions":{}}');
     });
 
-    it("keeps the globalState schema when the file cannot be written", async () => {
+    it("keeps and still serves the globalState schema when the file cannot be written", async () => {
         const state: Record<string, unknown> = {[legacyKey]: '{"definitions":{}}'};
+        const store = new FlowSchemaStore(memoryFs(true), storageDir);
 
-        await assert.rejects(new FlowSchemaStore(memoryFs(true), storageDir).migrateFrom(memento(state), legacyKey));
+        await assert.rejects(store.migrateFrom(memento(state), legacyKey));
 
         assert.strictEqual(state[legacyKey], '{"definitions":{}}');
+        assert.strictEqual(await store.read(), '{"definitions":{}}');
+    });
+
+    it("picks up a schema saved after a failed read", async () => {
+        const fs = memoryFs();
+        const store = new FlowSchemaStore(fs, storageDir);
+        assert.strictEqual(await store.read(), undefined);
+
+        await new FlowSchemaStore(fs, storageDir).write('{"definitions":{}}');
+
+        assert.strictEqual(await store.read(), '{"definitions":{}}');
     });
 });

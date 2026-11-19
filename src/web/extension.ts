@@ -57,7 +57,15 @@ async function downloadSchema(globalState: vscode.Memento, schemaStore: FlowSche
         return false;
     }
 
-    await schemaStore.write(await response.text());
+    try {
+        await schemaStore.write(await response.text());
+    } catch (error) {
+        logWarn(`Could not save the Kestra flow schema: ${error}`);
+        if (!opts.silent) {
+            vscode.window.showErrorMessage(`Kestra's flow schema was downloaded but could not be saved: ${error}`);
+        }
+        return false;
+    }
     await globalState.update(schemaStateKey.source, base);
 
     if (!opts.silent) {

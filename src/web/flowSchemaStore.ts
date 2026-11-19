@@ -14,7 +14,11 @@ export class FlowSchemaStore {
     read(): Promise<string | undefined> {
         this.schema ??= Promise.resolve(this.fs.readFile(this.file)).then(
             bytes => new TextDecoder().decode(bytes),
-            () => undefined
+            () => {
+                // Not cached, so a schema saved later, by this window or another one, is picked up on the next read.
+                this.schema = undefined;
+                return undefined;
+            }
         );
         return this.schema;
     }
@@ -25,13 +29,19 @@ export class FlowSchemaStore {
         this.schema = Promise.resolve(content);
     }
 
-    // Moves a schema stored by versions up to 1.2.0 out of globalState. The key is cleared only once the file is written.
+    // Moves a schema stored by versions up to 1.2.0 out of globalState. If the file cannot be written, the key is kept
+    // and its value is still served for this session.
     async migrateFrom(globalState: vscode.Memento, legacyKey: string): Promise<void> {
         const legacy = globalState.get<string>(legacyKey);
         if (legacy === undefined) {
             return;
         }
-        await this.write(legacy);
+        try {
+            await this.write(legacy);
+        } catch (error) {
+            this.schema = Promise.resolve(legacy);
+            throw error;
+        }
         await globalState.update(legacyKey, undefined);
     }
 }
