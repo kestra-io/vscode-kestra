@@ -1,13 +1,13 @@
 import * as vscode from 'vscode';
-import {schemaStateKey} from './constants';
+import type {FlowSchemaStore} from './flowSchemaStore';
 
 type TaskDefinition = {required?: string[]};
 
 let cachedSource: string | undefined;
 let cachedDefinitions: Record<string, TaskDefinition> | undefined;
 
-function definitionsFor(globalState: vscode.Memento): Record<string, TaskDefinition> | undefined {
-    const raw = globalState.get(schemaStateKey.schema) as string | undefined;
+async function definitionsFor(schemaStore: FlowSchemaStore): Promise<Record<string, TaskDefinition> | undefined> {
+    const raw = await schemaStore.read();
     if (!raw) {
         return undefined;
     }
@@ -94,13 +94,13 @@ function taskContext(document: vscode.TextDocument, position: vscode.Position): 
     return type ? {type, keys, indent} : undefined;
 }
 
-export function registerRequiredFieldsCompletion(context: vscode.ExtensionContext) {
+export function registerRequiredFieldsCompletion(context: vscode.ExtensionContext, schemaStore: FlowSchemaStore) {
     const provider: vscode.InlineCompletionItemProvider = {
-        provideInlineCompletionItems(document, position) {
+        async provideInlineCompletionItems(document, position) {
             if (document.languageId !== "yaml") {
                 return;
             }
-            const definitions = definitionsFor(context.globalState);
+            const definitions = await definitionsFor(schemaStore);
             if (!definitions) {
                 return;
             }

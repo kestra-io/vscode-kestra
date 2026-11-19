@@ -15,7 +15,8 @@ export interface PebbleFunctionDef {
 export const knownInstancesKey = "kestra.instances.known";
 
 export const schemaStateKey = {
-    schema: "kestra.yaml.schema",
+    // Held the whole schema up to 1.2.0. Read only to migrate it to FlowSchemaStore.
+    legacySchema: "kestra.yaml.schema",
     source: "kestra.yaml.schema.source"
 };
 
