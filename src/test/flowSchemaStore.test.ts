@@ -68,6 +68,31 @@ describe("FlowSchemaStore", () => {
         assert.strictEqual(await store.read(), '{"definitions":{}}');
     });
 
+    it("has no schema URI until a schema is loaded", async () => {
+        const store = new FlowSchemaStore(memoryFs(), storageDir);
+        await store.read();
+        assert.strictEqual(store.uri, undefined);
+
+        const failing = new FlowSchemaStore(memoryFs(true), storageDir);
+        await assert.rejects(failing.write('{"definitions":{}}'));
+        assert.strictEqual(failing.uri, undefined);
+
+        await store.write('{"definitions":{}}');
+        assert.ok(store.uri);
+    });
+
+    it("changes the schema URI only when the schema content changes", async () => {
+        const store = new FlowSchemaStore(memoryFs(), storageDir);
+        await store.write('{"definitions":{}}');
+        const first = store.uri;
+
+        await store.write('{"definitions":{}}');
+        assert.strictEqual(store.uri, first);
+
+        await store.write('{"definitions":{"io.kestra.plugin.core.log.Log":{}}}');
+        assert.notStrictEqual(store.uri, first);
+    });
+
     it("picks up a schema saved after a failed read", async () => {
         const fs = memoryFs();
         const store = new FlowSchemaStore(fs, storageDir);
