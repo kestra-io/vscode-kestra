@@ -10,7 +10,8 @@ import {registerRequiredFieldsCompletion} from './requiredFieldsCompletion';
 import {runFlowFromEditor, saveFlowFromEditor} from './flowRunner';
 import {disposeRunLogs} from './runOutput';
 import {resolveConfiguredNamespace, uploadFileToNamespace, syncFolderToNamespace} from './namespaceFiles';
-import {initLog, logInfo} from './log';
+import {initLog, logInfo, logWarn} from './log';
+import {FlowSchemaStore} from './flowSchemaStore';
 import {decodeInstanceAuthority, encodeInstanceAuthority} from './instanceUri';
 
 // user:password@ in a url.
@@ -44,7 +45,7 @@ async function confirmInstance(globalState: vscode.Memento, url: string): Promis
     return connect === "Connect";
 }
 
-async function downloadSchema(globalState: vscode.Memento, apiClient: ApiClient, opts: {silent: boolean, forceInput?: boolean}): Promise<boolean> {
+async function downloadSchema(globalState: vscode.Memento, schemaStore: FlowSchemaStore, apiClient: ApiClient, opts: {silent: boolean, forceInput?: boolean}): Promise<boolean> {
     // The plugin schema endpoint is global, not tenant-scoped.
     const base = await ApiClient.getKestraApiUrl(opts.forceInput ?? false, false);
     if (!base) {
@@ -56,7 +57,7 @@ async function downloadSchema(globalState: vscode.Memento, apiClient: ApiClient,
         return false;
     }
 
-    await globalState.update(schemaStateKey.schema, await response.text());
+    await schemaStore.write(await response.text());
     await globalState.update(schemaStateKey.source, base);
 
     if (!opts.silent) {
@@ -65,9 +66,9 @@ async function downloadSchema(globalState: vscode.Memento, apiClient: ApiClient,
     return true;
 }
 
-function downloadSchemaCommand(globalState: vscode.Memento, apiClient: ApiClient) {
+function downloadSchemaCommand(globalState: vscode.Memento, schemaStore: FlowSchemaStore, apiClient: ApiClient) {
     return vscode.commands.registerCommand('kestra.schema.download', () =>
-        downloadSchema(globalState, apiClient, {silent: false, forceInput: true})
+        downloadSchema(globalState, schemaStore, apiClient, {silent: false, forceInput: true})
     );
 }
 
@@ -148,7 +149,10 @@ export async function activate(context: vscode.ExtensionContext) {
 
         await kestraFs.start().catch(() => undefined);
     }
-    context.subscriptions.push(downloadSchemaCommand(context.globalState, apiClient));
+    const schemaStore = new FlowSchemaStore(vscode.workspace.fs, context.globalStorageUri);
+    await schemaStore.migrateFrom(context.globalState, schemaStateKey.legacySchema)
+        .catch(error => logWarn(`Could not move the stored flow schema out of global state: ${error}`));
+    context.subscriptions.push(downloadSchemaCommand(context.globalState, schemaStore, apiClient));
     context.subscriptions.push(showDocumentation(context, apiClient));
     context.subscriptions.push(signInCommand(apiClient));
     context.subscriptions.push(signOutCommand(apiClient));
@@ -163,16 +167,16 @@ export async function activate(context: vscode.ExtensionContext) {
 
     registerFlowValidation(context, apiClient);
     registerPebbleCompletion(context, apiClient);
-    registerRequiredFieldsCompletion(context);
+    registerRequiredFieldsCompletion(context, schemaStore);
 
     const configuredUrl = ApiClient.currentInstance().url;
     if (vscode.env.uiKind === vscode.UIKind.Web) {
-        await downloadSchema(context.globalState, apiClient, {silent: true});
+        await downloadSchema(context.globalState, schemaStore, apiClient, {silent: true});
     } else if (configuredUrl) {
         const expectedSource = await ApiClient.getKestraApiUrl(false, false);
         const cachedSource = context.globalState.get(schemaStateKey.source) as string | undefined;
-        if (!context.globalState.get(schemaStateKey.schema) || cachedSource !== expectedSource) {
-            await downloadSchema(context.globalState, apiClient, {silent: true});
+        if (!await schemaStore.read() || cachedSource !== expectedSource) {
+            await downloadSchema(context.globalState, schemaStore, apiClient, {silent: true});
         }
     }
 
@@ -182,7 +186,7 @@ export async function activate(context: vscode.ExtensionContext) {
         }
         if (event.affectsConfiguration("kestra.api.url") || event.affectsConfiguration("kestra.api.tenant")) {
             resetPebbleCache();
-            await downloadSchema(context.globalState, apiClient, {silent: true});
+            await downloadSchema(context.globalState, schemaStore, apiClient, {silent: true});
         }
     }));
 
@@ -246,7 +250,7 @@ export async function activate(context: vscode.ExtensionContext) {
         }
 
         return undefined;
-    }, () => context.globalState.get(schemaStateKey.schema));
+    }, () => schemaStore.read());
 }
 
 export function deactivate() {
