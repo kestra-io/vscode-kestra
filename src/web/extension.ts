@@ -52,8 +52,9 @@ async function downloadSchema(globalState: vscode.Memento, schemaStore: FlowSche
         return false;
     }
 
-    const response = await apiClient.apiCall(`${base}/plugins/schemas/flow`, "Error while downloading Kestra's flow schema:");
-    if (!response.ok) {
+    // apiCall already shows why the instance is unreachable. Rethrowing would abort activation before the YAML contributor is registered.
+    const response = await apiClient.apiCall(`${base}/plugins/schemas/flow`, "Error while downloading Kestra's flow schema:").catch(() => undefined);
+    if (!response?.ok) {
         return false;
     }
 
