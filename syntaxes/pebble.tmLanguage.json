@@ -1,0 +1,28 @@
+{
+    "name": "pebble-injection",
+    "scopeName": "text.pebble.injection",
+    "injectTo": [
+        "source.yaml"
+    ],
+    "injectionSelector": "L:source.yaml -comment -meta.embedded.expression.pebble -meta.embedded.statement.pebble",
+    "patterns": [
+        {
+            "include": "#expression"
+        },
+        {
+            "include": "#statement"
+        }
+    ],
+    "repository": {
+        "expression": {
+            "name": "meta.embedded.expression.pebble",
+            "begin": "\\{\\{",
+            "end": "\\}\\}|(?=^\\S)"
+        },
+        "statement": {
+            "name": "meta.embedded.statement.pebble",
+            "begin": "\\{%(?=-?[ \\t]*[A-Za-z_]\\w)",
+            "end": "%\\}|(?=^\\S)"
+        }
+    }
+}
