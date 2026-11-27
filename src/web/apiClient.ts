@@ -484,10 +484,15 @@ export default class ApiClient {
         };
 
         const existing = await this.apiCall(`${base}/flows/${namespace}/${id}`, "Error while reading flow:", [404]);
-        await existing.body?.cancel();
         if (existing.status === 404) {
+            await existing.body?.cancel();
             return this.apiCall(`${base}/flows`, "Error while creating flow:", [], {method: "POST", body: source, headers});
         }
+        // Any other failure could still mean a missing flow, so it never falls through to the PUT.
+        if (!existing.ok) {
+            return existing;
+        }
+        await existing.body?.cancel();
         return this.apiCall(`${base}/flows/${namespace}/${id}`, "Error while updating flow:", [], {method: "PUT", body: source, headers});
     }
 
