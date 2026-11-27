@@ -12,7 +12,7 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:
@@ -41,6 +41,8 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
       - name: Start Kestra ${{ matrix.kestra }}
+        env:
+          KESTRA_VERSION: ${{ matrix.kestra }}
         run: |
           docker run -d --name kestra-test -p 18080:8080 \
             -e KESTRA_CONFIGURATION="kestra:
@@ -48,7 +50,7 @@ jobs:
               basic-auth:
                 username: $KESTRA_TEST_USERNAME
                 password: $KESTRA_TEST_PASSWORD" \
-            kestra/kestra:${{ matrix.kestra }}-slim server local
+            "kestra/kestra:${KESTRA_VERSION}-slim" server local
           # 1.3 serves /configs without auth, 2.x answers 401: either means the server is up.
           for _ in $(seq 90); do
             code=$(curl -s -o /dev/null -w '%{http_code}' "$KESTRA_TEST_URL/api/v1/configs" || true)
@@ -69,7 +71,8 @@ jobs:
         run: npm run test:live
 
       - name: Slack - Notify on failure
-        if: always() && github.event_name != 'pull_request' && job.status == 'failure'
+        # v1.3 is allowed to fail (see continue-on-error), so it would alert on every run.
+        if: always() && github.event_name != 'pull_request' && job.status == 'failure' && matrix.kestra != 'v1.3'
         uses: kestra-io/actions/composite/slack-status@main
         with:
           channel: 'C09FE0QCN2E'

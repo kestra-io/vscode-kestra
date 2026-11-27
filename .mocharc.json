@@ -3,5 +3,6 @@
         "ts-node/register",
         "./src/test/stubs/register.js"
     ],
-    "spec": "src/test/**/*.test.ts"
+    "spec": "src/test/**/*.test.ts",
+    "ignore": ["src/test/live.test.ts"]
 }
