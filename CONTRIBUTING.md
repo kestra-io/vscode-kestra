@@ -45,6 +45,7 @@ npm install
 - `npm run compile-web` builds the extension bundle (`npm run watch-web` rebuilds on change)
 - `npm run lint`
 - `npm test` runs the unit tests
+- `npm run test:live` runs `src/test/live.test.ts` against a real instance, and is skipped unless `KESTRA_TEST_URL` is set (plus `KESTRA_TEST_USERNAME` / `KESTRA_TEST_PASSWORD`). The `Live Kestra` workflow runs it on every PR against each line in `COMPATIBLE_KESTRA_VERSION.properties` (the `-slim` image). Add the new line there when a Kestra minor is released
 
 Press F5 (Run and Debug) to launch an Extension Development Host with the extension loaded.
 

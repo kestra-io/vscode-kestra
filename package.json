@@ -236,6 +236,7 @@
   },
   "scripts": {
     "test": "mocha",
+    "test:live": "mocha --no-config -r ts-node/register -r ./src/test/stubs/register.js src/test/live.test.ts",
     "vscode:prepublish": "npm run package-web",
     "compile-web": "npm run tokens && npm run codicons && webpack",
     "watch-web": "webpack --watch",
