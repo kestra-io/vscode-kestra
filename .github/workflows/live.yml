@@ -2,7 +2,7 @@ name: Live Kestra
 
 # Runs src/test/live.test.ts against a throwaway OSS instance per Kestra line in COMPATIBLE_KESTRA_VERSION.properties,
 # since some routes differ between versions.
-# develop is the next line: it runs every weekday as an early warning. Neither develop nor v1.3 blocks a PR.
+# develop is the next line: it runs every weekday as an early warning and never blocks a PR.
 on:
   push:
     branches: [main]
@@ -26,8 +26,7 @@ jobs:
     name: Kestra ${{ matrix.kestra }}
     needs: list-versions
     runs-on: ubuntu-latest
-    # 1.3 OSS stalls for about a minute after a burst of API calls (thread starvation), which times out the tests that follow.
-    continue-on-error: ${{ matrix.kestra == 'develop' || matrix.kestra == 'v1.3' }}
+    continue-on-error: ${{ matrix.kestra == 'develop' }}
     strategy:
       fail-fast: false
       matrix:
@@ -71,8 +70,7 @@ jobs:
         run: npm run test:live
 
       - name: Slack - Notify on failure
-        # v1.3 is allowed to fail (see continue-on-error), so it would alert on every run.
-        if: always() && github.event_name != 'pull_request' && job.status == 'failure' && matrix.kestra != 'v1.3'
+        if: always() && github.event_name != 'pull_request' && job.status == 'failure'
         uses: kestra-io/actions/composite/slack-status@main
         with:
           channel: 'C09FE0QCN2E'
