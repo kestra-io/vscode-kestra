@@ -256,7 +256,19 @@ function renderForm(inputs: FlowInput[]) {
 
     form.appendChild(createFormActions());
     form.hidden = false;
+    form.querySelector<HTMLElement>('input, select, textarea, button')?.focus();
 }
+
+// The form is a div, not a <form>, so Enter is wired by hand. Textareas keep Enter for new lines, buttons handle it
+// natively, the multiselect filter is not a value, and an IME uses Enter to confirm composed text.
+form.addEventListener('keydown', event => {
+    const target = event.target as HTMLElement;
+    const isOwnedElsewhere = target instanceof HTMLTextAreaElement || target instanceof HTMLButtonElement || Boolean(target.closest('.ks-tags'));
+    if (event.key === 'Enter' && !event.shiftKey && !event.isComposing && !isOwnedElsewhere) {
+        event.preventDefault();
+        submitForm();
+    }
+});
 
 // The server parses each type, only DATETIME/TIME need normalizing back from the pickers' local shapes.
 function controlValue(control: HTMLElement): string {

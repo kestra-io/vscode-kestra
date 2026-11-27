@@ -159,6 +159,8 @@ export default class RunPanel implements RunOutput {
         return new Promise(resolve => {
             this._inputsResolver = resolve;
             this._pendingFiles = {};
+            // Focus the panel so the form takes the keyboard. Runs without inputs leave focus in the editor.
+            this._panel.reveal(undefined, false);
             this.post({type: 'inputs', inputs});
         });
     }
