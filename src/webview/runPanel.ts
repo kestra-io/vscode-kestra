@@ -256,7 +256,17 @@ function renderForm(inputs: FlowInput[]) {
 
     form.appendChild(createFormActions());
     form.hidden = false;
+    form.querySelector<HTMLElement>('input, select, textarea, button')?.focus();
 }
+
+// The form is a div, not a <form>, so Enter is wired by hand. Textareas keep Enter for new lines and buttons handle it natively.
+form.addEventListener('keydown', event => {
+    const target = event.target as HTMLElement;
+    if (event.key === 'Enter' && !event.shiftKey && !(target instanceof HTMLTextAreaElement) && !(target instanceof HTMLButtonElement)) {
+        event.preventDefault();
+        submitForm();
+    }
+});
 
 // The server parses each type, only DATETIME/TIME need normalizing back from the pickers' local shapes.
 function controlValue(control: HTMLElement): string {
