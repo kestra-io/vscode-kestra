@@ -42,7 +42,14 @@ export class EventEmitter<T> {
 
 export const commands = {executeCommand: async (..._args: unknown[]) => undefined};
 export const workspace = {getConfiguration: () => ({get: () => undefined})};
-export const window = {showWarningMessage: async () => undefined};
+export const window = {
+    showWarningMessage: async () => undefined,
+    showErrorMessage: async () => undefined,
+    showInformationMessage: async () => undefined,
+};
+
+export enum UIKind {Desktop = 1, Web = 2}
+export const env = {uiKind: UIKind.Desktop};
 
 // Type-only members the provider imports, including the proposed file-search API.
 export type ProviderResult<T> = T | undefined | null | Thenable<T | undefined | null>;
