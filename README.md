@@ -40,6 +40,7 @@ Author, run, and inspect Kestra flows in VS Code: live validation, `{{ }}` autoc
 - **Topology preview**: the flow's graph rendered from the YAML as you edit, with live task states during a run.
 - **Namespace files**: browse and edit a namespace's files as a folder, or push a local file or folder up to a namespace.
 - **Documentation**: the Kestra docs and plugin reference beside the editor, following the cursor.
+- **Kestra color themes**: the syntax colors of the Kestra UI and docs, under Preferences: Color Theme (Kestra Dark, Kestra Light, Kestra Dark Classic, Kestra Midnight, and a high contrast variant of Dark and Light). Pebble `{{ }}` and `{% %}` blocks in YAML get their own color.
 
 ## Requirements
 
